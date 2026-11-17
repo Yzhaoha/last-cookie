@@ -258,10 +258,27 @@ const SIM = (() => {
     const killer = (p.lastHit >= 0 && S.t - p.lastHitT < 3) ? p.lastHit : -1;
     if (killer >= 0) S.players[killer].kills++;
     ev(S, { k: 'fall', p: p.id, by: killer, x: p.x, z: p.z });
-    if (!p.bot && canRevive(S)) for (let i = 0; i < 2; i++) { const a = S.rnd() * 6.283, d = 1.6 + i * 1.4; S.floats.push({ id: S.floatId++, x: p.x + Math.cos(a) * d, z: p.z + Math.sin(a) * d, t: 0, mine: p.id }); }
+    if (!p.bot && canRevive(S)) for (const [x, z] of reachableSpots(S, p.x, p.z, 2)) S.floats.push({ id: S.floatId++, x, z, t: 0, mine: p.id });
     if (killer >= 0 && !S.players[killer].alive && canRevive(S)) revive(S, S.players[killer], 'swap', p.x, p.z);
   }
 
+  // 小鱼游得到的水面（掉进饼干中间的洞里时，只在洞里找），挑离得不远不近的几个点
+  function reachableSpots(S, x0, z0, n) {
+    const st = 0.5, lim = CFG.R + 4.5, W = Math.ceil(lim * 2 / st) + 1, seen = new Uint8Array(W * W);
+    const ix = v => Math.round((v + lim) / st), wx = i => i * st - lim;
+    const wet = (i, j) => { const x = wx(i), z = wx(j); return x * x + z * z <= lim * lim && !solid(cellAt(S.ck, x, z)); };
+    const q = [[ix(x0), ix(z0)]], pts = []; seen[q[0][1] * W + q[0][0]] = 1;
+    while (q.length) {
+      const [i, j] = q.pop(); const x = wx(i), z = wx(j); pts.push([x, z, Math.hypot(x - x0, z - z0)]);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= W || b >= W || seen[b * W + a]) continue; seen[b * W + a] = 1; if (wet(a, b)) q.push([a, b]); }
+    }
+    // 离鱼 1.5~4 米最好；洞太小就用洞里最远的点
+    pts.sort((A, B) => Math.abs(A[2] - 2.5) - Math.abs(B[2] - 2.5));
+    const out = [];
+    for (const P of pts) { if (out.every(o => Math.hypot(o[0] - P[0], o[1] - P[1]) > 1.2)) out.push([P[0], P[1]]); if (out.length >= n) break; }
+    while (out.length < n && pts.length) out.push([pts[0][0], pts[0][1]]);
+    return out;
+  }
   function nearestSolid(S, x, z) { let b = null, bd = 1e9; for (const c of S.ck.cells) { if (c.state) continue; const d = (c.cx - x) ** 2 + (c.cz - z) ** 2; if (d < bd) { bd = d; b = c; } } return b; }
   function canRevive(S) { return S.phase === 'play' && S.playT < CFG.REVIVE_UNTIL; }
   function revive(S, p, why, nx, nz) {
@@ -414,7 +431,7 @@ const SIM = (() => {
       }
     }
 
-    for (const fl of S.floats) { fl.t += dt; fl.x += Math.sin(fl.t * 0.7 + fl.id) * 0.15 * dt; fl.z += Math.cos(fl.t * 0.6 + fl.id * 2) * 0.15 * dt; }
+    for (const fl of S.floats) { fl.t += dt; if (fl.mine != null) continue; fl.x += Math.sin(fl.t * 0.7 + fl.id) * 0.15 * dt; fl.z += Math.cos(fl.t * 0.6 + fl.id * 2) * 0.15 * dt; }
     // --- 结束 ---
     if (playing && (S.alive <= 1 || S.playT > C.MAX_T)) {
       S.phase = 'end'; S.phaseT = 0;
