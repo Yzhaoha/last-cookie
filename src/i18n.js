@@ -36,7 +36,7 @@ const TL = {
   food: { en: 'Crumbs {n}/{m}', zh: '饼干碎 {n}/{m}' },
   pow: { en: 'POW!', zh: '砰！' },
   dunked: { en: '{b} dunked you!', zh: '你被 {b} 撞下去了！' },
-  fishTip2: { en: 'Eat 3 floating crumbs to climb back — or knock someone in to swap places!', zh: '吃 3 块漂着的饼干碎就能爬回去，或者把人撞下来换你上去！' },
+  fishTip2: { en: 'Eat 2 floating crumbs to climb back — or knock someone in to swap places!', zh: '吃 2 块漂着的饼干碎就能爬回去，或者把人撞下来换你上去！' },
   fishTipLate: { en: 'Final round — jump at players to knock them off!', zh: '决战了，不能复活：跳起来把人撞下去！' },
   fishTip: { en: 'You\'re a fish now! Swim near the cookie and JUMP to knock someone off', zh: '你变成小鱼了！游到饼干边，按冲撞跳起来撞人' },
   fishTipT: { en: 'You\'re a fish now! Swim close and tap JUMP to knock someone off', zh: '你变成小鱼了！游到饼干边，点「跳」撞人' },

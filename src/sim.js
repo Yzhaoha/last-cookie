@@ -9,7 +9,8 @@ const SIM = (() => {
     KFRIC: 6,         // 被撞后滑行衰减
     BODY_R: 0.46,
     // 踩裂：每秒增加的裂纹（1 = 掉下去）
-    CRACK_RUN: 0.045, CRACK_IDLE: 0.015,
+    CRACK_RUN: 0.03, CRACK_IDLE: 0.01,
+    ME_CRACK: 0.6,      // 玩家自己脚下碎得更慢
     // 咬
     BITE_CD: 0.5, BITE_DMG: 0.26, BITE_REACH: 1.15, BITE_ROOT: 0.14,
     HIDDEN_CHIP: 0.28,  // 每块饼干里藏着巧克力豆的概率
@@ -23,14 +24,14 @@ const SIM = (() => {
     POWER: [1, 1.3, 1.62, 1.95],   // 撞人力度
     MASS: [1, 1.25, 1.55, 1.9],    // 抗撞
     SLOW: [1, 0.96, 0.92, 0.88],
-    SPREAD: 0.08,       // 一块掉下去，邻块裂纹 +
+    SPREAD: 0.05,       // 一块掉下去，邻块裂纹 +
     FALL_T: 0.9,
     // 边缘自动塌
     ERODE_START: 30, ERODE_RATE: 0.13, ERODE_CRACK: 0.9,
     // 小鱼
     FISH_SPEED: 4.6, FISH_CD: 3.2, FISH_RANGE: 3.4, FISH_K: 8, FISH_JUMP_T: 0.5,
     COUNT_T: 3, MAX_T: 100,
-    REVIVE_UNTIL: 60, FOOD_NEED: 3, FLOAT_MAX: 14, INV_T: 1.6,
+    REVIVE_UNTIL: 75, FOOD_NEED: 2, FLOAT_MAX: 20, INV_T: 1.6,
   };
 
   function rng(seed) {
@@ -83,7 +84,7 @@ const SIM = (() => {
         if (on >= 2) c.nbrs.push(j);
       }
       delete c.cand;
-      c.hp = r() < 0.2 ? 0.15 + r() * 0.2 : 0.6 + r() * r() * 1.3 + r() * 0.3;
+      c.hp = r() < 0.12 ? 0.45 + r() * 0.2 : 0.75 + r() * r() * 1.3 + r() * 0.3;
       if (r() < CFG.VISIBLE_CHIP && c.dist < CFG.R - 0.8) { c.chip = true; const a = r() * 6.283, d = r() * 0.35; c.chipPos = [c.cx + Math.cos(a) * d, c.cz + Math.sin(a) * d]; }
       else c.hidden = r() < CFG.HIDDEN_CHIP;
     }
@@ -105,7 +106,7 @@ const SIM = (() => {
     return best;
   }
   const solid = c => c && c.state === 0;
-  const standable = c => c && (c.state === 0 || (c.state === 1 && c.fallT < 0.4));
+  const standable = c => c && (c.state === 0 || (c.state === 1 && c.fallT < 0.6));
 
   const SNACKS = ['macaron', 'donut', 'pudding', 'cupcake', 'macaron', 'donut', 'pudding', 'cupcake', 'macaron'];
 
@@ -144,6 +145,7 @@ const SIM = (() => {
     const killer = (p.lastHit >= 0 && S.t - p.lastHitT < 3) ? p.lastHit : -1;
     if (killer >= 0) S.players[killer].kills++;
     ev(S, { k: 'fall', p: p.id, by: killer, x: p.x, z: p.z });
+    if (!p.bot && canRevive(S)) for (let i = 0; i < 2; i++) { const a = S.rnd() * 6.283, d = 1.6 + i * 1.4; S.floats.push({ id: S.floatId++, x: p.x + Math.cos(a) * d, z: p.z + Math.sin(a) * d, t: 0, mine: p.id }); }
     if (killer >= 0 && !S.players[killer].alive && canRevive(S)) revive(S, S.players[killer], 'swap', p.x, p.z);
   }
 
@@ -216,7 +218,14 @@ const SIM = (() => {
       p.inp.bite = false;
       let vx = p.mvx + p.kvx, vz = p.mvz + p.kvz;
       if (p.dashT > 0) { p.dashT -= dt; vx = p.dashX * C.DASH_SPEED + p.kvx * 0.3; vz = p.dashZ * C.DASH_SPEED + p.kvz * 0.3; }
-      p.x += vx * dt; p.z += vz * dt;
+      {
+        const nx = p.x + vx * dt, nz = p.z + vz * dt;
+        const pushed = p.dashT > 0 || Math.hypot(p.kvx, p.kvz) > 1.5;
+        if (!pushed && standable(cellAt(ck, p.x, p.z)) && !standable(cellAt(ck, nx, nz))) {
+          // 走到洞边停住，沿着边滑
+          if (standable(cellAt(ck, nx, p.z))) p.x = nx; else if (standable(cellAt(ck, p.x, nz))) p.z = nz;
+        } else { p.x = nx; p.z = nz; }
+      }
       const kf = Math.exp(-C.KFRIC * dt); p.kvx *= kf; p.kvz *= kf;
       // 走过去就吃到看得见的巧克力豆
       if (playing) {
@@ -236,7 +245,7 @@ const SIM = (() => {
       const under = cellAt(ck, p.x, p.z);
       if (playing && solid(under)) {
         const sp2 = Math.hypot(vx, vz);
-        const rate = (sp2 > 1 ? C.CRACK_RUN : C.CRACK_IDLE) * C.WEIGHT[p.lvl] * (S.tutorial && !p.bot && S.playT < 20 ? 0.4 : 1);
+        const rate = (sp2 > 1 ? C.CRACK_RUN : C.CRACK_IDLE) * C.WEIGHT[p.lvl] * (p.bot ? 1 : C.ME_CRACK) * (S.tutorial && !p.bot && S.playT < 20 ? 0.4 : 1);
         addCrack(S, under, rate * dt, p.id);
       }
       // 掉下去（冲撞时腾空，能越过小缝，落地才算）
@@ -288,7 +297,7 @@ const SIM = (() => {
           ev(S, { k: 'break', c: c.id, x: c.cx, z: c.cz });
         }
       } else if (c.state === 1) {
-        c.fallT += dt; if (c.fallT >= C.FALL_T) { c.state = 2; ev(S, { k: 'sink', c: c.id, x: c.cx, z: c.cz }); if (S.floats.length < C.FLOAT_MAX && S.rnd() < 0.75) S.floats.push({ id: S.floatId++, x: c.cx, z: c.cz, t: 0 }); }
+        c.fallT += dt; if (c.fallT >= C.FALL_T) { c.state = 2; ev(S, { k: 'sink', c: c.id, x: c.cx, z: c.cz }); if (S.floats.length < C.FLOAT_MAX) S.floats.push({ id: S.floatId++, x: c.cx, z: c.cz, t: 0 }); }
       }
     }
 
@@ -348,7 +357,8 @@ const SIM = (() => {
     if (ml > 0.15) f.face = Math.atan2(mx, mz);
     for (let i = S.floats.length - 1; i >= 0; i--) {
       const fl = S.floats[i];
-      if (Math.hypot(fl.x - f.x, fl.z - f.z) < 0.9) {
+      if (fl.mine != null && fl.mine !== p.id) continue;
+      if (Math.hypot(fl.x - f.x, fl.z - f.z) < 1.1) {
         S.floats.splice(i, 1); f.food = (f.food || 0) + 1;
         ev(S, { k: 'eat', p: p.id, x: fl.x, z: fl.z, id: fl.id, n: f.food });
         if (f.food >= C.FOOD_NEED && canRevive(S)) { revive(S, p, 'food'); return; }
@@ -382,7 +392,7 @@ const SIM = (() => {
       const f = p.fish; if (!f) return;
       if (ai.t > 0) return; ai.t = 0.2 + Math.random() * 0.15;
       if (canRevive(S) && S.floats.length) {
-        let fb = null, fd = 1e9; for (const fl of S.floats) { const d = Math.hypot(fl.x - f.x, fl.z - f.z); if (d < fd) { fd = d; fb = fl; } }
+        let fb = null, fd = 1e9; for (const fl of S.floats) { if (fl.mine != null && fl.mine !== p.id) continue; const d = Math.hypot(fl.x - f.x, fl.z - f.z); if (d < fd) { fd = d; fb = fl; } }
         if (fb && fd < 9) { inp.mx = (fb.x - f.x) / (fd || 1); inp.mz = (fb.z - f.z) / (fd || 1); return; }
       }
       let best = null, bd = 1e9;
@@ -442,7 +452,8 @@ const SIM = (() => {
       const dx = (tgt.x - p.x) / td, dz = (tgt.z - p.z) / td;
       const behind = danger(S, tgt.x + dx * 2.2, tgt.z + dz * 2.2);
       const myAhead = Math.max(danger(S, p.x + dx * 1.2, p.z + dz * 1.2), danger(S, p.x + dx * Math.min(td, 2.6), p.z + dz * Math.min(td, 2.6)));
-      if (S.playT > 6 && (behind >= 4 ? Math.random() < 0.55 : Math.random() < (aggressive === 1 ? 0.2 : 0.08)) && myAhead < 4) {
+      const meK = tgt.bot ? 1 : 0.4;
+      if (S.playT > 6 && (behind >= 4 ? Math.random() < 0.55 * meK : Math.random() < (aggressive === 1 ? 0.2 : 0.08) * meK) && myAhead < 4) {
         inp.dash = true; inp.mx = dx; inp.mz = dz;
       }
     }
