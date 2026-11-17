@@ -16,8 +16,22 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 .out{color:#fff;text-shadow:0 2px 0 var(--ink),2px 0 0 var(--ink),-2px 0 0 var(--ink),0 -2px 0 var(--ink),2px 2px 0 var(--ink),-2px 2px 0 var(--ink),2px -2px 0 var(--ink),-2px -2px 0 var(--ink),0 4px 0 rgba(74,38,18,.35)}
 #top{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;pointer-events:none;z-index:5}
 .pill{background:var(--cream);border:3px solid var(--ink);border-radius:999px;padding:4px 14px 5px;font-size:20px;box-shadow:0 4px 0 rgba(74,38,18,.35);white-space:nowrap}
-#aliveP b{color:#d0521b}
-#feed{position:fixed;top:max(58px,calc(env(safe-area-inset-top) + 48px));right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;z-index:5}
+#timeP.hot{background:#ff6b5a;color:#fff}
+#prog{position:relative;width:min(46vw,300px);height:34px;background:var(--cream);border:3px solid var(--ink);border-radius:999px;box-shadow:0 4px 0 rgba(74,38,18,.35);overflow:hidden}
+#progFill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);transition:width .2s linear}
+#prog.mine #progFill{background:#7be07b}
+#progTxt{position:absolute;inset:0;display:grid;place-items:center;font-size:19px}
+#board{position:fixed;top:max(62px,calc(env(safe-area-inset-top) + 54px));right:12px;display:flex;flex-direction:column;gap:3px;pointer-events:none;z-index:5;font-size:14px}
+#board div{display:flex;align-items:center;gap:6px;background:rgba(255,246,230,.9);border:2px solid var(--ink);border-radius:10px;padding:2px 8px;min-width:150px}
+#board div.me{background:#ffe5a8}
+#board div.has{border-color:#e0791b;box-shadow:0 0 0 2px #ffc93c}
+#board span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px}
+#board u{width:44px;height:8px;border:2px solid var(--ink);border-radius:6px;background:#fff;overflow:hidden;text-decoration:none}
+#board em{display:block;height:100%;background:var(--gold)}
+#board .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);flex:none}
+#ptr{position:fixed;transform:translate(-50%,-50%);z-index:5;pointer-events:none;font-size:26px;width:46px;height:46px;display:grid;place-items:center;background:var(--cream);border:3px solid var(--ink);border-radius:50%;box-shadow:0 4px 0 rgba(74,38,18,.35)}
+#ptrA{position:absolute;left:50%;top:50%;width:0;height:0;margin:-9px 0 0 -6px;border:9px solid transparent;border-left:13px solid #e0791b;transform-origin:6px 9px}
+#feed{position:fixed;top:max(180px,calc(env(safe-area-inset-top) + 172px));right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;z-index:5}
 #feed div{background:rgba(255,246,230,.92);border:2px solid var(--ink);border-radius:10px;padding:2px 9px;font-size:14px;animation:fin .25s ease-out}
 @keyframes fin{from{transform:translateX(30px);opacity:0}}
 #banner{position:fixed;left:50%;top:22%;transform:translate(-50%,-50%);text-align:center;font-size:clamp(20px,3.2vw,32px);max-width:min(92vw,720px);pointer-events:none;z-index:6;line-height:1.15}
@@ -30,8 +44,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 #intro div:nth-child(2){animation-delay:.15s}#intro div:nth-child(3){animation-delay:.3s}
 #intro b{display:block;font-size:46px;font-weight:normal;line-height:1.2}
 #intro i{display:block;font-style:normal;font-size:13px;opacity:.7;margin-top:4px}
-#foodP{position:fixed;left:50%;top:max(56px,calc(env(safe-area-inset-top) + 50px));transform:translateX(-50%);z-index:5;pointer-events:none;font-size:22px}
-#revP.final{background:#ff6b5a;color:#fff}
 #chipBox{position:fixed;left:14px;bottom:max(14px,calc(env(safe-area-inset-bottom) + 10px));display:flex;align-items:center;gap:8px;pointer-events:none;z-index:5}
 #chipIco{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#a8673d 0 12%,#4a2312 40%,#2c1308 75%);border:3px solid var(--ink);box-shadow:0 4px 0 rgba(74,38,18,.35);display:grid;place-items:center;font-size:22px;color:#fff}
 #chipTxt{font-size:15px;line-height:1.1}
@@ -46,13 +58,11 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 #touch{position:fixed;inset:0;z-index:4;pointer-events:none}
 #touch .tb{position:absolute;pointer-events:auto;border-radius:50%;border:4px solid var(--ink);display:grid;place-items:center;font-size:18px;color:#fff;box-shadow:0 5px 0 rgba(74,38,18,.45)}
 #tbDash{width:96px;height:96px;right:max(22px,env(safe-area-inset-right));bottom:max(28px,calc(env(safe-area-inset-bottom) + 18px));background:radial-gradient(circle at 40% 30%,#ff9cbd,#ef4f86)}
-#tbBite{width:70px;height:70px;right:calc(max(22px,env(safe-area-inset-right)) + 104px);bottom:max(40px,calc(env(safe-area-inset-bottom) + 30px));background:radial-gradient(circle at 40% 30%,#ffd57a,#e8962a)}
 #touch .tb.cd{filter:grayscale(.6) brightness(.85)}
 #touch .tb svg{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);transform:rotate(-90deg);pointer-events:none}
 #stick{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,246,230,.35);border:3px solid rgba(74,38,18,.5);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:var(--cream);border:3px solid var(--ink)}
 body.lefty #tbDash{right:auto;left:max(22px,env(safe-area-inset-left))}
-body.lefty #tbBite{right:auto;left:calc(max(22px,env(safe-area-inset-left)) + 104px)}
 body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
 #tags div{position:absolute;transform:translate(-50%,-100%);font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
@@ -80,15 +90,15 @@ body.lefty #chipBox{left:auto;right:14px}
 #adblock{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.01)}
 @media (max-width:640px),(max-height:480px){
   .pill{font-size:15px;padding:3px 9px 4px}
-  #timeP{display:none}
-  #top{left:12px;transform:none;gap:6px}
+  #top{left:10px;transform:none;gap:6px}
+  #prog{width:38vw;height:28px}#progTxt{font-size:15px}
+  #board{font-size:11px;top:max(60px,calc(env(safe-area-inset-top) + 52px));right:8px}#board div{min-width:0;padding:1px 6px}#board span{max-width:52px}#board u{width:30px}
   #banner{top:20%}
   #feed{display:none}
   #chipIco{width:38px;height:38px;font-size:18px}
   #chipTxt{font-size:13px}
-  #tip{bottom:auto;top:max(56px,calc(env(safe-area-inset-top) + 50px));font-size:15px}
+  #tip{bottom:auto;top:max(52px,calc(env(safe-area-inset-top) + 46px));left:10px;transform:none;max-width:56vw;text-align:left;font-size:14px;padding:5px 10px 6px}
   #intro{gap:8px;top:62%}#intro div{width:104px;font-size:14px;padding:8px 4px}#intro b{font-size:34px}
-  #foodP{top:auto;bottom:150px}
 }
 </style>
 </head>
@@ -97,15 +107,16 @@ body.lefty #chipBox{left:auto;right:14px}
 <div id="vig"></div>
 <div id="tags"></div>
 <div id="floats"></div>
-<div id="top"><div class="pill out" id="aliveP"></div><div class="pill" id="timeP">0:00</div><div class="pill" id="revP"></div></div>
-<div id="intro" hidden><div><b>🍪</b><span data-t="intro1"></span></div><div><b>🍫</b><span data-t="intro2"></span><i id="introK1"></i></div><div><b>💥</b><span data-t="intro3"></span><i id="introK2"></i></div></div>
-<div id="foodP" class="pill" hidden></div>
+<div id="top"><div class="pill" id="timeP">0:00</div><div id="prog"><div id="progFill"></div><span id="progTxt" class="out"></span></div></div>
+<div id="board"></div>
+<div id="ptr" hidden><i id="ptrA"></i>🍪</div>
+<div id="intro" hidden><div><b>🍪</b><span data-t="intro1"></span></div><div><b>🏃</b><span data-t="intro2"></span></div><div><b>💥</b><span data-t="intro3"></span></div></div>
 <div id="feed"></div>
 <div id="banner" class="out"></div>
 <div id="tip" hidden></div>
 <div id="chipBox"><div id="chipIco" class="out">0</div><div><div id="chipTxt" class="out"></div><div id="pips"><i></i><i></i><i></i><i></i></div></div></div>
-<div id="keys"><span data-t="keysBite"></span><br><span data-t="keysDash"></span></div>
-<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbBite"><span data-t="bite"></span></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
+<div id="keys"><span data-t="keysDash"></span></div>
+<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
 <div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button><div id="rank"></div></div></div>
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button></div></div>
