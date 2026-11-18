@@ -118,7 +118,7 @@ body.lefty #chipBox{left:auto;right:14px}
 <div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
 <div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button><div id="rank"></div></div></div>
-<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button></div></div>
+<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 const THREE = await import('./three.module.min.js');
@@ -1102,7 +1102,7 @@ function handleEvents() {
       case 'bonk': {
         const mine = e.a === ME || e.b === ME;
         if (mine || near(e.x, e.z)) SFX.bonk(mine ? e.f : e.f * 0.5);
-        if (mine) { camShake = 0.4; hitstop = 0.08; float(e.x, 1.3, e.z, tl('pow'), '#ffd23f'); }
+        if (mine) { camShake = 0.4; hitstop = 0.045; float(e.x, 1.3, e.z, tl('pow'), '#ffd23f'); }
         for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283; emit(stars, e.x, 0.9, e.z, Math.cos(a) * 4, 1 + Math.random() * 3, Math.sin(a) * 4, 0.45, 1, 0.5); }
         actors[e.a].flash = actors[e.b].flash = 0.15;
         break;
@@ -1247,24 +1247,41 @@ function updateActors(dt, now) {
   chipIM.count = n; chipIM.instanceMatrix.needsUpdate = true;
 }
 
+// ---------- 画面卡就自动降画质（先降清晰度，再关影子） ----------
+const QL = IS_TOUCH ? [[1.5, 1], [1.15, 1], [1, 0], [0.75, 0]] : [[2, 1], [1.5, 1], [1.1, 1], [1, 0], [0.75, 0]];
+let qLvl = 0, qT = 0, qN = 0, qBad = 0, fpsNow = 60;
+function setQuality(l) {
+  qLvl = clamp(l, 0, QL.length - 1); const [pr, sh] = QL[qLvl];
+  renderer.setPixelRatio(Math.min(pr, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight, false);
+  if (renderer.shadowMap.enabled !== !!sh) { renderer.shadowMap.enabled = !!sh; sun.castShadow = !!sh; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
+}
+function autoQuality(dt) {
+  qT += dt; qN++;
+  if (qT < 1) return;
+  fpsNow = qN / qT; qT = 0; qN = 0;
+  $('fpsTxt').textContent = Math.round(fpsNow) + ' FPS · Q' + (QL.length - qLvl);
+  if (fpsNow < 45) { if (++qBad >= 2 && qLvl < QL.length - 1) { qBad = 0; setQuality(qLvl + 1); } } else qBad = 0;
+}
+
 // ---------- 主循环 ----------
 let last = performance.now(), acc = 0, hitstop = 0;
 const STEP = 1 / 60;
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const rawDt = dt;
   const tsec = now / 1000;
   if (hitstop > 0) { hitstop -= dt; dt *= 0.05; }
   if (!paused && !PF.adBusy) {
-    acc += dt;
-    let n = 0;
-    while (acc >= STEP && n < 6) {
-      acc -= STEP; n++;
+    // 每一帧都按实际时间走，屏幕刷新多快人就动多顺（帧太长就拆成几小步）
+    const n = Math.max(1, Math.ceil(dt / (1 / 50))), h = dt / n;
+    for (let i = 0; i < n && h > 0; i++) {
       readInput(S.players[ME]);
-      SIM.thinkBots(S, STEP);
-      SIM.step(S, STEP);
+      SIM.thinkBots(S, h);
+      SIM.step(S, h);
       handleEvents();
     }
+    autoQuality(rawDt);
   } else dt = 0;
   updateActors(dt, tsec);
   stepPool(crumbs, dt, true); stepPool(stars, dt, false); stepPool(chipsFly, dt, false);
