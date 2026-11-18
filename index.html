@@ -131,7 +131,7 @@ const SIM = (() => {
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
     WIN_T: 25,            // 累计抱满这么多秒就赢
-    MAX_T: 120,           // 最长一局；到点谁吃得多谁赢
+    MAX_T: 180,           // 只是保险：正常都是有人先吃完；真拖到这时谁吃得多谁赢（界面最后 20 秒才显示倒计时）
     COUNT_T: 3,
     // 冲撞
     DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.2, DASH_K: 9, STUN_T: 0.35,
@@ -534,13 +534,13 @@ const TL = {
   dash: { en: 'BUMP', zh: '冲撞' },
   keysDash: { en: 'Space / K  bump', zh: '空格 / K  冲撞' },
   intro1: { en: 'Grab the cookie', zh: '抢到饼干' },
-  intro2: { en: 'Run! Hold it to eat it', zh: '抱着跑，吃完就赢' },
+  intro2: { en: 'Holding = eating. First to 100% wins', zh: '抱着就在吃，先吃到 100% 的赢' },
   intro3: { en: 'Bump the holder to steal it', zh: '撞抱饼干的人，抢过来' },
   tipLoose: { en: 'Follow the yellow arrow — grab the cookie!', zh: '跟着黄色箭头，去捡饼干！' },
   tipChase: { en: 'Chase the cookie holder. Red ring = in range: press Space to bump and steal!', zh: '追抱饼干的人。他脚下出现红圈时按空格，把饼干撞过来！' },
   tipChaseT: { en: 'Chase the cookie holder. Red ring = in range: tap BUMP to steal!', zh: '追抱饼干的人。他脚下出现红圈时点「冲撞」，把饼干撞过来！' },
-  tipCarry: { en: 'You have it — RUN! Fill the bar to win. Space = quick burst to get away', zh: '饼干在你手里，快跑！进度条满了就赢。按空格可以冲一下甩开人' },
-  tipCarryT: { en: 'You have it — RUN! Fill the bar to win. BUMP = quick burst to get away', zh: '饼干在你手里，快跑！进度条满了就赢。点「冲撞」可以冲一下甩开人' },
+  tipCarry: { en: 'You have it — RUN! Fill the bar to win. Space = quick burst to get away', zh: '饼干在你手里，快跑！抱着就在涨进度，涨到 100% 立刻赢。按空格可以冲一下甩开人' },
+  tipCarryT: { en: 'You have it — RUN! Fill the bar to win. BUMP = quick burst to get away', zh: '饼干在你手里，快跑！抱着就在涨进度，涨到 100% 立刻赢。点「冲撞」可以冲一下甩开人' },
   tipFell: { en: 'Knocked off the table! Back in a moment…', zh: '被撞下桌子了，马上回来…' },
   gotIt: { en: 'You got the cookie!', zh: '饼干到手！快跑！' },
   lostIt: { en: '{b} stole your cookie!', zh: '{b} 抢走了你的饼干！' },
@@ -550,7 +550,7 @@ const TL = {
   fellSelf: { en: 'You fell off!', zh: '你掉下桌子了！' },
   almost: { en: '{a} has almost finished it — stop them!', zh: '{a} 快吃完了，快去抢！' },
   almostMe: { en: 'Almost done — hold on!', zh: '你快吃完了，撑住！' },
-  last10: { en: 'Last 10 seconds!', zh: '最后 10 秒！' },
+  last10: { en: 'Last 20 seconds — most eaten wins!', zh: '最后 20 秒！到点谁吃得多谁赢' },
   pow: { en: 'POW!', zh: '砰！' },
   win: { en: 'YOU WIN!', zh: '你赢了！' },
   winner: { en: '{a} wins!', zh: '{a} 赢了！' },
@@ -1122,8 +1122,10 @@ let boardKey = '';
 function updateHUD() {
   const me = S.players[ME], holder = S.cookie.holder;
   const left = Math.max(0, Math.ceil(C.MAX_T - (S.playT || 0)));
-  $('timeP').textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
-  $('timeP').classList.toggle('hot', left <= 10 && S.phase === 'play');
+  // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
+  const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
+  $('timeP').textContent = late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—');
+  $('timeP').classList.toggle('hot', late);
   // 我的进度条
   $('progFill').style.width = (me.eaten / C.WIN_T * 100).toFixed(1) + '%';
   $('progTxt').textContent = '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%';
@@ -1264,7 +1266,7 @@ function handleEvents() {
     // 有人快吃完了：提醒去抢
     const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a);
     if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
-    if (!last10 && S.playT > C.MAX_T - 10) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
+    if (!last10 && S.playT > C.MAX_T - 20) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
   }
 }
 

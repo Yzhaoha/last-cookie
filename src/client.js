@@ -538,8 +538,10 @@ let boardKey = '';
 function updateHUD() {
   const me = S.players[ME], holder = S.cookie.holder;
   const left = Math.max(0, Math.ceil(C.MAX_T - (S.playT || 0)));
-  $('timeP').textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
-  $('timeP').classList.toggle('hot', left <= 10 && S.phase === 'play');
+  // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
+  const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
+  $('timeP').textContent = late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—');
+  $('timeP').classList.toggle('hot', late);
   // 我的进度条
   $('progFill').style.width = (me.eaten / C.WIN_T * 100).toFixed(1) + '%';
   $('progTxt').textContent = '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%';
@@ -680,7 +682,7 @@ function handleEvents() {
     // 有人快吃完了：提醒去抢
     const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a);
     if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
-    if (!last10 && S.playT > C.MAX_T - 10) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
+    if (!last10 && S.playT > C.MAX_T - 20) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
   }
 }
 

@@ -7,7 +7,7 @@ const SIM = (() => {
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
     WIN_T: 25,            // 累计抱满这么多秒就赢
-    MAX_T: 120,           // 最长一局；到点谁吃得多谁赢
+    MAX_T: 180,           // 只是保险：正常都是有人先吃完；真拖到这时谁吃得多谁赢（界面最后 20 秒才显示倒计时）
     COUNT_T: 3,
     // 冲撞
     DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.2, DASH_K: 9, STUN_T: 0.35,
