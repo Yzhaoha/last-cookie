@@ -549,8 +549,8 @@ const TL = {
   intro2: { en: 'Holding = eating. First to 100% wins', zh: '抱着就在吃，先吃到 100% 的赢' },
   intro3: { en: 'Bump the holder to steal it', zh: '撞抱饼干的人，抢过来' },
   tipLoose: { en: 'Follow the yellow arrow — grab the cookie!', zh: '跟着黄色箭头，去捡饼干！' },
-  tipChase: { en: 'Chase the cookie holder. Red ring = in range: press Space to bump and steal!', zh: '追抱饼干的人。他脚下出现红圈时按空格，把饼干撞过来！' },
-  tipChaseT: { en: 'Chase the cookie holder. Red ring = in range: tap BUMP to steal!', zh: '追抱饼干的人。他脚下出现红圈时点「冲撞」，把饼干撞过来！' },
+  tipChase: { en: 'Chase the cookie holder. Red ring = in range: press Space to bump and steal!', zh: '追抱饼干的人，按空格撞他，把饼干抢过来！他脚下的圈变红 = 现在按一定撞得到' },
+  tipChaseT: { en: 'Chase the cookie holder. Red ring = in range: tap BUMP to steal!', zh: '追抱饼干的人，点「冲撞」撞他，把饼干抢过来！他脚下的圈变红 = 现在点一定撞得到' },
   tipCarry: { en: 'You have it — RUN! 100% wins. Press J to jump over bumps, Space to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时按 J 跳起来躲开，空格冲一下甩开人' },
   tipCarryT: { en: 'You have it — RUN! 100% wins. Tap JUMP to dodge bumps, BUMP to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时点「跳」躲开，点「冲撞」甩开人' },
   tipFell: { en: 'Knocked off the table! Back in a moment…', zh: '被撞下桌子了，马上回来…' },
@@ -966,7 +966,7 @@ function updateGuides(now) {
     arrow.visible = true; arrow.position.set(me.x + Math.sin(a) * r, 0.3, me.z + Math.cos(a) * r); arrow.rotation.set(0, a, 0);
     arrow.material.opacity = 0.65 + 0.3 * Math.sin(now * 6);
   }
-  if (holder && me.on && me.dashCd <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
+  if (holder && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
@@ -1379,7 +1379,7 @@ function updateActors(dt, now) {
     cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
     cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * p.eaten / C.WIN_T);
     beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
-    ckRing.material.color.set(holder === ME ? 0x6fe36f : 0xffc93c);
+    ckRing.material.color.set(p.guard > 0 ? 0x7fd4ff : holder === ME ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
   } else {
     cookieObj.position.set(ck.x, 0.75 + Math.sin(now * 3) * 0.15, ck.z); cookieObj.rotation.set(0.5, now * 2, 0); cookieObj.scale.setScalar(1.5);
     beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);
