@@ -62,6 +62,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 #touch .tb svg{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);transform:rotate(-90deg);pointer-events:none}
 #stick{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,246,230,.35);border:3px solid rgba(74,38,18,.5);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:var(--cream);border:3px solid var(--ink)}
+#tbJump{width:74px;height:74px;right:calc(max(22px,env(safe-area-inset-right)) + 106px);bottom:max(36px,calc(env(safe-area-inset-bottom) + 26px));background:radial-gradient(circle at 40% 30%,#9fe0ff,#3d9be0)}
+body.lefty #tbJump{right:auto;left:calc(max(22px,env(safe-area-inset-left)) + 106px)}
 body.lefty #tbDash{right:auto;left:max(22px,env(safe-area-inset-left))}
 body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
@@ -115,8 +117,8 @@ body.lefty #chipBox{left:auto;right:14px}
 <div id="banner" class="out"></div>
 <div id="tip" hidden></div>
 <div id="chipBox"><div id="chipIco" class="out">0</div><div><div id="chipTxt" class="out"></div><div id="pips"><i></i><i></i><i></i><i></i></div></div></div>
-<div id="keys"><span data-t="keysDash"></span></div>
-<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
+<div id="keys"><span data-t="keysJump"></span><br><span data-t="keysDash"></span></div>
+<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbJump"><span data-t="jump"></span></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
 <div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button><div id="rank"></div></div></div>
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>

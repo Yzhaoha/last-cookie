@@ -447,6 +447,7 @@ const SFX = {
   fall() { tone(700, 160, 0.5, 0.22, 'triangle'); },
   fish() { tone(300, 900, 0.12, 0.2, 'sine'); },
   beep(hi) { tone(hi ? 1046 : 660, hi ? 1046 : 660, hi ? 0.35 : 0.14, 0.2, 'square'); },
+  jump(me) { tone(300, 700, 0.16, me ? 0.2 : 0.07, 'sine'); },
   wave(me) { tone(140, 50, 0.3, me ? 0.5 : 0.2, 'sine'); noise(0.25, 500, 120, 0.8, me ? 0.4 : 0.15, 'lowpass'); },
   block() { tone(1400, 900, 0.12, 0.25, 'triangle'); tone(2100, 1500, 0.1, 0.12, 'sine', 0.03); },
   freeze() { [1800, 1500, 1200].forEach((f, i) => tone(f, f * 0.9, 0.12, 0.14, 'sine', i * 0.05)); },
@@ -456,15 +457,16 @@ const SFX = {
 
 // ---------- 输入 ----------
 const keys = new Set();
-let wantDash = false;
-const KB_BITE = [], KB_DASH = ['Space', 'KeyK', 'KeyJ', 'KeyX', 'ShiftLeft'];
+let wantDash = false, wantJump = false;
+const KB_DASH = ['Space', 'KeyK', 'KeyX'], KB_JUMP = ['KeyJ', 'KeyZ', 'ShiftLeft', 'ShiftRight'];
 addEventListener('keydown', e => {
-  if (e.repeat && KB_DASH.includes(e.code)) { e.preventDefault(); return; }
+  if (e.repeat && (KB_DASH.includes(e.code) || KB_JUMP.includes(e.code))) { e.preventDefault(); return; }
   ensureAudio();
   if (PF.adBusy) { e.preventDefault(); return; }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   keys.add(e.code);
   if (KB_DASH.includes(e.code)) wantDash = true;
+  if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || e.code === 'Escape') toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden) $('bAgain').click();
   usedKeys = true;
@@ -485,6 +487,7 @@ function setTouchMode(b) { touchMode = b; $('touch').hidden = !b; $('keys').hidd
 setTouchMode(IS_TOUCH);
 function btnDown(el, fn) { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); if (!PF.adBusy) fn(); el.style.transform = 'scale(.92)'; }); el.addEventListener('pointerup', () => el.style.transform = ''); el.addEventListener('pointerleave', () => el.style.transform = ''); }
 btnDown($('tbDash'), () => wantDash = true);
+btnDown($('tbJump'), () => wantJump = true);
 canvas.addEventListener('pointerdown', e => {
   ensureAudio();
   if (e.pointerType === 'mouse') return;
@@ -518,6 +521,8 @@ function readInput(me) {
   me.inp.mx = x; me.inp.mz = z;
   if (wantDash) me.inp.dash = true;
   wantDash = false;
+  if (wantJump) me.inp.jump = true;
+  wantJump = false;
 }
 
 // ---------- HUD ----------
@@ -560,6 +565,7 @@ function updateHUD() {
   const cd = clamp(me.dashCd / C.DASH_CD, 0, 1);
   $('dashRing').setAttribute('stroke-dashoffset', String(295 * cd));
   $('tbDash').classList.toggle('cd', cd > 0);
+  $('tbJump').classList.toggle('cd', me.jumpCd > 0);
   if (S.phase === 'play' && S.playT > 1.5 && !$('intro').hidden) { $('intro').style.opacity = 0; if (S.playT > 2) $('intro').hidden = true; }
   // 前两局：根据情况提示该干什么
   if (tipsOn && S.phase === 'play') {
@@ -664,6 +670,8 @@ function handleEvents() {
         else { feedMsg(tl('fell', { a: nameOf(e.p) })); if (e.by === ME) float(e.x, 1.2, e.z, '💥', '#fff'); }
         break;
       }
+      case 'jump': if (e.p === ME || near(S.players[e.p].x, S.players[e.p].z)) SFX.jump(e.p === ME); break;
+      case 'land': if (e.p === ME || near(e.x, e.z)) crumbBurst(e.x, 0.1, e.z, 5, 2); break;
       case 'wave': { waveFx(e.x, e.z, e.r); if (e.p === ME || near(e.x, e.z)) { SFX.wave(e.p === ME); crumbBurst(e.x, 0.1, e.z, 12, 4); } if (e.p === ME) camShake = Math.max(camShake, 0.3); break; }
       case 'block': { const p = S.players[e.p]; waveFx(p.x, p.z, 1.6, e.why === 'bubble' ? 0xbfeaff : 0xffd76a); if (e.p === ME || near(p.x, p.z)) SFX.block(); if (e.p === ME) float(p.x, 1.6, p.z, tl('blocked'), '#bfeaff'); break; }
       case 'item': {
@@ -738,7 +746,8 @@ function updateActors(dt, now) {
       const hopY = sp > 0.6 ? Math.abs(Math.sin(a.hop)) * 0.12 : 0;
       const sq = sp > 0.6 ? Math.cos(a.hop * 2) * 0.06 : Math.sin(now * 3 + i) * 0.02;
       let y = a.drop > 0 ? (a.drop / 0.45) ** 2 * 7 : 0; // 回到桌上：从天上掉下来
-      if (p.dashT > 0) y += Math.sin((1 - p.dashT / C.DASH_T) * Math.PI) * 0.35;
+      if (p.dashT > 0) y += Math.sin(clamp(1 - p.dashT / C.DASH_T, 0, 1) * Math.PI) * 0.35;
+      if (p.jumpT > 0) y += Math.sin((1 - p.jumpT / C.JUMP_T) * Math.PI) * 2.1;
       a.root.position.set(p.x, y, p.z);
       a.root.rotation.set(0, p.face, 0);
       const s = a.scale * popS * VIS;
@@ -749,7 +758,7 @@ function updateActors(dt, now) {
       sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
-      sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22;
+      sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
       a.ice.visible = p.frozenT > 0;
       const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
       if (p.boostT > 0 && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);

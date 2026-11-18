@@ -61,6 +61,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 #touch .tb svg{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);transform:rotate(-90deg);pointer-events:none}
 #stick{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,246,230,.35);border:3px solid rgba(74,38,18,.5);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:var(--cream);border:3px solid var(--ink)}
+#tbJump{width:74px;height:74px;right:calc(max(22px,env(safe-area-inset-right)) + 106px);bottom:max(36px,calc(env(safe-area-inset-bottom) + 26px));background:radial-gradient(circle at 40% 30%,#9fe0ff,#3d9be0)}
+body.lefty #tbJump{right:auto;left:calc(max(22px,env(safe-area-inset-left)) + 106px)}
 body.lefty #tbDash{right:auto;left:max(22px,env(safe-area-inset-left))}
 body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
@@ -114,8 +116,8 @@ body.lefty #chipBox{left:auto;right:14px}
 <div id="banner" class="out"></div>
 <div id="tip" hidden></div>
 <div id="chipBox"><div id="chipIco" class="out">0</div><div><div id="chipTxt" class="out"></div><div id="pips"><i></i><i></i><i></i><i></i></div></div></div>
-<div id="keys"><span data-t="keysDash"></span></div>
-<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
+<div id="keys"><span data-t="keysJump"></span><br><span data-t="keysDash"></span></div>
+<div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbJump"><span data-t="jump"></span></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
 <div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button><div id="rank"></div></div></div>
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
@@ -135,6 +137,7 @@ const SIM = (() => {
     COUNT_T: 3,
     // 冲撞
     DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.2, DASH_K: 9, STUN_T: 0.35,
+    JUMP_T: 0.55, JUMP_CD: 2.2, // 跳：空中撞不到你；2 级起落地震开一圈人
     DASH_BUF: 0.3,        // 冷却快好时提前按也算数
     AIM_R: 4.2, AIM_ANG: 1.1, // 真人冲撞自动对准抱饼干的人（距离、夹角）
     ME_SPEED: 1.05,       // 真人跑得稍快一点
@@ -240,7 +243,7 @@ const SIM = (() => {
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
-        inp: { mx: 0, mz: 0, dash: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
+        jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
     for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && Math.abs(x) < CFG.HW - 4 && Math.abs(z) < CFG.HH - 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
@@ -311,7 +314,7 @@ const SIM = (() => {
     const C = CFG, R = C.WAVE_R * C.SCALE[a.lvl];
     ev(S, { k: 'wave', p: a.id, x: a.x, z: a.z, r: R });
     for (const b of S.players) {
-      if (b === a || !b.on || b.inv > 0) continue;
+      if (b === a || !b.on || b.inv > 0 || b.jumpT > 0) continue;
       const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01;
       if (d > R || (S.t - b.lastHitT < 0.3 && b.lastHit === a.id)) continue;
       if (shielded(S, b)) continue;
@@ -344,12 +347,17 @@ const SIM = (() => {
 
     for (const p of P) {
       p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
-      if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = false; continue; }
+      if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = p.inp.jump = false; continue; }
       const stunned = p.hitT > 0 || p.frozenT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       if (!playing || stunned) mx = mz = 0;
       if (p.inp.dash) p.dashBuf = C.DASH_BUF; else p.dashBuf = (p.dashBuf || 0) - dt;
-      if (playing && p.dashBuf > 0 && p.dashCd <= 0 && !stunned) {
+      p.jumpCd -= dt;
+      if (p.inp.jump) p.jumpBuf = C.DASH_BUF; else p.jumpBuf -= dt;
+      p.inp.jump = false;
+      if (p.jumpT > 0) { p.jumpT -= dt; if (p.jumpT <= 0) { ev(S, { k: 'land', p: p.id, x: p.x, z: p.z }); if (p.lvl >= 2 && p.frozenT <= 0) shock(S, p); } }
+      else if (playing && p.jumpBuf > 0 && p.jumpCd <= 0 && !stunned && p.dashT <= 0) { p.jumpBuf = 0; p.jumpT = C.JUMP_T; p.jumpCd = C.JUMP_CD; ev(S, { k: 'jump', p: p.id }); }
+      if (playing && p.dashBuf > 0 && p.dashCd <= 0 && !stunned && p.jumpT <= 0) {
         p.dashBuf = 0;
         const noDir = Math.hypot(mx, mz) < 0.2;
         let dx = mx, dz = mz; if (noDir) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
@@ -357,13 +365,12 @@ const SIM = (() => {
           const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.wave = p.lvl >= 2;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1); p.dashCd = C.DASH_CD; p.dashHit = false;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1) * (p.boostT > 0 ? C.BOOST : 1) * (S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
       if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
-      if (p.wave && p.dashT <= 0) { p.wave = false; if (!stunned) shock(S, p); }
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
         const k = Math.min(1, C.ACCEL * dt / Math.max(0.001, Math.hypot(mx * sp - p.mvx, mz * sp - p.mvz)));
@@ -390,6 +397,7 @@ const SIM = (() => {
         const b = P[j]; if (!b.on) continue;
         const dx = b.x - a.x, dz = b.z - a.z, m = C.BODY_R * (C.SCALE[a.lvl] + C.SCALE[b.lvl]), d2 = dx * dx + dz * dz;
         if (d2 >= m * m) continue;
+        if (a.jumpT > 0 || b.jumpT > 0) continue; // 空中：互相穿过，撞不到
         const d = Math.sqrt(d2) || 0.001, ov = (m - d) / 2, nx = dx / d, nz = dz / d;
         a.x -= nx * ov; a.z -= nz * ov; b.x += nx * ov; b.z += nz * ov;
         if (a.dashT > 0 && !a.dashHit) bonk(S, a, b);
@@ -408,7 +416,7 @@ const SIM = (() => {
     } else if (playing && ck.cd <= 0) {
       let best = null, bd = 1e9;
       for (const p of P) {
-        if (!p.on || p.hitT > 0 || p.frozenT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
+        if (!p.on || p.hitT > 0 || p.frozenT > 0 || p.jumpT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
@@ -472,6 +480,7 @@ const SIM = (() => {
         ai.mx = bx; ai.mz = bz;
       }
       inp.mx = ai.mx; inp.mz = ai.mz;
+      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * (o.human ? 2 : 5)) { inp.jump = true; break; } }
       if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.3 && S.rnd() < dt * 5) { inp.dash = true; break; } }
       return;
     }
@@ -495,6 +504,7 @@ const SIM = (() => {
     let dx = tx - p.x, dz = tz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
     inp.mx = dx; inp.mz = dz;
+    if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 4 * (holder.human ? C.ME_GENTLE : 1)) inp.jump = true;
     // 冲撞抱饼干的人
     if (holder && chase && p.dashCd <= 0 && holder.guard <= 0.15 && holder.inv <= 0) {
       const range = 2.9 + 0.5 * p.lvl;
@@ -522,7 +532,7 @@ const TL = {
   you: { en: 'YOU', zh: '你' },
   next: { en: '{n} more: {s}', zh: '再吃 {n} 颗：{s}' },
   skill1: { en: 'Long dash', zh: '冲得更远' },
-  skill2: { en: 'Ground slam', zh: '震地' },
+  skill2: { en: 'Slam (jump & land)', zh: '震地（跳起落地震开人）' },
   skill3: { en: 'Cookie shield', zh: '护盾' },
   newSkill: { en: 'New move: {s}!', zh: '变大了！新招：{s}' },
   it_chili: { en: 'Chili — speed up!', zh: '辣椒！跑得飞快' },
@@ -532,6 +542,8 @@ const TL = {
   blocked: { en: 'BLOCKED!', zh: '挡住了！' },
   maxSize: { en: 'MAX — all moves', zh: '最大了，三招全有' },
   dash: { en: 'BUMP', zh: '冲撞' },
+  jump: { en: 'JUMP', zh: '跳' },
+  keysJump: { en: 'J / Shift  jump (dodge)', zh: 'J / Shift  跳（躲撞）' },
   keysDash: { en: 'Space / K  bump', zh: '空格 / K  冲撞' },
   intro1: { en: 'Grab the cookie', zh: '抢到饼干' },
   intro2: { en: 'Holding = eating. First to 100% wins', zh: '抱着就在吃，先吃到 100% 的赢' },
@@ -539,8 +551,8 @@ const TL = {
   tipLoose: { en: 'Follow the yellow arrow — grab the cookie!', zh: '跟着黄色箭头，去捡饼干！' },
   tipChase: { en: 'Chase the cookie holder. Red ring = in range: press Space to bump and steal!', zh: '追抱饼干的人。他脚下出现红圈时按空格，把饼干撞过来！' },
   tipChaseT: { en: 'Chase the cookie holder. Red ring = in range: tap BUMP to steal!', zh: '追抱饼干的人。他脚下出现红圈时点「冲撞」，把饼干撞过来！' },
-  tipCarry: { en: 'You have it — RUN! Fill the bar to win. Space = quick burst to get away', zh: '饼干在你手里，快跑！抱着就在涨进度，涨到 100% 立刻赢。按空格可以冲一下甩开人' },
-  tipCarryT: { en: 'You have it — RUN! Fill the bar to win. BUMP = quick burst to get away', zh: '饼干在你手里，快跑！抱着就在涨进度，涨到 100% 立刻赢。点「冲撞」可以冲一下甩开人' },
+  tipCarry: { en: 'You have it — RUN! 100% wins. Press J to jump over bumps, Space to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时按 J 跳起来躲开，空格冲一下甩开人' },
+  tipCarryT: { en: 'You have it — RUN! 100% wins. Tap JUMP to dodge bumps, BUMP to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时点「跳」躲开，点「冲撞」甩开人' },
   tipFell: { en: 'Knocked off the table! Back in a moment…', zh: '被撞下桌子了，马上回来…' },
   gotIt: { en: 'You got the cookie!', zh: '饼干到手！快跑！' },
   lostIt: { en: '{b} stole your cookie!', zh: '{b} 抢走了你的饼干！' },
@@ -1031,6 +1043,7 @@ const SFX = {
   fall() { tone(700, 160, 0.5, 0.22, 'triangle'); },
   fish() { tone(300, 900, 0.12, 0.2, 'sine'); },
   beep(hi) { tone(hi ? 1046 : 660, hi ? 1046 : 660, hi ? 0.35 : 0.14, 0.2, 'square'); },
+  jump(me) { tone(300, 700, 0.16, me ? 0.2 : 0.07, 'sine'); },
   wave(me) { tone(140, 50, 0.3, me ? 0.5 : 0.2, 'sine'); noise(0.25, 500, 120, 0.8, me ? 0.4 : 0.15, 'lowpass'); },
   block() { tone(1400, 900, 0.12, 0.25, 'triangle'); tone(2100, 1500, 0.1, 0.12, 'sine', 0.03); },
   freeze() { [1800, 1500, 1200].forEach((f, i) => tone(f, f * 0.9, 0.12, 0.14, 'sine', i * 0.05)); },
@@ -1040,15 +1053,16 @@ const SFX = {
 
 // ---------- 输入 ----------
 const keys = new Set();
-let wantDash = false;
-const KB_BITE = [], KB_DASH = ['Space', 'KeyK', 'KeyJ', 'KeyX', 'ShiftLeft'];
+let wantDash = false, wantJump = false;
+const KB_DASH = ['Space', 'KeyK', 'KeyX'], KB_JUMP = ['KeyJ', 'KeyZ', 'ShiftLeft', 'ShiftRight'];
 addEventListener('keydown', e => {
-  if (e.repeat && KB_DASH.includes(e.code)) { e.preventDefault(); return; }
+  if (e.repeat && (KB_DASH.includes(e.code) || KB_JUMP.includes(e.code))) { e.preventDefault(); return; }
   ensureAudio();
   if (PF.adBusy) { e.preventDefault(); return; }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   keys.add(e.code);
   if (KB_DASH.includes(e.code)) wantDash = true;
+  if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || e.code === 'Escape') toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden) $('bAgain').click();
   usedKeys = true;
@@ -1069,6 +1083,7 @@ function setTouchMode(b) { touchMode = b; $('touch').hidden = !b; $('keys').hidd
 setTouchMode(IS_TOUCH);
 function btnDown(el, fn) { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); if (!PF.adBusy) fn(); el.style.transform = 'scale(.92)'; }); el.addEventListener('pointerup', () => el.style.transform = ''); el.addEventListener('pointerleave', () => el.style.transform = ''); }
 btnDown($('tbDash'), () => wantDash = true);
+btnDown($('tbJump'), () => wantJump = true);
 canvas.addEventListener('pointerdown', e => {
   ensureAudio();
   if (e.pointerType === 'mouse') return;
@@ -1102,6 +1117,8 @@ function readInput(me) {
   me.inp.mx = x; me.inp.mz = z;
   if (wantDash) me.inp.dash = true;
   wantDash = false;
+  if (wantJump) me.inp.jump = true;
+  wantJump = false;
 }
 
 // ---------- HUD ----------
@@ -1144,6 +1161,7 @@ function updateHUD() {
   const cd = clamp(me.dashCd / C.DASH_CD, 0, 1);
   $('dashRing').setAttribute('stroke-dashoffset', String(295 * cd));
   $('tbDash').classList.toggle('cd', cd > 0);
+  $('tbJump').classList.toggle('cd', me.jumpCd > 0);
   if (S.phase === 'play' && S.playT > 1.5 && !$('intro').hidden) { $('intro').style.opacity = 0; if (S.playT > 2) $('intro').hidden = true; }
   // 前两局：根据情况提示该干什么
   if (tipsOn && S.phase === 'play') {
@@ -1248,6 +1266,8 @@ function handleEvents() {
         else { feedMsg(tl('fell', { a: nameOf(e.p) })); if (e.by === ME) float(e.x, 1.2, e.z, '💥', '#fff'); }
         break;
       }
+      case 'jump': if (e.p === ME || near(S.players[e.p].x, S.players[e.p].z)) SFX.jump(e.p === ME); break;
+      case 'land': if (e.p === ME || near(e.x, e.z)) crumbBurst(e.x, 0.1, e.z, 5, 2); break;
       case 'wave': { waveFx(e.x, e.z, e.r); if (e.p === ME || near(e.x, e.z)) { SFX.wave(e.p === ME); crumbBurst(e.x, 0.1, e.z, 12, 4); } if (e.p === ME) camShake = Math.max(camShake, 0.3); break; }
       case 'block': { const p = S.players[e.p]; waveFx(p.x, p.z, 1.6, e.why === 'bubble' ? 0xbfeaff : 0xffd76a); if (e.p === ME || near(p.x, p.z)) SFX.block(); if (e.p === ME) float(p.x, 1.6, p.z, tl('blocked'), '#bfeaff'); break; }
       case 'item': {
@@ -1322,7 +1342,8 @@ function updateActors(dt, now) {
       const hopY = sp > 0.6 ? Math.abs(Math.sin(a.hop)) * 0.12 : 0;
       const sq = sp > 0.6 ? Math.cos(a.hop * 2) * 0.06 : Math.sin(now * 3 + i) * 0.02;
       let y = a.drop > 0 ? (a.drop / 0.45) ** 2 * 7 : 0; // 回到桌上：从天上掉下来
-      if (p.dashT > 0) y += Math.sin((1 - p.dashT / C.DASH_T) * Math.PI) * 0.35;
+      if (p.dashT > 0) y += Math.sin(clamp(1 - p.dashT / C.DASH_T, 0, 1) * Math.PI) * 0.35;
+      if (p.jumpT > 0) y += Math.sin((1 - p.jumpT / C.JUMP_T) * Math.PI) * 2.1;
       a.root.position.set(p.x, y, p.z);
       a.root.rotation.set(0, p.face, 0);
       const s = a.scale * popS * VIS;
@@ -1333,7 +1354,7 @@ function updateActors(dt, now) {
       sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
-      sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22;
+      sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
       a.ice.visible = p.frozenT > 0;
       const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
       if (p.boostT > 0 && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);
