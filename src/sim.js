@@ -6,7 +6,7 @@ const SIM = (() => {
     N: 8,                 // 人数（你 + 7 个机器人）
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
-    WIN_T: 30,            // 累计抱满这么多秒就赢
+    WIN_T: 25,            // 累计抱满这么多秒就赢
     MAX_T: 120,           // 最长一局；到点谁吃得多谁赢
     COUNT_T: 3,
     // 冲撞
@@ -19,8 +19,14 @@ const SIM = (() => {
     PICK_R: 1.0,
     RESPAWN_T: 2.0, INV_T: 1.2,
     // 巧克力豆：吃了变大
-    CHIP_N: 28, CHIP_R: 0.8, CHIP_RESPAWN: 1.2,
-    LVL_AT: [0, 3, 7, 12],
+    CHIP_N: 64, CHIP_R: 0.8, CHIP_RESPAWN: 0.45,
+    LVL_AT: [0, 4, 10, 18],
+    // 升级解锁的招：1 级冲得更远，2 级冲撞落地震开一圈人，3 级抱饼干时护盾挡一次
+    DASH_LONG: 1.4, WAVE_R: 2.8, WAVE_K: 7.5, SHIELD_CD: 12,
+    // 桌上的道具：辣椒（加速）、冰块（冻住附近的人）、泡泡（挡一次撞）
+    ITEM_N: 4, ITEM_T: 4, BOOST_T: 4, BOOST: 1.38, FREEZE_R: 8, FREEZE_T: 1.6, BUBBLE_T: 12,
+    // 果酱：踩上去变慢
+    PUDDLE_N: 5, PUDDLE_R: 2.1, PUDDLE_SLOW: 0.55,
     SCALE: [1, 1.18, 1.36, 1.55],
     POWER: [1, 1.2, 1.4, 1.6],     // 撞人力度
     MASS: [1, 1.25, 1.55, 1.9],    // 抗撞
@@ -99,7 +105,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, obs: makeObstacles(rng(seed)), players: [], chips: [], chipId: 0, chipT: 0, t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, obs: makeObstacles(rng(seed)), players: [], chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
@@ -109,15 +115,16 @@ const SIM = (() => {
         id: i, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
-        eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
+        shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
         inp: { mx: 0, mz: 0, dash: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
+    for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && Math.abs(x) < CFG.HW - 4 && Math.abs(z) < CFG.HH - 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
     for (let i = 0; i < CFG.CHIP_N; i++) addChip(S);
     return S;
   }
   function addChip(S) {
-    const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 3 && S.chips.every(c => Math.hypot(c.x - x, c.z - z) > 2.5));
+    const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 3 && S.chips.every(c => Math.hypot(c.x - x, c.z - z) > 1.8));
     S.chips.push({ id: S.chipId++, x, z });
   }
   function lvlOf(chips) { let l = 0; for (let i = 0; i < CFG.LVL_AT.length; i++) if (chips >= CFG.LVL_AT[i]) l = i; return l; }
@@ -140,7 +147,7 @@ const SIM = (() => {
   function respawn(S, p) {
     const ck = S.cookie;
     const [x, z] = freeSpot(S, (x, z) => { const d = Math.hypot(x - ck.x, z - ck.z); return d > 7 && d < 16 && S.players.every(q => q === p || !q.on || Math.hypot(q.x - x, q.z - z) > 2.5); });
-    p.on = true; p.x = x; p.z = z; p.mvx = p.mvz = p.kvx = p.kvz = 0; p.inv = CFG.INV_T; p.hitT = 0; p.lastHit = -1; p.dashCd = 0.3;
+    p.on = true; p.x = x; p.z = z; p.mvx = p.mvz = p.kvx = p.kvz = 0; p.inv = CFG.INV_T; p.hitT = 0; p.frozenT = 0; p.boostT = 0; p.lastHit = -1; p.dashCd = 0.3;
     ev(S, { k: 'respawn', p: p.id, x, z });
   }
   function finish(S) {
@@ -157,14 +164,49 @@ const SIM = (() => {
     if (b.inv > 0) return;
     let dx = b.x - a.x, dz = b.z - a.z; const d = Math.hypot(dx, dz) || 1; dx = dx / d * 0.6 + a.dashX * 0.4; dz = dz / d * 0.6 + a.dashZ * 0.4;
     const l = Math.hypot(dx, dz) || 1, guarded = b.guard > 0;
+    if (shielded(S, b)) { b.kvx = dx / l * 3; b.kvz = dz / l * 3; a.kvx = -dx / l * 5; a.kvz = -dz / l * 5; a.hitT = 0.2; return; }
     const f = C.DASH_K * C.POWER[a.lvl] / C.MASS[b.lvl] * (guarded ? 0.5 : 1);
     b.kvx = dx / l * f; b.kvz = dz / l * f; b.hitT = guarded ? 0.2 : C.STUN_T; b.dashT = 0; b.lastHit = a.id; b.lastHitT = S.t;
     ev(S, { k: 'bonk', a: a.id, b: b.id, x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, f });
+    if (!guarded) trySteal(S, a, b);
+  }
+  // 泡泡 / 3 级护盾：挡一次。返回 true = 被挡住了
+  function shielded(S, b) {
+    if (b.bubbleT > 0) { b.bubbleT = 0; ev(S, { k: 'block', p: b.id, why: 'bubble' }); return true; }
+    if (b.lvl >= 3 && b.shieldCd <= 0 && S.cookie.holder === b.id) { b.shieldCd = CFG.SHIELD_CD; ev(S, { k: 'block', p: b.id, why: 'shield' }); return true; }
+    return false;
+  }
+  function trySteal(S, a, b) {
     const ck = S.cookie;
-    if (ck.holder === b.id && !guarded && S.phase === 'play') {
-      ck.holder = a.id; a.guard = C.GUARD_T; a.steals++; a.dashCd = Math.min(a.dashCd, C.STEAL_CD);
-      ev(S, { k: 'steal', a: a.id, b: b.id });
+    if (ck.holder !== b.id || S.phase !== 'play') return;
+    ck.holder = a.id; a.guard = CFG.GUARD_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD);
+    ev(S, { k: 'steal', a: a.id, b: b.id });
+  }
+  // 2 级：冲撞落地震开一圈人（抱饼干的人被震到也会丢饼干）
+  function shock(S, a) {
+    const C = CFG, R = C.WAVE_R * C.SCALE[a.lvl];
+    ev(S, { k: 'wave', p: a.id, x: a.x, z: a.z, r: R });
+    for (const b of S.players) {
+      if (b === a || !b.on || b.inv > 0) continue;
+      const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01;
+      if (d > R || (S.t - b.lastHitT < 0.3 && b.lastHit === a.id)) continue;
+      if (shielded(S, b)) continue;
+      const g = b.guard > 0, f = C.WAVE_K * C.POWER[a.lvl] / C.MASS[b.lvl] * (g ? 0.5 : 1);
+      b.kvx += dx / d * f; b.kvz += dz / d * f; b.hitT = Math.max(b.hitT, 0.25); b.dashT = 0; b.lastHit = a.id; b.lastHitT = S.t;
+      if (!g) trySteal(S, a, b);
     }
+  }
+  function addItem(S) {
+    const kinds = ['chili', 'ice', 'bubble'], kind = kinds[(S.rnd() * 3) | 0];
+    const [x, z] = freeSpot(S, (x, z) => S.items.every(c => Math.hypot(c.x - x, c.z - z) > 10) && S.players.every(q => Math.hypot(q.x - x, q.z - z) > 4));
+    S.items.push({ id: S.itemId++, kind, x, z }); ev(S, { k: 'itemSpawn', x, z });
+  }
+  function useItem(S, p, it) {
+    const C = CFG;
+    ev(S, { k: 'item', p: p.id, kind: it.kind, x: it.x, z: it.z });
+    if (it.kind === 'chili') p.boostT = C.BOOST_T;
+    else if (it.kind === 'bubble') p.bubbleT = C.BUBBLE_T;
+    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
   }
 
   function step(S, dt) {
@@ -177,9 +219,9 @@ const SIM = (() => {
     if (S.phase === 'end') S.phaseT += dt;
 
     for (const p of P) {
-      p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt;
+      p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
       if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = false; continue; }
-      const stunned = p.hitT > 0, carry = ck.holder === p.id;
+      const stunned = p.hitT > 0 || p.frozenT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       if (!playing || stunned) mx = mz = 0;
       if (p.inp.dash) p.dashBuf = C.DASH_BUF; else p.dashBuf = (p.dashBuf || 0) - dt;
@@ -191,11 +233,13 @@ const SIM = (() => {
           const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T; p.dashCd = C.DASH_CD; p.dashHit = false;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.wave = p.lvl >= 2;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1) * (p.boostT > 0 ? C.BOOST : 1) * (S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
+      if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
+      if (p.wave && p.dashT <= 0) { p.wave = false; if (!stunned) shock(S, p); }
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
         const k = Math.min(1, C.ACCEL * dt / Math.max(0.001, Math.hypot(mx * sp - p.mvx, mz * sp - p.mvz)));
@@ -240,7 +284,7 @@ const SIM = (() => {
     } else if (playing && ck.cd <= 0) {
       let best = null, bd = 1e9;
       for (const p of P) {
-        if (!p.on || p.hitT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
+        if (!p.on || p.hitT > 0 || p.frozenT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
@@ -259,6 +303,11 @@ const SIM = (() => {
         }
       }
     }
+    for (let i = S.items.length - 1; i >= 0; i--) {
+      const it = S.items[i];
+      for (const p of P) if (p.on && p.frozenT <= 0 && Math.hypot(p.x - it.x, p.z - it.z) < 0.95 * C.SCALE[p.lvl]) { S.items.splice(i, 1); useItem(S, p, it); break; }
+    }
+    if (playing && S.items.length < C.ITEM_N) { S.itemT -= dt; if (S.itemT <= 0) { S.itemT = C.ITEM_T; addItem(S); } }
     if (S.chips.length < C.CHIP_N) { S.chipT += dt; if (S.chipT >= C.CHIP_RESPAWN) { S.chipT = 0; addChip(S); } }
     if (playing && S.playT >= C.MAX_T) finish(S);
   }
@@ -311,9 +360,10 @@ const SIM = (() => {
       tx = ck.x; tz = ck.z;
       if (holder) { const lead = Math.min(0.45, dck / 14); tx += holder.mvx * lead; tz += holder.mvz * lead; }
     } else {
-      if (ai.t <= 0 || !ai.chip || !S.chips.includes(ai.chip)) {
+      if (ai.t <= 0 || !ai.chip || !(S.chips.includes(ai.chip) || S.items.includes(ai.chip))) {
         ai.t = 0.6; let b = null, bd = 1e9;
         for (const c of S.chips) { const d = Math.hypot(c.x - p.x, c.z - p.z) + 0.25 * Math.hypot(c.x - ck.x, c.z - ck.z); if (d < bd) { bd = d; b = c; } }
+        for (const c of S.items) { const d = (Math.hypot(c.x - p.x, c.z - p.z) + 0.25 * Math.hypot(c.x - ck.x, c.z - ck.z)) * 0.5; if (d < bd) { bd = d; b = c; } }
         ai.chip = b;
       }
       if (ai.chip) { tx = ai.chip.x; tz = ai.chip.z; } else { tx = ck.x * 0.6; tz = ck.z * 0.6; }

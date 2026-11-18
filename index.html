@@ -130,7 +130,7 @@ const SIM = (() => {
     N: 8,                 // 人数（你 + 7 个机器人）
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
-    WIN_T: 30,            // 累计抱满这么多秒就赢
+    WIN_T: 25,            // 累计抱满这么多秒就赢
     MAX_T: 120,           // 最长一局；到点谁吃得多谁赢
     COUNT_T: 3,
     // 冲撞
@@ -143,8 +143,14 @@ const SIM = (() => {
     PICK_R: 1.0,
     RESPAWN_T: 2.0, INV_T: 1.2,
     // 巧克力豆：吃了变大
-    CHIP_N: 28, CHIP_R: 0.8, CHIP_RESPAWN: 1.2,
-    LVL_AT: [0, 3, 7, 12],
+    CHIP_N: 64, CHIP_R: 0.8, CHIP_RESPAWN: 0.45,
+    LVL_AT: [0, 4, 10, 18],
+    // 升级解锁的招：1 级冲得更远，2 级冲撞落地震开一圈人，3 级抱饼干时护盾挡一次
+    DASH_LONG: 1.4, WAVE_R: 2.8, WAVE_K: 7.5, SHIELD_CD: 12,
+    // 桌上的道具：辣椒（加速）、冰块（冻住附近的人）、泡泡（挡一次撞）
+    ITEM_N: 4, ITEM_T: 4, BOOST_T: 4, BOOST: 1.38, FREEZE_R: 8, FREEZE_T: 1.6, BUBBLE_T: 12,
+    // 果酱：踩上去变慢
+    PUDDLE_N: 5, PUDDLE_R: 2.1, PUDDLE_SLOW: 0.55,
     SCALE: [1, 1.18, 1.36, 1.55],
     POWER: [1, 1.2, 1.4, 1.6],     // 撞人力度
     MASS: [1, 1.25, 1.55, 1.9],    // 抗撞
@@ -223,7 +229,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, obs: makeObstacles(rng(seed)), players: [], chips: [], chipId: 0, chipT: 0, t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, obs: makeObstacles(rng(seed)), players: [], chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
@@ -233,15 +239,16 @@ const SIM = (() => {
         id: i, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
-        eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
+        shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
         inp: { mx: 0, mz: 0, dash: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
+    for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && Math.abs(x) < CFG.HW - 4 && Math.abs(z) < CFG.HH - 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
     for (let i = 0; i < CFG.CHIP_N; i++) addChip(S);
     return S;
   }
   function addChip(S) {
-    const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 3 && S.chips.every(c => Math.hypot(c.x - x, c.z - z) > 2.5));
+    const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 3 && S.chips.every(c => Math.hypot(c.x - x, c.z - z) > 1.8));
     S.chips.push({ id: S.chipId++, x, z });
   }
   function lvlOf(chips) { let l = 0; for (let i = 0; i < CFG.LVL_AT.length; i++) if (chips >= CFG.LVL_AT[i]) l = i; return l; }
@@ -264,7 +271,7 @@ const SIM = (() => {
   function respawn(S, p) {
     const ck = S.cookie;
     const [x, z] = freeSpot(S, (x, z) => { const d = Math.hypot(x - ck.x, z - ck.z); return d > 7 && d < 16 && S.players.every(q => q === p || !q.on || Math.hypot(q.x - x, q.z - z) > 2.5); });
-    p.on = true; p.x = x; p.z = z; p.mvx = p.mvz = p.kvx = p.kvz = 0; p.inv = CFG.INV_T; p.hitT = 0; p.lastHit = -1; p.dashCd = 0.3;
+    p.on = true; p.x = x; p.z = z; p.mvx = p.mvz = p.kvx = p.kvz = 0; p.inv = CFG.INV_T; p.hitT = 0; p.frozenT = 0; p.boostT = 0; p.lastHit = -1; p.dashCd = 0.3;
     ev(S, { k: 'respawn', p: p.id, x, z });
   }
   function finish(S) {
@@ -281,14 +288,49 @@ const SIM = (() => {
     if (b.inv > 0) return;
     let dx = b.x - a.x, dz = b.z - a.z; const d = Math.hypot(dx, dz) || 1; dx = dx / d * 0.6 + a.dashX * 0.4; dz = dz / d * 0.6 + a.dashZ * 0.4;
     const l = Math.hypot(dx, dz) || 1, guarded = b.guard > 0;
+    if (shielded(S, b)) { b.kvx = dx / l * 3; b.kvz = dz / l * 3; a.kvx = -dx / l * 5; a.kvz = -dz / l * 5; a.hitT = 0.2; return; }
     const f = C.DASH_K * C.POWER[a.lvl] / C.MASS[b.lvl] * (guarded ? 0.5 : 1);
     b.kvx = dx / l * f; b.kvz = dz / l * f; b.hitT = guarded ? 0.2 : C.STUN_T; b.dashT = 0; b.lastHit = a.id; b.lastHitT = S.t;
     ev(S, { k: 'bonk', a: a.id, b: b.id, x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, f });
+    if (!guarded) trySteal(S, a, b);
+  }
+  // 泡泡 / 3 级护盾：挡一次。返回 true = 被挡住了
+  function shielded(S, b) {
+    if (b.bubbleT > 0) { b.bubbleT = 0; ev(S, { k: 'block', p: b.id, why: 'bubble' }); return true; }
+    if (b.lvl >= 3 && b.shieldCd <= 0 && S.cookie.holder === b.id) { b.shieldCd = CFG.SHIELD_CD; ev(S, { k: 'block', p: b.id, why: 'shield' }); return true; }
+    return false;
+  }
+  function trySteal(S, a, b) {
     const ck = S.cookie;
-    if (ck.holder === b.id && !guarded && S.phase === 'play') {
-      ck.holder = a.id; a.guard = C.GUARD_T; a.steals++; a.dashCd = Math.min(a.dashCd, C.STEAL_CD);
-      ev(S, { k: 'steal', a: a.id, b: b.id });
+    if (ck.holder !== b.id || S.phase !== 'play') return;
+    ck.holder = a.id; a.guard = CFG.GUARD_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD);
+    ev(S, { k: 'steal', a: a.id, b: b.id });
+  }
+  // 2 级：冲撞落地震开一圈人（抱饼干的人被震到也会丢饼干）
+  function shock(S, a) {
+    const C = CFG, R = C.WAVE_R * C.SCALE[a.lvl];
+    ev(S, { k: 'wave', p: a.id, x: a.x, z: a.z, r: R });
+    for (const b of S.players) {
+      if (b === a || !b.on || b.inv > 0) continue;
+      const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01;
+      if (d > R || (S.t - b.lastHitT < 0.3 && b.lastHit === a.id)) continue;
+      if (shielded(S, b)) continue;
+      const g = b.guard > 0, f = C.WAVE_K * C.POWER[a.lvl] / C.MASS[b.lvl] * (g ? 0.5 : 1);
+      b.kvx += dx / d * f; b.kvz += dz / d * f; b.hitT = Math.max(b.hitT, 0.25); b.dashT = 0; b.lastHit = a.id; b.lastHitT = S.t;
+      if (!g) trySteal(S, a, b);
     }
+  }
+  function addItem(S) {
+    const kinds = ['chili', 'ice', 'bubble'], kind = kinds[(S.rnd() * 3) | 0];
+    const [x, z] = freeSpot(S, (x, z) => S.items.every(c => Math.hypot(c.x - x, c.z - z) > 10) && S.players.every(q => Math.hypot(q.x - x, q.z - z) > 4));
+    S.items.push({ id: S.itemId++, kind, x, z }); ev(S, { k: 'itemSpawn', x, z });
+  }
+  function useItem(S, p, it) {
+    const C = CFG;
+    ev(S, { k: 'item', p: p.id, kind: it.kind, x: it.x, z: it.z });
+    if (it.kind === 'chili') p.boostT = C.BOOST_T;
+    else if (it.kind === 'bubble') p.bubbleT = C.BUBBLE_T;
+    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
   }
 
   function step(S, dt) {
@@ -301,9 +343,9 @@ const SIM = (() => {
     if (S.phase === 'end') S.phaseT += dt;
 
     for (const p of P) {
-      p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt;
+      p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
       if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = false; continue; }
-      const stunned = p.hitT > 0, carry = ck.holder === p.id;
+      const stunned = p.hitT > 0 || p.frozenT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       if (!playing || stunned) mx = mz = 0;
       if (p.inp.dash) p.dashBuf = C.DASH_BUF; else p.dashBuf = (p.dashBuf || 0) - dt;
@@ -315,11 +357,13 @@ const SIM = (() => {
           const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T; p.dashCd = C.DASH_CD; p.dashHit = false;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.wave = p.lvl >= 2;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1) * (p.boostT > 0 ? C.BOOST : 1) * (S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
+      if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
+      if (p.wave && p.dashT <= 0) { p.wave = false; if (!stunned) shock(S, p); }
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
         const k = Math.min(1, C.ACCEL * dt / Math.max(0.001, Math.hypot(mx * sp - p.mvx, mz * sp - p.mvz)));
@@ -364,7 +408,7 @@ const SIM = (() => {
     } else if (playing && ck.cd <= 0) {
       let best = null, bd = 1e9;
       for (const p of P) {
-        if (!p.on || p.hitT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
+        if (!p.on || p.hitT > 0 || p.frozenT > 0 || (ck.no === p.id && ck.noT > 0)) continue;
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
@@ -383,6 +427,11 @@ const SIM = (() => {
         }
       }
     }
+    for (let i = S.items.length - 1; i >= 0; i--) {
+      const it = S.items[i];
+      for (const p of P) if (p.on && p.frozenT <= 0 && Math.hypot(p.x - it.x, p.z - it.z) < 0.95 * C.SCALE[p.lvl]) { S.items.splice(i, 1); useItem(S, p, it); break; }
+    }
+    if (playing && S.items.length < C.ITEM_N) { S.itemT -= dt; if (S.itemT <= 0) { S.itemT = C.ITEM_T; addItem(S); } }
     if (S.chips.length < C.CHIP_N) { S.chipT += dt; if (S.chipT >= C.CHIP_RESPAWN) { S.chipT = 0; addChip(S); } }
     if (playing && S.playT >= C.MAX_T) finish(S);
   }
@@ -435,9 +484,10 @@ const SIM = (() => {
       tx = ck.x; tz = ck.z;
       if (holder) { const lead = Math.min(0.45, dck / 14); tx += holder.mvx * lead; tz += holder.mvz * lead; }
     } else {
-      if (ai.t <= 0 || !ai.chip || !S.chips.includes(ai.chip)) {
+      if (ai.t <= 0 || !ai.chip || !(S.chips.includes(ai.chip) || S.items.includes(ai.chip))) {
         ai.t = 0.6; let b = null, bd = 1e9;
         for (const c of S.chips) { const d = Math.hypot(c.x - p.x, c.z - p.z) + 0.25 * Math.hypot(c.x - ck.x, c.z - ck.z); if (d < bd) { bd = d; b = c; } }
+        for (const c of S.items) { const d = (Math.hypot(c.x - p.x, c.z - p.z) + 0.25 * Math.hypot(c.x - ck.x, c.z - ck.z)) * 0.5; if (d < bd) { bd = d; b = c; } }
         ai.chip = b;
       }
       if (ai.chip) { tx = ai.chip.x; tz = ai.chip.z; } else { tx = ck.x * 0.6; tz = ck.z * 0.6; }
@@ -470,8 +520,17 @@ const TL = {
   title: { en: 'Last Cookie', zh: '最后一块饼干' },
   go: { en: 'GO!', zh: '开抢！' },
   you: { en: 'YOU', zh: '你' },
-  next: { en: 'next size: {n}', zh: '再吃 {n} 颗变大' },
-  maxSize: { en: 'MAX SIZE', zh: '已经最大' },
+  next: { en: '{n} more: {s}', zh: '再吃 {n} 颗：{s}' },
+  skill1: { en: 'Long dash', zh: '冲得更远' },
+  skill2: { en: 'Ground slam', zh: '震地' },
+  skill3: { en: 'Cookie shield', zh: '护盾' },
+  newSkill: { en: 'New move: {s}!', zh: '变大了！新招：{s}' },
+  it_chili: { en: 'Chili — speed up!', zh: '辣椒！跑得飞快' },
+  it_ice: { en: 'Ice — everyone nearby is frozen!', zh: '冰块！附近的人都冻住了' },
+  it_bubble: { en: 'Bubble — blocks one hit', zh: '泡泡！能挡一次撞' },
+  frozen: { en: '{b} froze you!', zh: '你被 {b} 冻住了！' },
+  blocked: { en: 'BLOCKED!', zh: '挡住了！' },
+  maxSize: { en: 'MAX — all moves', zh: '最大了，三招全有' },
   dash: { en: 'BUMP', zh: '冲撞' },
   keysDash: { en: 'Space / K  bump', zh: '空格 / K  冲撞' },
   intro1: { en: 'Grab the cookie', zh: '抢到饼干' },
@@ -799,7 +858,53 @@ function buildObstacle(o) {
 function buildMap() {
   obsRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose(); } });
   obsRoot.clear(); S.obs.forEach(buildObstacle);
+  for (const c of S.puddles) { // 果酱：踩上去变慢
+    const rnd = SIM.rng(c.id * 7 + 1), sh = new THREE.Shape(), n = 14;
+    for (let i = 0; i <= n; i++) { const a = i / n * 6.2832, r = c.r * (0.82 + 0.2 * Math.sin(a * 3 + c.id) + 0.08 * rnd()); i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshStandardMaterial({ color: 0xc2274b, roughness: 0.12, transparent: true, opacity: 0.82, envMapIntensity: 1.5 }));
+    m.rotation.x = -Math.PI / 2; m.position.set(c.x, 0.015, c.z); m.receiveShadow = true; obsRoot.add(m);
+  }
+  for (const [, m] of itemObjs) scene.remove(m); itemObjs.clear();
 }
+// ---------- 道具：辣椒 / 冰块 / 泡泡 ----------
+const itemObjs = new Map();
+function buildItem(kind) {
+  const g = new THREE.Group(), core = new THREE.Group(); g.add(core); g.userData.core = core;
+  if (kind === 'chili') {
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.95, 14), M(0xe5261f, 0.25, { envMapIntensity: 1.5 })); b.rotation.z = Math.PI; b.position.y = 0;
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.22, 8), M(0x3f9b3a, 0.6)); st.position.y = 0.55;
+    core.add(b, st); core.rotation.z = 0.5;
+  } else if (kind === 'ice') {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), M(0xa8e4ff, 0.08, { transparent: true, opacity: 0.85, envMapIntensity: 2 })); b.rotation.set(0.5, 0.6, 0); core.add(b);
+  } else {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14), M(0xd9f4ff, 0.05, { transparent: true, opacity: 0.55, envMapIntensity: 2.5 })); core.add(b);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), M(0xffffff, 0.2)); s.position.set(0.18, 0.2, 0.25); core.add(s);
+  }
+  core.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 28), new THREE.MeshBasicMaterial({ color: { chili: 0xff5a3c, ice: 0x5ac8ff, bubble: 0xffffff }[kind], transparent: true, opacity: 0.85, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; g.add(ring);
+  scene.add(g); return g;
+}
+function updateItems(now) {
+  const seen = new Set();
+  for (const it of S.items) {
+    seen.add(it.id); let m = itemObjs.get(it.id);
+    if (!m) { m = buildItem(it.kind); m.position.set(it.x, 0, it.z); m.userData.born = now; itemObjs.set(it.id, m); }
+    const k = Math.min(1, (now - m.userData.born) * 3); m.scale.setScalar(k * 1.25);
+    m.userData.core.position.y = 0.95 + Math.sin(now * 3 + it.id) * 0.15; m.userData.core.rotation.y = now * 2;
+  }
+  for (const [id, m] of itemObjs) if (!seen.has(id)) { scene.remove(m); itemObjs.delete(id); }
+}
+// 震地的圈
+const waveGeo = new THREE.RingGeometry(0.82, 1, 48); waveGeo.rotateX(-Math.PI / 2);
+const waves = []; for (let i = 0; i < 8; i++) { const m = new THREE.Mesh(waveGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.position.y = 0.05; scene.add(m); waves.push({ m, t: 0, r: 1 }); }
+let waveN = 0;
+function waveFx(x, z, r, col = 0xffffff) { const w = waves[waveN++ % waves.length]; w.m.position.set(x, 0.05, z); w.m.material.color.set(col); w.t = 0; w.r = r; w.m.visible = true; }
+function updateWaves(dt) { for (const w of waves) { if (!w.m.visible) continue; w.t += dt; const k = w.t / 0.35; if (k >= 1) { w.m.visible = false; continue; } w.m.scale.setScalar(w.r * (0.2 + 0.8 * k)); w.m.material.opacity = (1 - k) * 0.9; } }
+const iceMat = new THREE.MeshStandardMaterial({ color: 0xa8e4ff, roughness: 0.08, transparent: true, opacity: 0.6, envMapIntensity: 2 });
+const bubMat = new THREE.MeshStandardMaterial({ color: 0xe6f8ff, roughness: 0.05, transparent: true, opacity: 0.33, envMapIntensity: 2.5, depthWrite: false });
+const shieldMat = new THREE.MeshStandardMaterial({ color: 0xffd76a, roughness: 0.1, transparent: true, opacity: 0.3, envMapIntensity: 2, depthWrite: false });
+const iceGeo = new THREE.BoxGeometry(1.05, 1.1, 1.05), bubGeo = new THREE.SphereGeometry(0.72, 20, 14);
 // ---------- 巧克力豆 ----------
 const chipGeo = (() => { // 水滴形巧克力豆
   const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; const y = t * 0.3; const r = 0.17 * Math.pow(Math.sin(Math.PI * (1 - t) * 0.5 + 0.0001), 0.9) * (1 - t * 0.15); pts.push(new THREE.Vector2(Math.max(0.001, r), y)); }
@@ -828,7 +933,8 @@ function buildActors() {
   actors = S.players.map(p => {
     const sn = buildSnack(p.look); scene.add(sn.g);
     const tag = document.createElement('div'); tag.textContent = nameTxt(p); if (p.human) tag.className = 'me'; $('tags').appendChild(tag);
-    return { root: sn.g, sn, tag, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
+    const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
+    return { root: sn.g, sn, tag, ice, bub, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
 }
 
@@ -925,6 +1031,9 @@ const SFX = {
   fall() { tone(700, 160, 0.5, 0.22, 'triangle'); },
   fish() { tone(300, 900, 0.12, 0.2, 'sine'); },
   beep(hi) { tone(hi ? 1046 : 660, hi ? 1046 : 660, hi ? 0.35 : 0.14, 0.2, 'square'); },
+  wave(me) { tone(140, 50, 0.3, me ? 0.5 : 0.2, 'sine'); noise(0.25, 500, 120, 0.8, me ? 0.4 : 0.15, 'lowpass'); },
+  block() { tone(1400, 900, 0.12, 0.25, 'triangle'); tone(2100, 1500, 0.1, 0.12, 'sine', 0.03); },
+  freeze() { [1800, 1500, 1200].forEach((f, i) => tone(f, f * 0.9, 0.12, 0.14, 'sine', i * 0.05)); },
   win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, f, 0.2, 0.18, 'triangle', i * 0.11)); },
   lose() { [392, 330, 262].forEach((f, i) => tone(f, f * 0.98, 0.25, 0.16, 'triangle', i * 0.16)); },
 };
@@ -1028,7 +1137,7 @@ function updateHUD() {
   }
   $('chipIco').textContent = me.chips;
   const nx = C.LVL_AT[me.lvl + 1];
-  $('chipTxt').textContent = nx != null ? tl('next', { n: nx - me.chips }) : tl('maxSize');
+  $('chipTxt').textContent = nx != null ? tl('next', { n: nx - me.chips, s: tl('skill' + (me.lvl + 1)) }) : tl('maxSize');
   const pips = $('pips').children; for (let i = 0; i < 4; i++) pips[i].className = i <= me.lvl ? 'on' : '';
   const cd = clamp(me.dashCd / C.DASH_CD, 0, 1);
   $('dashRing').setAttribute('stroke-dashoffset', String(295 * cd));
@@ -1130,13 +1239,22 @@ function handleEvents() {
         if (e.p === ME) { SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
         break;
       }
-      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) SFX.grow(); break; }
+      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
       case 'fall': {
         if (e.p === ME || near(e.x, e.z)) SFX.fall();
         if (e.p === ME) { camShake = 0.35; banner(e.by >= 0 ? tl('shoved', { b: S.players[e.by].name }) : tl('fellSelf'), false, 1.5); }
         else { feedMsg(tl('fell', { a: nameOf(e.p) })); if (e.by === ME) float(e.x, 1.2, e.z, '💥', '#fff'); }
         break;
       }
+      case 'wave': { waveFx(e.x, e.z, e.r); if (e.p === ME || near(e.x, e.z)) { SFX.wave(e.p === ME); crumbBurst(e.x, 0.1, e.z, 12, 4); } if (e.p === ME) camShake = Math.max(camShake, 0.3); break; }
+      case 'block': { const p = S.players[e.p]; waveFx(p.x, p.z, 1.6, e.why === 'bubble' ? 0xbfeaff : 0xffd76a); if (e.p === ME || near(p.x, p.z)) SFX.block(); if (e.p === ME) float(p.x, 1.6, p.z, tl('blocked'), '#bfeaff'); break; }
+      case 'item': {
+        const p = S.players[e.p]; starBurst(e.x, 0.8, e.z, 10, 3);
+        if (e.kind === 'ice') waveFx(p.x, p.z, C.FREEZE_R, 0x8fd8ff);
+        if (e.p === ME) { SFX.grow(); banner(tl('it_' + e.kind), false, 1.3); } else if (near(e.x, e.z)) SFX.chip();
+        break;
+      }
+      case 'frozen': if (e.p === ME) { SFX.freeze(); banner(tl('frozen', { b: S.players[e.by].name }), false, 1.3); } break;
       case 'respawn': { actors[e.p].drop = 0.45; actors[e.p].scale = 1; break; }
       case 'end': showEnd(); break;
     }
@@ -1210,10 +1328,13 @@ function updateActors(dt, now) {
       sn.body.position.y = hopY;
       const chewing = a.chew > 0.12;
       sn.body.rotation.x = (p.dashT > 0 ? 0.3 : 0) + (p.hitT > 0 ? -0.35 : 0);
-      sn.body.rotation.z = p.hitT > 0 ? Math.sin(now * 40) * 0.15 : 0;
+      sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22;
+      a.ice.visible = p.frozenT > 0;
+      const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
+      if (p.boostT > 0 && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);
       a.root.visible = !(p.inv > 0 && a.drop <= 0 && Math.sin(now * 30) > 0.3);
     } else { // 掉下桌：往外飞着掉下去
       const t = p.fallT;
@@ -1286,7 +1407,7 @@ function frame(now) {
   updateActors(dt, tsec);
   stepPool(crumbs, dt, true); stepPool(stars, dt, false); stepPool(chipsFly, dt, false);
   updateCamera(Math.max(dt, 0.001));
-  updateGuides(tsec);
+  updateGuides(tsec); updateItems(tsec); updateWaves(dt);
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
   updateHUD();
   renderer.render(scene, camera);

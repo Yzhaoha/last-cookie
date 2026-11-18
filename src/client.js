@@ -274,7 +274,53 @@ function buildObstacle(o) {
 function buildMap() {
   obsRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose(); } });
   obsRoot.clear(); S.obs.forEach(buildObstacle);
+  for (const c of S.puddles) { // 果酱：踩上去变慢
+    const rnd = SIM.rng(c.id * 7 + 1), sh = new THREE.Shape(), n = 14;
+    for (let i = 0; i <= n; i++) { const a = i / n * 6.2832, r = c.r * (0.82 + 0.2 * Math.sin(a * 3 + c.id) + 0.08 * rnd()); i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshStandardMaterial({ color: 0xc2274b, roughness: 0.12, transparent: true, opacity: 0.82, envMapIntensity: 1.5 }));
+    m.rotation.x = -Math.PI / 2; m.position.set(c.x, 0.015, c.z); m.receiveShadow = true; obsRoot.add(m);
+  }
+  for (const [, m] of itemObjs) scene.remove(m); itemObjs.clear();
 }
+// ---------- 道具：辣椒 / 冰块 / 泡泡 ----------
+const itemObjs = new Map();
+function buildItem(kind) {
+  const g = new THREE.Group(), core = new THREE.Group(); g.add(core); g.userData.core = core;
+  if (kind === 'chili') {
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.95, 14), M(0xe5261f, 0.25, { envMapIntensity: 1.5 })); b.rotation.z = Math.PI; b.position.y = 0;
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.22, 8), M(0x3f9b3a, 0.6)); st.position.y = 0.55;
+    core.add(b, st); core.rotation.z = 0.5;
+  } else if (kind === 'ice') {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), M(0xa8e4ff, 0.08, { transparent: true, opacity: 0.85, envMapIntensity: 2 })); b.rotation.set(0.5, 0.6, 0); core.add(b);
+  } else {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14), M(0xd9f4ff, 0.05, { transparent: true, opacity: 0.55, envMapIntensity: 2.5 })); core.add(b);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), M(0xffffff, 0.2)); s.position.set(0.18, 0.2, 0.25); core.add(s);
+  }
+  core.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 28), new THREE.MeshBasicMaterial({ color: { chili: 0xff5a3c, ice: 0x5ac8ff, bubble: 0xffffff }[kind], transparent: true, opacity: 0.85, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; g.add(ring);
+  scene.add(g); return g;
+}
+function updateItems(now) {
+  const seen = new Set();
+  for (const it of S.items) {
+    seen.add(it.id); let m = itemObjs.get(it.id);
+    if (!m) { m = buildItem(it.kind); m.position.set(it.x, 0, it.z); m.userData.born = now; itemObjs.set(it.id, m); }
+    const k = Math.min(1, (now - m.userData.born) * 3); m.scale.setScalar(k * 1.25);
+    m.userData.core.position.y = 0.95 + Math.sin(now * 3 + it.id) * 0.15; m.userData.core.rotation.y = now * 2;
+  }
+  for (const [id, m] of itemObjs) if (!seen.has(id)) { scene.remove(m); itemObjs.delete(id); }
+}
+// 震地的圈
+const waveGeo = new THREE.RingGeometry(0.82, 1, 48); waveGeo.rotateX(-Math.PI / 2);
+const waves = []; for (let i = 0; i < 8; i++) { const m = new THREE.Mesh(waveGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.position.y = 0.05; scene.add(m); waves.push({ m, t: 0, r: 1 }); }
+let waveN = 0;
+function waveFx(x, z, r, col = 0xffffff) { const w = waves[waveN++ % waves.length]; w.m.position.set(x, 0.05, z); w.m.material.color.set(col); w.t = 0; w.r = r; w.m.visible = true; }
+function updateWaves(dt) { for (const w of waves) { if (!w.m.visible) continue; w.t += dt; const k = w.t / 0.35; if (k >= 1) { w.m.visible = false; continue; } w.m.scale.setScalar(w.r * (0.2 + 0.8 * k)); w.m.material.opacity = (1 - k) * 0.9; } }
+const iceMat = new THREE.MeshStandardMaterial({ color: 0xa8e4ff, roughness: 0.08, transparent: true, opacity: 0.6, envMapIntensity: 2 });
+const bubMat = new THREE.MeshStandardMaterial({ color: 0xe6f8ff, roughness: 0.05, transparent: true, opacity: 0.33, envMapIntensity: 2.5, depthWrite: false });
+const shieldMat = new THREE.MeshStandardMaterial({ color: 0xffd76a, roughness: 0.1, transparent: true, opacity: 0.3, envMapIntensity: 2, depthWrite: false });
+const iceGeo = new THREE.BoxGeometry(1.05, 1.1, 1.05), bubGeo = new THREE.SphereGeometry(0.72, 20, 14);
 // ---------- 巧克力豆 ----------
 const chipGeo = (() => { // 水滴形巧克力豆
   const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; const y = t * 0.3; const r = 0.17 * Math.pow(Math.sin(Math.PI * (1 - t) * 0.5 + 0.0001), 0.9) * (1 - t * 0.15); pts.push(new THREE.Vector2(Math.max(0.001, r), y)); }
@@ -303,7 +349,8 @@ function buildActors() {
   actors = S.players.map(p => {
     const sn = buildSnack(p.look); scene.add(sn.g);
     const tag = document.createElement('div'); tag.textContent = nameTxt(p); if (p.human) tag.className = 'me'; $('tags').appendChild(tag);
-    return { root: sn.g, sn, tag, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
+    const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
+    return { root: sn.g, sn, tag, ice, bub, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
 }
 
@@ -400,6 +447,9 @@ const SFX = {
   fall() { tone(700, 160, 0.5, 0.22, 'triangle'); },
   fish() { tone(300, 900, 0.12, 0.2, 'sine'); },
   beep(hi) { tone(hi ? 1046 : 660, hi ? 1046 : 660, hi ? 0.35 : 0.14, 0.2, 'square'); },
+  wave(me) { tone(140, 50, 0.3, me ? 0.5 : 0.2, 'sine'); noise(0.25, 500, 120, 0.8, me ? 0.4 : 0.15, 'lowpass'); },
+  block() { tone(1400, 900, 0.12, 0.25, 'triangle'); tone(2100, 1500, 0.1, 0.12, 'sine', 0.03); },
+  freeze() { [1800, 1500, 1200].forEach((f, i) => tone(f, f * 0.9, 0.12, 0.14, 'sine', i * 0.05)); },
   win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, f, 0.2, 0.18, 'triangle', i * 0.11)); },
   lose() { [392, 330, 262].forEach((f, i) => tone(f, f * 0.98, 0.25, 0.16, 'triangle', i * 0.16)); },
 };
@@ -503,7 +553,7 @@ function updateHUD() {
   }
   $('chipIco').textContent = me.chips;
   const nx = C.LVL_AT[me.lvl + 1];
-  $('chipTxt').textContent = nx != null ? tl('next', { n: nx - me.chips }) : tl('maxSize');
+  $('chipTxt').textContent = nx != null ? tl('next', { n: nx - me.chips, s: tl('skill' + (me.lvl + 1)) }) : tl('maxSize');
   const pips = $('pips').children; for (let i = 0; i < 4; i++) pips[i].className = i <= me.lvl ? 'on' : '';
   const cd = clamp(me.dashCd / C.DASH_CD, 0, 1);
   $('dashRing').setAttribute('stroke-dashoffset', String(295 * cd));
@@ -605,13 +655,22 @@ function handleEvents() {
         if (e.p === ME) { SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
         break;
       }
-      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) SFX.grow(); break; }
+      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
       case 'fall': {
         if (e.p === ME || near(e.x, e.z)) SFX.fall();
         if (e.p === ME) { camShake = 0.35; banner(e.by >= 0 ? tl('shoved', { b: S.players[e.by].name }) : tl('fellSelf'), false, 1.5); }
         else { feedMsg(tl('fell', { a: nameOf(e.p) })); if (e.by === ME) float(e.x, 1.2, e.z, '💥', '#fff'); }
         break;
       }
+      case 'wave': { waveFx(e.x, e.z, e.r); if (e.p === ME || near(e.x, e.z)) { SFX.wave(e.p === ME); crumbBurst(e.x, 0.1, e.z, 12, 4); } if (e.p === ME) camShake = Math.max(camShake, 0.3); break; }
+      case 'block': { const p = S.players[e.p]; waveFx(p.x, p.z, 1.6, e.why === 'bubble' ? 0xbfeaff : 0xffd76a); if (e.p === ME || near(p.x, p.z)) SFX.block(); if (e.p === ME) float(p.x, 1.6, p.z, tl('blocked'), '#bfeaff'); break; }
+      case 'item': {
+        const p = S.players[e.p]; starBurst(e.x, 0.8, e.z, 10, 3);
+        if (e.kind === 'ice') waveFx(p.x, p.z, C.FREEZE_R, 0x8fd8ff);
+        if (e.p === ME) { SFX.grow(); banner(tl('it_' + e.kind), false, 1.3); } else if (near(e.x, e.z)) SFX.chip();
+        break;
+      }
+      case 'frozen': if (e.p === ME) { SFX.freeze(); banner(tl('frozen', { b: S.players[e.by].name }), false, 1.3); } break;
       case 'respawn': { actors[e.p].drop = 0.45; actors[e.p].scale = 1; break; }
       case 'end': showEnd(); break;
     }
@@ -685,10 +744,13 @@ function updateActors(dt, now) {
       sn.body.position.y = hopY;
       const chewing = a.chew > 0.12;
       sn.body.rotation.x = (p.dashT > 0 ? 0.3 : 0) + (p.hitT > 0 ? -0.35 : 0);
-      sn.body.rotation.z = p.hitT > 0 ? Math.sin(now * 40) * 0.15 : 0;
+      sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22;
+      a.ice.visible = p.frozenT > 0;
+      const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
+      if (p.boostT > 0 && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);
       a.root.visible = !(p.inv > 0 && a.drop <= 0 && Math.sin(now * 30) > 0.3);
     } else { // 掉下桌：往外飞着掉下去
       const t = p.fallT;
@@ -761,7 +823,7 @@ function frame(now) {
   updateActors(dt, tsec);
   stepPool(crumbs, dt, true); stepPool(stars, dt, false); stepPool(chipsFly, dt, false);
   updateCamera(Math.max(dt, 0.001));
-  updateGuides(tsec);
+  updateGuides(tsec); updateItems(tsec); updateWaves(dt);
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
   updateHUD();
   renderer.render(scene, camera);
