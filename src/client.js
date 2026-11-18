@@ -136,8 +136,20 @@ const LOOKS = [
   { snack: 'pudding', col: 0xffe39a, col2: 0x6e2f0e },
   { snack: 'cupcake', col: 0xffe58a, col2: 0xc59bff },
   { snack: 'macaron', col: 0xc6b0ff, col2: 0xfff1e0 },
+  // 以下靠盲盒开
+  { snack: 'donut', col: 0x9bd37a, col2: 0xe3a35b, rar: 1 },      // 抹茶甜甜圈
+  { snack: 'pudding', col: 0xffa8c0, col2: 0xd9455f, rar: 1 },    // 草莓布丁
+  { snack: 'cupcake', col: 0xbfe8c8, col2: 0xfff6ea, rar: 1 },    // 薄荷杯子蛋糕
+  { snack: 'macaron', col: 0xffb36b, col2: 0xfff1e0, rar: 1 },    // 橙子马卡龙
+  { snack: 'donut', col: 0x6fb7ff, col2: 0xf2c58a, rar: 2 },      // 蓝莓甜甜圈
+  { snack: 'cupcake', col: 0x7a4b2e, col2: 0xfff1e0, rar: 2 },    // 巧克力杯子蛋糕
+  { snack: 'pudding', col: 0x8fd6c2, col2: 0x2f6e5e, rar: 2 },    // 抹茶布丁
+  { snack: 'macaron', col: 0x3c2a6e, col2: 0xff8fd0, rar: 3 },    // 星空马卡龙
+  { snack: 'donut', col: 0xffd24a, col2: 0xfff1c4, rar: 3 },      // 黄金甜甜圈
+  { snack: 'cupcake', col: 0x2b2b3a, col2: 0x7dfcff, rar: 3 },    // 霓虹杯子蛋糕
 ];
-const DOT_COL = ['#ff9cbc', '#ff7fae', '#ffd36a', '#8fd8ff', '#9fe3c4', '#7a4126', '#ffe39a', '#ffe58a', '#c6b0ff'];
+for (let i = 0; i < 9; i++) LOOKS[i].rar = i < 3 ? 0 : 1;        // 前 3 个一开始就有
+const dotCol = l => '#' + LOOKS[l % LOOKS.length].col.toString(16).padStart(6, '0');
 const M = (c, r = 0.5, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: r }, extra || {}));
 const eyeWhite = M(0xffffff, 0.25), eyeBlack = M(0x1d0f08, 0.2, { envMapIntensity: 1.5 }), blushM = new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.55 });
 const sprCols = [0xff5a7a, 0x5ad1ff, 0xffe14d, 0x8cff7a, 0xffffff, 0xb67bff];
@@ -561,7 +573,7 @@ addEventListener('keydown', e => {
   if (KB_DASH.includes(e.code)) wantDash = true;
   if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || e.code === 'Escape') toggleMenu();
-  if (e.code === 'Enter' && !$('panel').hidden) $('bAgain').click();
+  if (e.code === 'Enter' && !$('panel').hidden && $('locker').hidden) $('bAgain').click();
   usedKeys = true;
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -622,7 +634,7 @@ function readInput(me) {
 let ME = 0;
 const feed = $('feed');
 function feedMsg(html) { const d = document.createElement('div'); d.innerHTML = html; feed.prepend(d); while (feed.children.length > 3) feed.lastChild.remove(); setTimeout(() => d.remove(), 3500); }
-function nameOf(i) { const p = S.players[i]; return `<span style="color:${DOT_COL[p.look % 9]};text-shadow:0 1px 0 #4a2612">${esc(nameTxt(p))}</span>`; }
+function nameOf(i) { const p = S.players[i]; return `<span style="color:${dotCol(p.look)};text-shadow:0 1px 0 #4a2612">${esc(nameTxt(p))}</span>`; }
 let bannerT = 0;
 function banner(txt, big = false, dur = 1.6) { const b = $('banner'); b.textContent = txt; b.className = 'out pop' + (big ? ' big' : ''); void b.offsetWidth; bannerT = dur; b.hidden = false; }
 let tipTxt = '';
@@ -649,7 +661,7 @@ function updateHUD() {
   const key = top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
   if (key !== boardKey) {
     boardKey = key;
-    $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${DOT_COL[p.look % 9]}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
+    $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${dotCol(p.look)}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
   }
   $('chipIco').textContent = me.chips;
   const nx = C.LVL_AT[me.lvl + 1];
@@ -702,9 +714,9 @@ function newMatch() {
   S = SIM.create({ seed: (Math.random() * 1e9) | 0 });
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = 0;
-  const me = S.players[ME]; me.bot = false; me.human = true; me.look = store.get('look', 0) % 9;
+  const me = S.players[ME]; me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
   const used = new Set([me.look]);
-  S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * 9) | 0; while (used.has(l)) l = (l + 1) % 9; p.look = l; used.add(l); } });
+  S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
   buildMap();
   $('tags').innerHTML = ''; buildActors();
   for (const pool of [crumbs, stars, chipsFly]) for (const p of pool.arr) p.life = 0;
@@ -801,8 +813,9 @@ function showEnd() {
   if (won) store.set('wins', store.get('wins', 0) + 1);
   setTimeout(() => {
     $('resT').textContent = won ? tl('win') : tl('place', { n: me.place });
-    $('reward').textContent = '🍪 ' + tl('crumbs', { n: crumbsN });
-    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${DOT_COL[p.look % 9]}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / C.WIN_T * 100)}% · 💥${p.steals}</s></div>`);
+    $('reward').textContent = '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
+    $('bSkins').textContent = '🎁 ' + tl('skins') + (store.get('crumbs', 0) >= BOX_COST && owned().size < LOOKS.length ? ' ❗' : '');
+    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / C.WIN_T * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
     tip('');
@@ -814,6 +827,62 @@ $('bAgain').addEventListener('click', () => {
   // 广告只在两局之间
   PF.midgame(() => newMatch());
 });
+
+// ---------- 皮肤柜 + 盲盒（饼干屑换） ----------
+const BOX_COST = 100;
+if (store.get('crumbs', null) == null) store.set('crumbs', BOX_COST);   // 新玩家送一次盲盒
+const owned = () => { const o = new Set(store.get('owned', [])); LOOKS.forEach((L, i) => { if (!L.rar) o.add(i); }); return o; };
+let pv = null, lockerFrom = '';
+function pvInit() {
+  if (pv) return;
+  const r = new THREE.WebGLRenderer({ canvas: $('pvC'), antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(2, devicePixelRatio || 1)); r.setSize(220, 220, false); r.outputColorSpace = THREE.SRGBColorSpace;
+  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0xd0a070, 2.2)); const d = new THREE.DirectionalLight(0xffffff, 2.2); d.position.set(2, 4, 3); sc.add(d);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 20); cam.position.set(0, 1.25, 3.3); cam.lookAt(0, 0.42, 0);
+  pv = { r, sc, cam, obj: null, idx: 0, roll: 0, rollT: 0, win: -1, black: new THREE.MeshBasicMaterial({ color: 0x3b2416 }) };
+}
+function pvShow(i) {
+  pv.idx = (i + LOOKS.length) % LOOKS.length;
+  if (pv.obj) pv.sc.remove(pv.obj);
+  const sn = buildSnack(pv.idx); sn.blob.visible = false; pv.obj = sn.g; pv.sc.add(sn.g);
+  lockerUI();
+}
+function lockerUI() {
+  const own = owned(), has = own.has(pv.idx), cur = store.get('look', 0) % LOOKS.length, crumbs = store.get('crumbs', 0), rolling = pv.roll > 0;
+  pv.sc.overrideMaterial = has && !rolling ? null : pv.black;
+  $('pvInfo').textContent = (rolling ? '？？？' : has ? '★'.repeat(Math.max(1, LOOKS[pv.idx].rar)) : '🔒 ' + tl('locked')) + '   ' + (pv.idx + 1) + ' / ' + LOOKS.length;
+  $('pvCr').textContent = '🍪 ' + crumbs;
+  const u = $('bUse'); u.hidden = !has || rolling; u.textContent = pv.idx === cur ? '✓ ' + tl('using') : tl('use'); u.disabled = pv.idx === cur;
+  const b = $('bBox'), all = own.size >= LOOKS.length; b.disabled = rolling || all || crumbs < BOX_COST;
+  b.textContent = all ? tl('allOwned') : crumbs < BOX_COST ? tl('needMore', { n: BOX_COST - crumbs }) : '🎁 ' + tl('openBox', { n: BOX_COST });
+}
+function openLocker(from) { lockerFrom = from; pvInit(); $('locker').hidden = false; $('menu').hidden = true; pvShow(store.get('look', 0)); }
+function closeLocker() { $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; }
+function openBox() {
+  const own = owned(), pool = []; LOOKS.forEach((L, i) => { if (!own.has(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
+  if (!pool.length || store.get('crumbs', 0) < BOX_COST || pv.roll > 0) return;
+  store.set('crumbs', store.get('crumbs', 0) - BOX_COST);
+  pv.win = pool[(Math.random() * pool.length) | 0]; pv.roll = 1.4; pv.rollT = 0;
+  own.add(pv.win); store.set('owned', [...own]); store.set('look', pv.win);
+  lockerUI();
+}
+function pvFrame(dt, now) {
+  if (!pv || $('locker').hidden) return;
+  if (pv.roll > 0) { // 开盒：黑影乱跳一阵，然后亮出来
+    pv.roll -= dt; pv.rollT -= dt;
+    if (pv.roll <= 0) { pvShow(pv.win); $('pvC').classList.remove('pop'); void $('pvC').offsetWidth; $('pvC').classList.add('pop'); SFX.win(); PF.happy(); }
+    else if (pv.rollT <= 0) { pv.rollT = 0.09; SFX.beep(false); pv.roll += 0; const k = pv.roll; pvShow((Math.random() * LOOKS.length) | 0); pv.roll = k; lockerUI(); }
+  }
+  if (pv.obj) { pv.obj.rotation.y = now * (pv.roll > 0 ? 9 : 1.2); pv.obj.position.y = pv.roll > 0 ? Math.abs(Math.sin(now * 20)) * 0.12 : 0; }
+  pv.r.render(pv.sc, pv.cam);
+}
+$('pvL').addEventListener('click', () => { if (pv.roll <= 0) pvShow(pv.idx - 1); });
+$('pvR').addEventListener('click', () => { if (pv.roll <= 0) pvShow(pv.idx + 1); });
+$('bUse').addEventListener('click', () => { store.set('look', pv.idx); lockerUI(); });
+$('bBox').addEventListener('click', () => { ensureAudio(); openBox(); });
+$('bLockerX').addEventListener('click', closeLocker);
+$('bSkins').addEventListener('click', () => openLocker('panel'));
+$('bSkins2').addEventListener('click', () => openLocker('menu'));
 
 // ---------- 菜单 ----------
 const ls = $('langSel'); for (const c of CODES) { const o = document.createElement('option'); o.value = c; o.textContent = LANG_NAMES[c]; ls.appendChild(o); }
@@ -933,6 +1002,7 @@ function frame(now) {
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
   updateHUD();
   renderer.render(scene, camera);
+  pvFrame(rawDt, tsec);
 }
 
 // ---------- 启动 ----------

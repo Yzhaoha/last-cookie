@@ -84,6 +84,16 @@ body.lefty #chipBox{left:auto;right:14px}
 #rank .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink)}
 #reward{font-size:20px;color:#b0602a;margin-bottom:12px}
 #gear{position:fixed;top:max(10px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:50%;border:3px solid var(--ink);background:var(--cream);font-size:22px;display:grid;place-items:center;z-index:7;cursor:pointer;box-shadow:0 4px 0 rgba(74,38,18,.35)}
+#locker{position:fixed;inset:0;display:grid;place-items:center;background:rgba(74,38,18,.45);z-index:12}
+#locker .card2{background:var(--cream);border:4px solid var(--ink);border-radius:24px;padding:14px 18px;width:min(92vw,360px);text-align:center;display:flex;flex-direction:column;gap:9px;max-height:96vh;overflow:auto}
+#pvWrap{display:flex;align-items:center;justify-content:center;gap:4px}
+#pvWrap .btn{padding:8px 12px 10px;font-size:18px}
+#pvC{width:200px;height:200px;background:radial-gradient(circle at 50% 60%,#fff,#ffe2b8);border:3px solid var(--ink);border-radius:20px}
+#pvC.pop{animation:pvpop .5s cubic-bezier(.3,1.8,.5,1)}
+@keyframes pvpop{from{transform:scale(.5)}}
+#pvInfo{font-size:18px;color:#b0602a}#pvCr{font-size:20px}
+.btn:disabled{filter:grayscale(.7);opacity:.6;cursor:default}
+#bAgain,#bSkins{margin:3px}
 #menu{position:fixed;inset:0;display:grid;place-items:center;background:rgba(74,38,18,.35);z-index:11}
 #menu .card2{background:var(--cream);border:4px solid var(--ink);border-radius:24px;padding:16px 20px;width:min(90vw,340px);text-align:center;display:flex;flex-direction:column;gap:12px}
 #menu select{font-family:inherit;font-size:18px;padding:6px;border:3px solid var(--ink);border-radius:12px;background:#fff}
@@ -120,8 +130,9 @@ body.lefty #chipBox{left:auto;right:14px}
 <div id="keys"><span data-t="keysJump"></span><br><span data-t="keysDash"></span></div>
 <div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbJump"><span data-t="jump"></span></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
-<div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button><div id="rank"></div></div></div>
-<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
+<div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button> <button class="btn sec" id="bSkins"></button><div id="rank"></div></div></div>
+<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
+<div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 /*GAME*/
