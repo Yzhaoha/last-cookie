@@ -4,13 +4,16 @@ const SIM = (() => {
   const CFG = {
     HW: 26, HH: 18,       // 桌面半宽 / 半深（米）
     N: 8,                 // 人数（你 + 7 个机器人）
-    SPEED: 6.2, ACCEL: 16, KFRIC: 5.5, BODY_R: 0.5,
+    SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
     WIN_T: 30,            // 累计抱满这么多秒就赢
     MAX_T: 120,           // 最长一局；到点谁吃得多谁赢
     COUNT_T: 3,
     // 冲撞
-    DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.8, DASH_K: 9, STUN_T: 0.5,
+    DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.2, DASH_K: 9, STUN_T: 0.35,
+    DASH_BUF: 0.3,        // 冷却快好时提前按也算数
+    AIM_R: 4.2, AIM_ANG: 1.1, // 真人冲撞自动对准抱饼干的人（距离、夹角）
+    ME_SPEED: 1.05,       // 真人跑得稍快一点
     GUARD_T: 1.5,         // 刚抢到饼干的保护时间
     STEAL_CD: 0.25,       // 抢到后冲撞马上又能用（好甩开人）
     PICK_R: 1.0,
@@ -179,13 +182,20 @@ const SIM = (() => {
       const stunned = p.hitT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       if (!playing || stunned) mx = mz = 0;
-      if (playing && p.inp.dash && p.dashCd <= 0 && !stunned) {
-        let dx = mx, dz = mz; if (Math.hypot(dx, dz) < 0.2) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
+      if (p.inp.dash) p.dashBuf = C.DASH_BUF; else p.dashBuf = (p.dashBuf || 0) - dt;
+      if (playing && p.dashBuf > 0 && p.dashCd <= 0 && !stunned) {
+        p.dashBuf = 0;
+        const noDir = Math.hypot(mx, mz) < 0.2;
+        let dx = mx, dz = mz; if (noDir) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
+        if (p.human && ck.holder >= 0 && !carry) { // 自动对准
+          const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
+          if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; }
+        }
         const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T; p.dashCd = C.DASH_CD; p.dashHit = false;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1);
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
         const k = Math.min(1, C.ACCEL * dt / Math.max(0.001, Math.hypot(mx * sp - p.mvx, mz * sp - p.mvz)));
@@ -193,7 +203,7 @@ const SIM = (() => {
       }
       if (Math.hypot(p.mvx, p.mvz) > 0.6) {
         const want = Math.atan2(p.mvx, p.mvz); let d = want - p.face; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832;
-        p.face += d * Math.min(1, 14 * dt);
+        p.face += d * Math.min(1, 22 * dt);
       }
       // 自己走（冲）不会出桌；只有被撞飞才会掉下去
       p.x += p.mvx * dt; p.z += p.mvz * dt;

@@ -31,7 +31,7 @@ function vnoise(x, z) {
 // ---------- three 基础 ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.setPixelRatio(Math.min(IS_TOUCH ? 1.5 : 2, devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -67,7 +67,7 @@ scene.add(new THREE.HemisphereLight(0xfff3e2, 0xb57a45, 0.55));
 const sun = new THREE.DirectionalLight(0xfff0db, 2.3);
 sun.position.set(9, 20, 7);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(IS_TOUCH ? 1024 : 2048, IS_TOUCH ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -19, right: 19, top: 19, bottom: -19, near: 1, far: 50 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.025;
 scene.add(sun, sun.target);
@@ -323,7 +323,7 @@ function updateGuides(now) {
     arrow.visible = true; arrow.position.set(me.x + Math.sin(a) * r, 0.3, me.z + Math.cos(a) * r); arrow.rotation.set(0, a, 0);
     arrow.material.opacity = 0.65 + 0.3 * Math.sin(now * 6);
   }
-  if (holder && me.on && me.dashCd <= 0 && S.phase === 'play' && d < 3.3 * C.SCALE[me.lvl]) {
+  if (holder && me.on && me.dashCd <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
@@ -409,7 +409,7 @@ const keys = new Set();
 let wantDash = false;
 const KB_BITE = [], KB_DASH = ['Space', 'KeyK', 'KeyJ', 'KeyX', 'ShiftLeft'];
 addEventListener('keydown', e => {
-  if (e.repeat && (KB_BITE.includes(e.code) || KB_DASH.includes(e.code))) { e.preventDefault(); return; }
+  if (e.repeat && KB_DASH.includes(e.code)) { e.preventDefault(); return; }
   ensureAudio();
   if (PF.adBusy) { e.preventDefault(); return; }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
@@ -530,11 +530,11 @@ function updateCamera(dt) {
   let ox = (ck.x - fx) * 0.22, oz = (ck.z - fz) * 0.22; const ol = Math.hypot(ox, oz); if (ol > 3.5) { ox *= 3.5 / ol; oz *= 3.5 / ol; }
   if (S.phase === 'end') { const wn = S.players[S.winner]; fx = wn.x; fz = wn.z; ox = oz = 0; }
   const tx = fx + ox, tz = fz + oz + 1;
-  camT.x = lerp(camT.x, tx, 1 - Math.exp(-4 * dt)); camT.z = lerp(camT.z, tz, 1 - Math.exp(-4 * dt));
+  camT.x = lerp(camT.x, tx, 1 - Math.exp(-9 * dt)); camT.z = lerp(camT.z, tz, 1 - Math.exp(-9 * dt));
   const d = camDist() * (S.phase === 'end' ? 0.62 : 1);
   const pitch = 0.95;
   const want = _v.set(camT.x, Math.sin(pitch) * d, camT.z + Math.cos(pitch) * d);
-  camPos.lerp(want, 1 - Math.exp(-5 * dt));
+  camPos.lerp(want, 1 - Math.exp(-12 * dt));
   camera.position.copy(camPos);
   if (camShake > 0) { camShake -= dt; camera.position.x += (Math.random() - 0.5) * camShake * 0.6; camera.position.y += (Math.random() - 0.5) * camShake * 0.6; }
   camera.lookAt(camPos.x, 0, camPos.z - Math.cos(pitch) * d);
