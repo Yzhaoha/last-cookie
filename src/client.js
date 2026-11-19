@@ -31,7 +31,7 @@ function vnoise(x, z) {
 // ---------- three 基础 ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(IS_TOUCH ? 1.5 : 2, devicePixelRatio || 1));
+renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -67,7 +67,7 @@ scene.add(new THREE.HemisphereLight(0xfff3e2, 0xb57a45, 0.55));
 const sun = new THREE.DirectionalLight(0xfff0db, 2.3);
 sun.position.set(9, 20, 7);
 sun.castShadow = true;
-sun.shadow.mapSize.set(IS_TOUCH ? 1024 : 2048, IS_TOUCH ? 1024 : 2048);
+sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -19, right: 19, top: 19, bottom: -19, near: 1, far: 50 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.025;
 scene.add(sun, sun.target);
@@ -442,12 +442,12 @@ function updateGuides(now) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
-  const [sx, sy, front] = toScreen(ck.x, 1, ck.z), mg = 46, W = innerWidth, H = innerHeight;
+  const [sx, sy, front] = toScreen(ck.x, 1, ck.z), mg = 46, W = VW, H = VH;
   if (front && sx > mg && sx < W - mg && sy > mg + 30 && sy < H - mg) { ptr.hidden = true; return; }
   let dx = sx - W / 2, dy = sy - H / 2; if (!front) { dx = -dx; dy = -dy; }
   const k = Math.min((W / 2 - mg) / Math.max(1, Math.abs(dx)), (H / 2 - mg - 20) / Math.max(1, Math.abs(dy)));
-  ptr.hidden = false; ptr.style.left = (W / 2 + dx * k) + 'px'; ptr.style.top = (H / 2 + dy * k + 10) + 'px';
-  $('ptrA').style.transform = `rotate(${Math.atan2(dy, dx)}rad) translateX(30px)`;
+  ptr.hidden = false; setTf(ptr, `translate3d(${Math.round(W / 2 + dx * k)}px,${Math.round(H / 2 + dy * k + 10)}px,0) translate(-50%,-50%)`);
+  setTf($('ptrA'), `rotate(${Math.atan2(dy, dx).toFixed(2)}rad) translateX(30px)`);
 }
 
 // ---------- 粒子 ----------
@@ -617,6 +617,12 @@ canvas.addEventListener('pointerup', endStick); canvas.addEventListener('pointer
 addEventListener('mousemove', () => { if (touchMode && !IS_TOUCH) setTouchMode(false); });
 addEventListener('wheel', e => { if (!e.target.closest('#card,#menu')) e.preventDefault(); }, { passive: false });
 addEventListener('contextmenu', e => e.preventDefault());
+// 手机：禁止双击放大、双指缩放（iPhone 不认网页里“不许缩放”的设置，只能自己拦）
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 || !e.target.closest('#card,.card2')) e.preventDefault(); }, { passive: false });
+for (const k of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(k, e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
 
 
 // 屏幕方向 → 世界方向（镜头朝 -z 看，屏幕上 = 世界 -z）
@@ -640,7 +646,11 @@ function banner(txt, big = false, dur = 1.6) { const b = $('banner'); b.textCont
 let tipTxt = '';
 function tip(txt) { const t = $('tip'); if (!txt) { t.hidden = true; tipTxt = ''; return; } if (txt !== tipTxt) { t.textContent = txt; tipTxt = txt; } t.hidden = false; }
 const _p = new THREE.Vector3();
-function toScreen(x, y, z) { _p.set(x, y, z).project(camera); return [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight, _p.z < 1]; }
+let VW = innerWidth, VH = innerHeight;
+function toScreen(x, y, z) { _p.set(x, y, z).project(camera); return [(_p.x * 0.5 + 0.5) * VW, (-_p.y * 0.5 + 0.5) * VH, _p.z < 1]; }
+// 只在内容真的变了才动页面（每帧乱写会拖慢）
+function setT(el, v) { if (el._t !== v) { el._t = v; el.textContent = v; } }
+function setTf(el, v) { if (el._f !== v) { el._f = v; el.style.transform = v; } }
 function float(x, y, z, txt, col = '#fff') {
   const [sx, sy] = toScreen(x, y, z); const d = document.createElement('div'); d.className = 'out'; d.textContent = txt; d.style.left = sx + 'px'; d.style.top = sy + 'px'; d.style.color = col; $('floats').appendChild(d); setTimeout(() => d.remove(), 950);
 }
@@ -650,11 +660,11 @@ function updateHUD() {
   const left = Math.max(0, Math.ceil(C.MAX_T - (S.playT || 0)));
   // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
   const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
-  $('timeP').textContent = late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—');
+  setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
   $('timeP').classList.toggle('hot', late);
   // 我的进度条
-  $('progFill').style.width = (me.eaten / C.WIN_T * 100).toFixed(1) + '%';
-  $('progTxt').textContent = '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%';
+  setTf($('progFill'), `scaleX(${(me.eaten / C.WIN_T).toFixed(3)})`);
+  setT($('progTxt'), '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%');
   $('prog').classList.toggle('mine', holder === ME);
   // 排行：吃得最多的 4 个
   const top = S.players.slice().sort((a, b) => b.eaten - a.eaten).slice(0, 4);
@@ -663,12 +673,12 @@ function updateHUD() {
     boardKey = key;
     $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${dotCol(p.look)}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
   }
-  $('chipIco').textContent = me.chips;
+  setT($('chipIco'), String(me.chips));
   const nx = C.LVL_AT[me.lvl + 1];
-  $('chipTxt').textContent = nx != null ? tl('next', { n: nx - me.chips, s: tl('skill' + (me.lvl + 1)) }) : tl('maxSize');
-  const pips = $('pips').children; for (let i = 0; i < 4; i++) pips[i].className = i <= me.lvl ? 'on' : '';
+  setT($('chipTxt'), nx != null ? tl('next', { n: nx - me.chips, s: tl('skill' + (me.lvl + 1)) }) : tl('maxSize'));
+  if (updateHUD.lvl !== me.lvl) { updateHUD.lvl = me.lvl; const pips = $('pips').children; for (let i = 0; i < 4; i++) pips[i].className = i <= me.lvl ? 'on' : ''; }
   const cd = clamp(me.dashCd / C.DASH_CD, 0, 1);
-  $('dashRing').setAttribute('stroke-dashoffset', String(295 * cd));
+  const off = String(Math.round(295 * cd)); if (updateHUD.off !== off) { updateHUD.off = off; $('dashRing').setAttribute('stroke-dashoffset', off); }
   $('tbDash').classList.toggle('cd', cd > 0);
   $('tbJump').classList.toggle('cd', me.jumpCd > 0);
   if (S.phase === 'play' && S.playT > 1.5 && !$('intro').hidden) { $('intro').style.opacity = 0; if (S.playT > 2) $('intro').hidden = true; }
@@ -686,7 +696,7 @@ let tipsOn = false;
 // ---------- 镜头：跟着我，稍微偏向饼干 ----------
 const camT = new THREE.Vector3(0, 0, 2), camPos = new THREE.Vector3(0, 30, 20);
 let camShake = 0;
-function camDist() { const a = innerWidth / innerHeight; return a < 0.8 ? 30 : a < 1.25 ? 29 : 26; }
+function camDist() { const a = VW / VH; return a < 0.8 ? 30 : a < 1.25 ? 29 : 26; }
 function updateCamera(dt) {
   const me = S.players[ME], ck = S.cookie;
   let fx = me.on ? me.x : clamp(me.fx, -HW, HW), fz = me.on ? me.z : clamp(me.fz, -HH, HH);
@@ -704,7 +714,7 @@ function updateCamera(dt) {
   if (DEBUG && window.__camO) { const o = window.__camO; camera.position.set(...o.p); camera.lookAt(...o.l); }
   sun.position.set(camT.x + 9, 20, camT.z + 7); sun.target.position.set(camT.x, 0, camT.z);
 }
-function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 0.8 ? 52 : camera.aspect < 1.25 ? 44 : 38; camera.updateProjectionMatrix(); }
+function resize() { VW = innerWidth; VH = innerHeight; renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 0.8 ? 52 : camera.aspect < 1.25 ? 44 : 38; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
 // ---------- 对局 ----------
@@ -936,8 +946,8 @@ function updateActors(dt, now) {
     const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.75 : 1.05) * a.scale * VIS, a.root.position.z);
-    tag.style.display = vis && p.on ? '' : 'none';
-    tag.style.left = sx + 'px'; tag.style.top = sy + 'px';
+    const show = vis && p.on; if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
+    if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
   }
   // 饼干
   const ck = S.cookie;
@@ -959,7 +969,7 @@ function updateActors(dt, now) {
 }
 
 // ---------- 画面卡就自动降画质（先降清晰度，再关影子） ----------
-const QL = IS_TOUCH ? [[1.5, 1], [1.15, 1], [1, 0], [0.75, 0]] : [[2, 1], [1.5, 1], [1.1, 1], [1, 0], [0.75, 0]];
+const QL = IS_TOUCH ? [[1.5, 1], [1.15, 1], [1, 0], [0.75, 0]] : [[1.5, 1], [1.25, 1], [1, 1], [1, 0], [0.75, 0], [0.6, 0]];
 let qLvl = 0, qT = 0, qN = 0, qBad = 0, fpsNow = 60;
 function setQuality(l) {
   qLvl = clamp(l, 0, QL.length - 1); const [pr, sh] = QL[qLvl];
@@ -971,7 +981,9 @@ function autoQuality(dt) {
   if (qT < 1) return;
   fpsNow = qN / qT; qT = 0; qN = 0;
   $('fpsTxt').textContent = Math.round(fpsNow) + ' FPS · Q' + (QL.length - qLvl);
-  if (fpsNow < 45) { if (++qBad >= 2 && qLvl < QL.length - 1) { qBad = 0; setQuality(qLvl + 1); } } else qBad = 0;
+  // 比屏幕该有的帧数低一截就降一档（很卡就一次降两档）；头 2 秒不算（刚打开在加载）
+  if (performance.now() < 4000) return;
+  if (fpsNow < 52) { if (++qBad >= 2 && qLvl < QL.length - 1) { qBad = 0; setQuality(qLvl + (fpsNow < 32 ? 2 : 1)); } } else qBad = 0;
 }
 
 // ---------- 主循环 ----------

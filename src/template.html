@@ -1,14 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no" class="notranslate">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="google" content="notranslate">
 <title>Last Cookie</title>
 <!--PLATFORM_HEAD-->
 <style>
 @font-face{font-family:'LC Display';src:local('Lilita One'),url('fonts/LilitaOne.woff2') format('woff2');font-display:swap}
 :root{--ink:#4a2612;--cream:#fff6e6;--choc:#5a2e16;--gold:#f2b44a;--pink:#ff7fa8}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:none;-webkit-touch-callout:none}
+#card,.card2{touch-action:pan-y}
 html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'LC Display','Arial Rounded MT Bold','Nunito',system-ui,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
 [hidden]{display:none!important}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
@@ -18,7 +20,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 .pill{background:var(--cream);border:3px solid var(--ink);border-radius:999px;padding:4px 14px 5px;font-size:20px;box-shadow:0 4px 0 rgba(74,38,18,.35);white-space:nowrap}
 #timeP.hot{background:#ff6b5a;color:#fff}
 #prog{position:relative;width:min(46vw,300px);height:34px;background:var(--cream);border:3px solid var(--ink);border-radius:999px;box-shadow:0 4px 0 rgba(74,38,18,.35);overflow:hidden}
-#progFill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);transition:width .2s linear}
+#progFill{position:absolute;inset:0;background:var(--gold);transform-origin:0 50%;transform:scaleX(0);will-change:transform}
 #prog.mine #progFill{background:#7be07b}
 #progTxt{position:absolute;inset:0;display:grid;place-items:center;font-size:19px}
 #board{position:fixed;top:max(62px,calc(env(safe-area-inset-top) + 54px));right:12px;display:flex;flex-direction:column;gap:3px;pointer-events:none;z-index:5;font-size:14px}
@@ -29,7 +31,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#f3d9b6;font-family:'L
 #board u{width:44px;height:8px;border:2px solid var(--ink);border-radius:6px;background:#fff;overflow:hidden;text-decoration:none}
 #board em{display:block;height:100%;background:var(--gold)}
 #board .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);flex:none}
-#ptr{position:fixed;transform:translate(-50%,-50%);z-index:5;pointer-events:none;font-size:26px;width:46px;height:46px;display:grid;place-items:center;background:var(--cream);border:3px solid var(--ink);border-radius:50%;box-shadow:0 4px 0 rgba(74,38,18,.35)}
+#ptr{position:fixed;left:0;top:0;will-change:transform;z-index:5;pointer-events:none;font-size:26px;width:46px;height:46px;display:grid;place-items:center;background:var(--cream);border:3px solid var(--ink);border-radius:50%;box-shadow:0 4px 0 rgba(74,38,18,.35)}
 #ptrA{position:absolute;left:50%;top:50%;width:0;height:0;margin:-9px 0 0 -6px;border:9px solid transparent;border-left:13px solid #e0791b;transform-origin:6px 9px}
 #feed{position:fixed;top:max(180px,calc(env(safe-area-inset-top) + 172px));right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;z-index:5}
 #feed div{background:rgba(255,246,230,.92);border:2px solid var(--ink);border-radius:10px;padding:2px 9px;font-size:14px;animation:fin .25s ease-out}
@@ -67,7 +69,7 @@ body.lefty #tbJump{right:auto;left:calc(max(22px,env(safe-area-inset-left)) + 10
 body.lefty #tbDash{right:auto;left:max(22px,env(safe-area-inset-left))}
 body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
-#tags div{position:absolute;transform:translate(-50%,-100%);font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
+#tags div{position:absolute;left:0;top:0;will-change:transform;font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
 #tags div.me{font-size:17px;color:#ffe08a}
 #tags div.me::after{content:'';display:block;margin:2px auto 0;width:0;height:0;border:7px solid transparent;border-top:9px solid #ffe08a;filter:drop-shadow(0 1px 0 var(--ink))}
 #floats{position:fixed;inset:0;pointer-events:none;z-index:4}
