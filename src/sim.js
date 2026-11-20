@@ -6,7 +6,9 @@ const SIM = (() => {
     ROUND_R: 20,          // 圆桌半径（小一些，边更近，更容易被撞下去）
     N: 8,                 // 人数（你 + 7 个机器人）
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
-    CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
+    CARRY_SLOW: 0.88,     // 抱着饼干跑得慢一些
+    ME_CARRY: 0.88,       // 真人抱着只慢一点
+    ME_CHASE: 1.07,       // 别人抱着饼干时，真人追得更快（不然追不上）
     WIN_T: 25,            // 累计抱满这么多秒就赢
     MAX_T: 180,           // 只是保险：正常都是有人先吃完；真拖到这时谁吃得多谁赢（界面最后 20 秒才显示倒计时）
     COUNT_T: 3,
@@ -251,7 +253,7 @@ const SIM = (() => {
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.human ? C.ME_SPEED : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? (p.human ? C.ME_CARRY : C.CARRY_SLOW) : 1) * (p.human ? C.ME_SPEED * (ck.holder >= 0 && !carry ? C.ME_CHASE : 1) : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
       if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
@@ -363,7 +365,7 @@ const SIM = (() => {
       }
       inp.mx = ai.mx; inp.mz = ai.mz;
       if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * (o.human ? 2 : 5)) { inp.jump = true; break; } }
-      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.3 && S.rnd() < dt * 5) { inp.dash = true; break; } }
+      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * (o.human ? 1.2 : 4)) { inp.dash = true; break; } }
       return;
     }
     // 没抱饼干：离饼干近的几个去追，其余去吃豆
