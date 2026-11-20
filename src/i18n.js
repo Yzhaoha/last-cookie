@@ -34,7 +34,7 @@ const TL = {
   tipCarry: { en: 'You have it — RUN! 100% wins. Press J to jump over bumps, Space to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时按 J 跳起来躲开，空格冲一下甩开人' },
   tipCarryT: { en: 'You have it — RUN! 100% wins. Tap JUMP to dodge bumps, BUMP to burst away', zh: '饼干在你手里，快跑！涨到 100% 立刻赢。有人冲过来时点「跳」躲开，点「冲撞」甩开人' },
   tipFell: { en: 'Knocked off the table! Back in a moment…', zh: '被撞下桌子了，马上回来…' },
-  gotIt: { en: 'You got the cookie!', zh: '饼干到手！快跑！' },
+  gotIt: { en: 'Got it! Speed burst — RUN!', zh: '饼干到手！趁加速快跑！' },
   lostIt: { en: '{b} stole your cookie!', zh: '{b} 抢走了你的饼干！' },
   stole: { en: '{b} stole it from {a}', zh: '{b} 抢了 {a} 的饼干' },
   fell: { en: '{a} fell off the table', zh: '{a} 掉下桌子了' },

@@ -6,22 +6,22 @@ const SIM = (() => {
     ROUND_R: 20,          // 圆桌半径（小一些，边更近，更容易被撞下去）
     N: 8,                 // 人数（你 + 7 个机器人）
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
-    CARRY_SLOW: 0.88,     // 抱着饼干跑得慢一些
-    ME_CARRY: 0.88,       // 真人抱着只慢一点
-    ME_CHASE: 1.07,       // 别人抱着饼干时，真人追得更快（不然追不上）
-    WIN_T: 30,            // 累计抱满这么多秒就赢
+    // ——以下规则对所有人一视同仁（以后全是真人联机也成立），不再给“真人”开小灶——
+    CARRY_SLOW: 0.93,      // 抱着饼干跑得慢一些：追的人迟早追得上
+    GRAB_BOOST: 1.35, GRAB_T: 2.0, // 刚抢到：加速冲出人堆
+    ROBBED_CD: 2.0,       // 刚被抢：这么久不能冲撞（不能立刻抢回来，避免来回倒手）
+    CHASE_DASH: 1.2,      // 追抱饼干的人时冲得更远
+    PAD: 0.25,            // 冲向抱饼干的人时判定放宽
+    HOME_TURN: 5,         // 冲撞途中跟着目标拐弯的速度（弧度/秒）；急转或跳起来仍然躲得开
+    WIN_T: 24,            // 累计抱满这么多秒就赢
     MAX_T: 180,           // 只是保险：正常都是有人先吃完；真拖到这时谁吃得多谁赢（界面最后 20 秒才显示倒计时）
     COUNT_T: 3,
     // 冲撞
     DASH_T: 0.22, DASH_SPEED: 15, DASH_CD: 1.2, DASH_K: 9, STUN_T: 0.35,
     JUMP_T: 0.55, JUMP_CD: 2.2, // 跳：空中撞不到你；2 级起落地震开一圈人
     DASH_BUF: 0.3,        // 冷却快好时提前按也算数
-    AIM_R: 5.4, AIM_ANG: 1.75, // 真人冲撞自动对准抱饼干的人（距离、夹角）
-    ME_DASH: 1.35,        // 真人冲得更远，而且冲的过程中会跟着目标拐弯
-    ME_PAD: 0.45,         // 真人冲撞时碰撞范围放宽
-    ME_GUARD: 1.9,        // 对真人，别人“刚抢到”的保护只有 GUARD_T - 这个数 = 0.6 秒
-    ME_SPEED: 1.05,       // 真人跑得稍快一点
-    GUARD_T: 2.5,         // 刚抢到饼干的保护时间（长一点，饼干才不会在人堆里秒换手）
+    AIM_R: 5, AIM_ANG: 1.6,   // 冲撞自动对准抱饼干的人（距离、夹角）——所有人都一样
+    GUARD_T: 2.5,         // 刚抢到饼干的保护时间
     STEAL_CD: 0.25,       // 抢到后冲撞马上又能用（好甩开人）
     PICK_R: 1.0,
     RESPAWN_T: 2.0, INV_T: 1.2,
@@ -39,11 +39,9 @@ const SIM = (() => {
     MASS: [1, 1.25, 1.55, 1.9],    // 抗撞
     SLOW: [1, 0.985, 0.97, 0.955],
     // 机器人
-    CHASERS: 2,           // 同时追饼干的机器人数量
+    CHASERS: 4,           // 同时追饼干的机器人数量
     BOT_RATE: 4,          // 机器人够得着时每秒出手的概率（越小越不爱撞）
     BOT_REACT: 0.35,      // 机器人出手前的反应时间
-    ME_GENTLE: 0.5,       // 机器人对真人出手的频率倍数
-    ME_AIM: 0.5,          // 机器人撞真人时的瞄准误差（弧度）
   };
 
   function rng(seed) {
@@ -132,7 +130,7 @@ const SIM = (() => {
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
-        home: -1, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
+        home: -1, grabT: 0, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
     for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && edgeGap(S, x, z) > 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
@@ -179,7 +177,7 @@ const SIM = (() => {
     a.dashHit = true; a.dashT = Math.min(a.dashT, 0.05);
     if (b.inv > 0) return;
     let dx = b.x - a.x, dz = b.z - a.z; const d = Math.hypot(dx, dz) || 1; dx = dx / d * 0.6 + a.dashX * 0.4; dz = dz / d * 0.6 + a.dashZ * 0.4;
-    const l = Math.hypot(dx, dz) || 1, guarded = b.guard > (a.human ? C.ME_GUARD : 0);
+    const l = Math.hypot(dx, dz) || 1, guarded = b.guard > 0;
     if (shielded(S, b)) { b.kvx = dx / l * 3; b.kvz = dz / l * 3; a.kvx = -dx / l * 5; a.kvz = -dz / l * 5; a.hitT = 0.2; return; }
     const f = C.DASH_K * C.POWER[a.lvl] / C.MASS[b.lvl] * (guarded ? 0.5 : 1);
     b.kvx = dx / l * f; b.kvz = dz / l * f; b.hitT = guarded ? 0.2 : C.STUN_T; b.dashT = 0; b.lastHit = a.id; b.lastHitT = S.t;
@@ -195,7 +193,7 @@ const SIM = (() => {
   function trySteal(S, a, b) {
     const ck = S.cookie;
     if (ck.holder !== b.id || S.phase !== 'play') return;
-    ck.holder = a.id; a.guard = CFG.GUARD_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD);
+    ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
   // 2 级：冲撞落地震开一圈人（抱饼干的人被震到也会丢饼干）
@@ -235,7 +233,7 @@ const SIM = (() => {
     if (S.phase === 'end') S.phaseT += dt;
 
     for (const p of P) {
-      p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
+      p.grabT -= dt; p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
       if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = p.inp.jump = false; continue; }
       const stunned = p.hitT > 0 || p.frozenT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
@@ -250,19 +248,21 @@ const SIM = (() => {
         p.dashBuf = 0;
         const noDir = Math.hypot(mx, mz) < 0.2;
         let dx = mx, dz = mz; if (noDir) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
-        if (p.human && ck.holder >= 0 && !carry) { // 自动对准
+        if (ck.holder >= 0 && !carry) { // 自动对准
           const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           p.home = -1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; p.home = h.id; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (p.human && !carry ? C.ME_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
-      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? (p.human ? C.ME_CARRY : C.CARRY_SLOW) : 1) * (p.human ? C.ME_SPEED * (ck.holder >= 0 && !carry ? C.ME_CHASE : 1) : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
+      const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.grabT > 0 ? C.GRAB_BOOST : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
       if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
-      if (p.dashT > 0 && p.human && p.home >= 0 && ck.holder === p.home && !p.dashHit) { // 冲的过程中跟着目标拐
-        const h = P[p.home], hx = h.x - p.x, hz = h.z - p.z, hd = Math.hypot(hx, hz); if (hd > 0.3 && h.on) { p.dashX = hx / hd; p.dashZ = hz / hd; }
+      if (p.dashT > 0 && p.home >= 0 && ck.holder === p.home && !p.dashHit) { // 冲的过程中跟着目标拐（有转弯上限）
+        const h = P[p.home], want = Math.atan2(h.z - p.z, h.x - p.x), cur = Math.atan2(p.dashZ, p.dashX);
+        let d = want - cur; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832;
+        const na = cur + Math.max(-C.HOME_TURN * dt, Math.min(C.HOME_TURN * dt, d)); p.dashX = Math.cos(na); p.dashZ = Math.sin(na);
       }
       if (p.dashT > 0) { p.dashT -= dt; p.mvx = p.dashX * C.DASH_SPEED; p.mvz = p.dashZ * C.DASH_SPEED; }
       else {
@@ -288,7 +288,7 @@ const SIM = (() => {
       const a = P[i]; if (!a.on) continue;
       for (let j = i + 1; j < P.length; j++) {
         const b = P[j]; if (!b.on) continue;
-        const pad = (a.human && a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.human && b.dashT > 0 && !b.dashHit && ck.holder === a.id) ? C.ME_PAD : 0;
+        const pad = (a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.dashT > 0 && !b.dashHit && ck.holder === a.id) ? C.PAD : 0;
         const dx = b.x - a.x, dz = b.z - a.z, m = C.BODY_R * (C.SCALE[a.lvl] + C.SCALE[b.lvl]) + pad, d2 = dx * dx + dz * dz;
         if (d2 >= m * m) continue;
         if (a.jumpT > 0 || b.jumpT > 0) continue; // 空中：互相穿过，撞不到
@@ -314,7 +314,7 @@ const SIM = (() => {
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
-      if (best) { ck.holder = best.id; best.guard = 1.5; ev(S, { k: 'pick', p: best.id }); }
+      if (best) { ck.holder = best.id; best.guard = 1.5; best.grabT = 1.0; ev(S, { k: 'pick', p: best.id }); }
     }
     // 巧克力豆
     for (let i = S.chips.length - 1; i >= 0; i--) {
@@ -374,8 +374,8 @@ const SIM = (() => {
         ai.mx = bx; ai.mz = bz;
       }
       inp.mx = ai.mx; inp.mz = ai.mz;
-      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * (o.human ? 0.5 : 5)) { inp.jump = true; break; } }
-      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * (o.human ? 1.2 : 4)) { inp.dash = true; break; } }
+      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * 2.5) { inp.jump = true; break; } }
+      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * 3) { inp.dash = true; break; } }
       return;
     }
     // 没抱饼干：离饼干近的几个去追，其余去吃豆
@@ -398,14 +398,14 @@ const SIM = (() => {
     let dx = tx - p.x, dz = tz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
     inp.mx = dx; inp.mz = dz;
-    if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 1.5 * (holder.human ? C.ME_GENTLE : 1)) inp.jump = true;
+    if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 1.5) inp.jump = true;
     // 冲撞抱饼干的人
     if (holder && chase && p.dashCd <= 0 && holder.guard <= 0.15 && holder.inv <= 0) {
       const range = 2.9 + 0.5 * p.lvl;
       if (dck < range) {
-        if (ai.react <= -0.5) ai.react = C.BOT_REACT + (holder.human ? 0.2 : 0) + S.rnd() * 0.3; // 反应时间
-        if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * C.BOT_RATE * (holder.human ? C.ME_GENTLE : 1)) {
-          const err = (S.rnd() - 0.5) * 2 * (holder.human ? C.ME_AIM : 0.25), a = Math.atan2(holder.z + holder.mvz * 0.12 - p.z, holder.x + holder.mvx * 0.12 - p.x) + err;
+        if (ai.react <= -0.5) ai.react = C.BOT_REACT + S.rnd() * 0.3; // 反应时间
+        if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * C.BOT_RATE) {
+          const err = (S.rnd() - 0.5) * 2 * 0.3, a = Math.atan2(holder.z + holder.mvz * 0.12 - p.z, holder.x + holder.mvx * 0.12 - p.x) + err;
           inp.mx = Math.cos(a); inp.mz = Math.sin(a); inp.dash = true; ai.react = -1;
         }
       } else if (ai.react > -0.5 && dck > range + 1) ai.react = -1;

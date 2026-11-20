@@ -2,6 +2,7 @@
 // 0 号当“真人”（机器人 AI 操作，但享受机器人对真人的手下留情）
 const SIM = require('../src/sim.js');
 const N = +process.argv[2] || 40;
+if (process.env.CHASERS) SIM.CFG.CHASERS = +process.env.CHASERS; // 模拟“全是真人、人人都在追”：CHASERS=7
 let len = [], place = [], meEat = [], holds = 0, holdT = 0, falls = 0, meHolds = 0, meHoldT = 0, timeouts = 0;
 for (let g = 0; g < N; g++) {
   const S = SIM.create({ seed: g * 7919 + 1, round: process.argv[3] === 'round' }); const me = S.players[0]; me.human = true;
