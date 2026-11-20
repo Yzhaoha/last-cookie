@@ -163,7 +163,7 @@ const SIM = (() => {
     CARRY_SLOW: 0.88,     // 抱着饼干跑得慢一些
     ME_CARRY: 0.88,       // 真人抱着只慢一点
     ME_CHASE: 1.07,       // 别人抱着饼干时，真人追得更快（不然追不上）
-    WIN_T: 25,            // 累计抱满这么多秒就赢
+    WIN_T: 30,            // 累计抱满这么多秒就赢
     MAX_T: 180,           // 只是保险：正常都是有人先吃完；真拖到这时谁吃得多谁赢（界面最后 20 秒才显示倒计时）
     COUNT_T: 3,
     // 冲撞
@@ -173,9 +173,9 @@ const SIM = (() => {
     AIM_R: 5.4, AIM_ANG: 1.75, // 真人冲撞自动对准抱饼干的人（距离、夹角）
     ME_DASH: 1.35,        // 真人冲得更远，而且冲的过程中会跟着目标拐弯
     ME_PAD: 0.45,         // 真人冲撞时碰撞范围放宽
-    ME_GUARD: 1.0,        // 对真人，别人“刚抢到”的保护只有 GUARD_T - 这个数 = 0.5 秒
+    ME_GUARD: 1.9,        // 对真人，别人“刚抢到”的保护只有 GUARD_T - 这个数 = 0.6 秒
     ME_SPEED: 1.05,       // 真人跑得稍快一点
-    GUARD_T: 1.5,         // 刚抢到饼干的保护时间
+    GUARD_T: 2.5,         // 刚抢到饼干的保护时间（长一点，饼干才不会在人堆里秒换手）
     STEAL_CD: 0.25,       // 抢到后冲撞马上又能用（好甩开人）
     PICK_R: 1.0,
     RESPAWN_T: 2.0, INV_T: 1.2,
@@ -193,7 +193,9 @@ const SIM = (() => {
     MASS: [1, 1.25, 1.55, 1.9],    // 抗撞
     SLOW: [1, 0.985, 0.97, 0.955],
     // 机器人
-    CHASERS: 3,           // 同时追饼干的机器人数量
+    CHASERS: 2,           // 同时追饼干的机器人数量
+    BOT_RATE: 4,          // 机器人够得着时每秒出手的概率（越小越不爱撞）
+    BOT_REACT: 0.35,      // 机器人出手前的反应时间
     ME_GENTLE: 0.5,       // 机器人对真人出手的频率倍数
     ME_AIM: 0.5,          // 机器人撞真人时的瞄准误差（弧度）
   };
@@ -466,7 +468,7 @@ const SIM = (() => {
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
-      if (best) { ck.holder = best.id; best.guard = 0.8; ev(S, { k: 'pick', p: best.id }); }
+      if (best) { ck.holder = best.id; best.guard = 1.5; ev(S, { k: 'pick', p: best.id }); }
     }
     // 巧克力豆
     for (let i = S.chips.length - 1; i >= 0; i--) {
@@ -533,7 +535,7 @@ const SIM = (() => {
     // 没抱饼干：离饼干近的几个去追，其余去吃豆
     const dck = Math.hypot(ck.x - p.x, ck.z - p.z);
     let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
-    const chase = rank < (holder ? C.CHASERS : C.CHASERS + 1) || dck < 4.5;
+    const chase = rank < (holder ? C.CHASERS : C.CHASERS + 1) || dck < 3;
     let tx, tz;
     if (chase) {
       tx = ck.x; tz = ck.z;
@@ -550,13 +552,13 @@ const SIM = (() => {
     let dx = tx - p.x, dz = tz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
     inp.mx = dx; inp.mz = dz;
-    if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 4 * (holder.human ? C.ME_GENTLE : 1)) inp.jump = true;
+    if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 1.5 * (holder.human ? C.ME_GENTLE : 1)) inp.jump = true;
     // 冲撞抱饼干的人
     if (holder && chase && p.dashCd <= 0 && holder.guard <= 0.15 && holder.inv <= 0) {
       const range = 2.9 + 0.5 * p.lvl;
       if (dck < range) {
-        if (ai.react <= -0.5) ai.react = (holder.human ? 0.28 : 0.1) + S.rnd() * 0.2; // 反应时间
-        if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * 9 * (holder.human ? C.ME_GENTLE : 1)) {
+        if (ai.react <= -0.5) ai.react = C.BOT_REACT + (holder.human ? 0.2 : 0) + S.rnd() * 0.3; // 反应时间
+        if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * C.BOT_RATE * (holder.human ? C.ME_GENTLE : 1)) {
           const err = (S.rnd() - 0.5) * 2 * (holder.human ? C.ME_AIM : 0.25), a = Math.atan2(holder.z + holder.mvz * 0.12 - p.z, holder.x + holder.mvx * 0.12 - p.x) + err;
           inp.mx = Math.cos(a); inp.mz = Math.sin(a); inp.dash = true; ai.react = -1;
         }
