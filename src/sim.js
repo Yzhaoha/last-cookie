@@ -2,7 +2,8 @@
 // 玩法 v3「抢饼干」：大桌面上只有一块饼干，抱着它跑，累计抱满 WIN_T 秒（吃完）就赢。
 const SIM = (() => {
   const CFG = {
-    HW: 26, HH: 18,       // 桌面半宽 / 半深（米）
+    HW: 26, HH: 18,       // 长方桌：半宽 / 半深（米）
+    ROUND_R: 20,          // 圆桌半径（小一些，边更近，更容易被撞下去）
     N: 8,                 // 人数（你 + 7 个机器人）
     SPEED: 6.2, ACCEL: 60, KFRIC: 5.5, BODY_R: 0.5,
     CARRY_SLOW: 0.92,     // 抱着饼干跑得稍慢
@@ -45,14 +46,21 @@ const SIM = (() => {
 
   // ---- 桌上的障碍：杯子、碗、果酱瓶（圆）；牛奶盒、书、麦片盒（方） ----
   const KINDS = { mug: { r: 1.5 }, bowl: { r: 2.5 }, jar: { r: 1.15 }, carton: { w: 2.2, d: 2.2 }, books: { w: 5, d: 3.4 }, cereal: { w: 6, d: 2.2 } };
-  function makeObstacles(r) {
-    const obs = [], want = ['bowl', 'bowl', 'books', 'books', 'cereal', 'cereal', 'mug', 'mug', 'mug', 'mug', 'carton', 'carton', 'carton', 'jar', 'jar', 'jar', 'jar'];
+  // 离桌边还有多远（负数 = 已经出桌）
+  function edgeGap(S, x, z) { return S.round ? CFG.ROUND_R - Math.hypot(x, z) : Math.min(CFG.HW - Math.abs(x), CFG.HH - Math.abs(z)); }
+  function pullIn(S, x, z, m) {
+    if (S.round) { const d = Math.hypot(x, z), R = CFG.ROUND_R - m; return d > R ? [x / d * R, z / d * R] : [x, z]; }
+    return [Math.max(-CFG.HW + m, Math.min(CFG.HW - m, x)), Math.max(-CFG.HH + m, Math.min(CFG.HH - m, z))];
+  }
+  function makeObstacles(r, round) {
+    const obs = [], want = round ? ['bowl', 'books', 'cereal', 'mug', 'mug', 'mug', 'carton', 'carton', 'jar', 'jar', 'jar'] : ['bowl', 'bowl', 'books', 'books', 'cereal', 'cereal', 'mug', 'mug', 'mug', 'mug', 'carton', 'carton', 'carton', 'jar', 'jar', 'jar', 'jar'];
     for (const kind of want) {
       const K = KINDS[kind];
       for (let t = 0; t < 80; t++) {
         let w = K.w, d = K.d; if (w && r() < 0.5) { const s = w; w = d; d = s; }
         const br = K.r || Math.hypot(w, d) / 2, ex = K.r || w / 2, ez = K.r || d / 2;
-        const x = (r() * 2 - 1) * (CFG.HW - 2.6 - ex), z = (r() * 2 - 1) * (CFG.HH - 2.6 - ez);
+        const x = (r() * 2 - 1) * ((round ? CFG.ROUND_R : CFG.HW) - 2.6 - ex), z = (r() * 2 - 1) * ((round ? CFG.ROUND_R : CFG.HH) - 2.6 - ez);
+        if (round && Math.hypot(x, z) + br > CFG.ROUND_R - 2.6) continue;
         if (Math.hypot(x, z) < br + 5.5) continue;
         if (obs.some(o => Math.hypot(o.x - x, o.z - z) < o.br + br + 2.6)) continue;
         obs.push({ id: obs.length, kind, x, z, r: K.r || 0, hw: w / 2 || 0, hd: d / 2 || 0, br, rot: r() * 6.283, tint: (r() * 6) | 0 });
@@ -84,7 +92,7 @@ const SIM = (() => {
     return [x, z, hit];
   }
   function blocked(S, x, z, rad, edge = 0.6) {
-    if (Math.abs(x) > CFG.HW - edge || Math.abs(z) > CFG.HH - edge) return true;
+    if (edgeGap(S, x, z) < edge) return true;
     for (const o of S.obs) {
       const dx = x - o.x, dz = z - o.z;
       if (o.r) { if (dx * dx + dz * dz < (o.r + rad) * (o.r + rad)) return true; }
@@ -94,7 +102,7 @@ const SIM = (() => {
   }
   function freeSpot(S, pred) {
     for (let t = 0; t < 200; t++) {
-      const x = (S.rnd() * 2 - 1) * (CFG.HW - 2), z = (S.rnd() * 2 - 1) * (CFG.HH - 2);
+      const x = (S.rnd() * 2 - 1) * ((S.round ? CFG.ROUND_R : CFG.HW) - 2), z = (S.rnd() * 2 - 1) * ((S.round ? CFG.ROUND_R : CFG.HH) - 2);
       if (blocked(S, x, z, 0.9)) continue;
       if (pred && t < 150 && !pred(x, z)) continue;
       return [x, z];
@@ -106,7 +114,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, obs: makeObstacles(rng(seed)), players: [], chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, obs: makeObstacles(rng(seed), !!opts.round), players: [], chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
@@ -120,7 +128,7 @@ const SIM = (() => {
         jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
-    for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && Math.abs(x) < CFG.HW - 4 && Math.abs(z) < CFG.HH - 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
+    for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && edgeGap(S, x, z) > 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
     for (let i = 0; i < CFG.CHIP_N; i++) addChip(S);
     return S;
   }
@@ -139,7 +147,7 @@ const SIM = (() => {
     ev(S, { k: 'fall', p: p.id, by, x: p.x, z: p.z });
     const ck = S.cookie;
     if (ck.holder === p.id) { // 饼干留在桌边
-      let x = Math.max(-CFG.HW + 3, Math.min(CFG.HW - 3, p.x)), z = Math.max(-CFG.HH + 3, Math.min(CFG.HH - 3, p.z));
+      let [x, z] = pullIn(S, p.x, p.z, 3);
       [x, z] = pushOut(S.obs, x, z, 0.8);
       ck.holder = -1; ck.x = x; ck.z = z; ck.cd = 0.4; ck.no = p.id; ck.noT = 3;
       ev(S, { k: 'drop', p: p.id, x, z });
@@ -257,12 +265,12 @@ const SIM = (() => {
       // 自己走（冲）不会出桌；只有被撞飞才会掉下去
       p.x += p.mvx * dt; p.z += p.mvz * dt;
       const kv = Math.hypot(p.kvx, p.kvz);
-      if (kv < 2) { const m = 0.35; p.x = Math.max(-C.HW + m, Math.min(C.HW - m, p.x)); p.z = Math.max(-C.HH + m, Math.min(C.HH - m, p.z)); }
+      if (kv < 2) [p.x, p.z] = pullIn(S, p.x, p.z, 0.35);
       p.x += p.kvx * dt; p.z += p.kvz * dt;
       const fr = Math.exp(-C.KFRIC * dt); p.kvx *= fr; p.kvz *= fr;
       const res = pushOut(S.obs, p.x, p.z, C.BODY_R * C.SCALE[p.lvl]);
       if (res[2]) { p.x = res[0]; p.z = res[1]; p.kvx *= 0.8; p.kvz *= 0.8; }
-      if (Math.abs(p.x) > C.HW || Math.abs(p.z) > C.HH) fall(S, p);
+      if (edgeGap(S, p.x, p.z) < 0) fall(S, p);
     }
     // 人撞人
     for (let i = 0; i < P.length; i++) {
@@ -393,7 +401,7 @@ const SIM = (() => {
   }
   function thinkBots(S, dt) { for (const p of S.players) if (p.bot) botThink(S, p, dt); }
 
-  return { CFG, rng, create, step, thinkBots, blocked, lvlOf };
+  return { CFG, rng, create, step, thinkBots, blocked, lvlOf, edgeGap };
 })();
 if (typeof module !== 'undefined') module.exports = SIM;
 // ===== SIM END =====

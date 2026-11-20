@@ -228,47 +228,60 @@ function buildSnack(look) {
   blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; g.add(blob);
   return { g, body, face, blob, col: L.col };
 }
-// ---------- 桌面 ----------
+// ---------- 桌面（两种：长方桌 / 圆桌，每局换） ----------
 let S = null;            // 当前对局
-const HW = C.HW, HH = C.HH;
-{
-  // 格子桌布
+const HW = C.HW, HH = C.HH, RR = C.ROUND_R;
+function clothTex(col, rx, rz) {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
   g.fillStyle = '#fff7ea'; g.fillRect(0, 0, 128, 128);
-  g.fillStyle = 'rgba(110,190,200,0.38)'; g.fillRect(0, 0, 64, 128); g.fillRect(0, 0, 128, 64);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(HW * 2 / 4, HH * 2 / 4); t.anisotropy = 8;
-  const top = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, HH * 2), new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
-  top.rotation.x = -Math.PI / 2; top.receiveShadow = true; scene.add(top);
-  // 桌布边 + 桌子厚度
-  const hem = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + 0.12, 0.5, HH * 2 + 0.12), new THREE.MeshStandardMaterial({ color: 0xe8f4f2, roughness: 0.9 }));
-  hem.position.y = -0.26; scene.add(hem);
-  const edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
-  for (const [w, d, x, z] of [[HW * 2, 0.18, 0, HH - 0.09], [HW * 2, 0.18, 0, -HH + 0.09], [0.18, HH * 2, HW - 0.09, 0], [0.18, HH * 2, -HW + 0.09, 0]]) { // 桌边一圈橙线：过线就掉
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), edgeMat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.012, z); scene.add(m);
+  g.fillStyle = col; g.fillRect(0, 0, 64, 128); g.fillRect(0, 0, 128, 64);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); t.anisotropy = 8; return t;
+}
+const tableRoot = new THREE.Group(); scene.add(tableRoot);
+let tableKind = null;
+function buildTable(round) {
+  if (tableKind === round) return; tableKind = round;
+  tableRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(x => { x.map && x.map.dispose(); x.dispose(); }); } });
+  tableRoot.clear();
+  const add = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; tableRoot.add(m); return m; };
+  const hemCol = round ? 0xfdeff0 : 0xe8f4f2, hemMat = new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9 }), woodMat = new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
+  const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
+  const sc = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14, Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9, side: THREE.DoubleSide }), 200); let n = 0;
+  if (round) {
+    const top = add(new THREE.CircleGeometry(RR, 72), new THREE.MeshStandardMaterial({ map: clothTex('rgba(255,140,150,0.36)', RR * 2 / 4, RR * 2 / 4), roughness: 0.9 }), 0); top.rotation.x = -Math.PI / 2; top.receiveShadow = true;
+    add(new THREE.CylinderGeometry(RR + 0.06, RR + 0.06, 0.5, 72), hemMat, -0.26);
+    const ring = add(new THREE.RingGeometry(RR - 0.18, RR, 96), edgeMat, 0.012); ring.rotation.x = -Math.PI / 2;   // 桌边一圈橙线：过线就掉
+    add(new THREE.CylinderGeometry(RR - 0.3, RR - 0.3, 1.2, 64), woodMat, -1.1);
+    const k = Math.floor(2 * Math.PI * RR / 2); for (let i = 0; i < k; i++) { const a = i / k * 6.2832; m4.compose(new THREE.Vector3(Math.sin(a) * (RR + 0.1), -0.5, Math.cos(a) * (RR + 0.1)), q4.setFromEuler(e4.set(0, a, 0)), one); sc.setMatrixAt(n++, m4); }
+  } else {
+    const top = add(new THREE.PlaneGeometry(HW * 2, HH * 2), new THREE.MeshStandardMaterial({ map: clothTex('rgba(110,190,200,0.38)', HW * 2 / 4, HH * 2 / 4), roughness: 0.9 }), 0); top.rotation.x = -Math.PI / 2; top.receiveShadow = true;
+    add(new THREE.BoxGeometry(HW * 2 + 0.12, 0.5, HH * 2 + 0.12), hemMat, -0.26);
+    for (const [w, d, x, z] of [[HW * 2, 0.18, 0, HH - 0.09], [HW * 2, 0.18, 0, -HH + 0.09], [0.18, HH * 2, HW - 0.09, 0], [0.18, HH * 2, -HW + 0.09, 0]]) { const m = add(new THREE.PlaneGeometry(w, d), edgeMat, 0.012); m.rotation.x = -Math.PI / 2; m.position.x = x; m.position.z = z; }
+    add(new THREE.BoxGeometry(HW * 2 - 0.6, 1.2, HH * 2 - 0.6), woodMat, -1.1);
+    for (let x = -HW + 1; x < HW; x += 2) for (const s of [1, -1]) { m4.compose(new THREE.Vector3(x, -0.5, s * (HH + 0.07)), q4.setFromEuler(e4.set(0, 0, 0)), one); sc.setMatrixAt(n++, m4); }
+    for (let z = -HH + 1; z < HH; z += 2) for (const s of [1, -1]) { m4.compose(new THREE.Vector3(s * (HW + 0.07), -0.5, z), q4.setFromEuler(e4.set(0, Math.PI / 2, 0)), one); sc.setMatrixAt(n++, m4); }
   }
-  const wood = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 - 0.6, 1.2, HH * 2 - 0.6), new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }));
-  wood.position.y = -1.1; scene.add(wood);
-  // 地板砖 + 椅子 + 桌布花边 + 撒在桌上的彩色糖粒（都只是装饰）
-  {
-    const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
-    g.fillStyle = '#e2b47c'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#d6a468'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64);
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 40);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.y = -22; scene.add(floor);
-    const wm = new THREE.MeshStandardMaterial({ color: 0xb87a45, roughness: 0.7 }), cm = new THREE.MeshStandardMaterial({ color: 0xff9d8a, roughness: 0.9 });
-    for (const [x, z, ry] of [[-13, HH + 7, 0], [13, HH + 7, 0], [-13, -HH - 7, Math.PI], [13, -HH - 7, Math.PI], [HW + 7, 0, Math.PI / 2], [-HW - 7, 0, -Math.PI / 2]]) {
-      const ch = new THREE.Group(); ch.position.set(x, -10, z); ch.rotation.y = ry;
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(13, 1, 11), wm), cush = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.8, 28), cm), back = new THREE.Mesh(new THREE.BoxGeometry(13, 14, 1), wm);
-      cush.position.y = 0.8; back.position.set(0, 7, 5.5); ch.add(seat, cush, back); scene.add(ch);
-    }
-    const sc = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14, Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: 0xe8f4f2, roughness: 0.9, side: THREE.DoubleSide }), 200), m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(); let n = 0;
-    for (let x = -HW + 1; x < HW; x += 2) for (const s of [1, -1]) { m4.compose(new THREE.Vector3(x, -0.5, s * (HH + 0.07)), q4.setFromEuler(e4.set(0, 0, 0)), new THREE.Vector3(1, 1, 1)); sc.setMatrixAt(n++, m4); }
-    for (let z = -HH + 1; z < HH; z += 2) for (const s of [1, -1]) { m4.compose(new THREE.Vector3(s * (HW + 0.07), -0.5, z), q4.setFromEuler(e4.set(0, Math.PI / 2, 0)), new THREE.Vector3(1, 1, 1)); sc.setMatrixAt(n++, m4); }
-    sc.count = n; scene.add(sc);
-    const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 260;
-    const sp = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.035, 0.14, 3, 6), new THREE.MeshStandardMaterial({ roughness: 0.45 }), N), c3 = new THREE.Color();
-    for (let i = 0; i < N; i++) { m4.compose(new THREE.Vector3((rnd() * 2 - 1) * (HW - 0.5), 0.035, (rnd() * 2 - 1) * (HH - 0.5)), q4.setFromEuler(e4.set(Math.PI / 2, 0, rnd() * 6.283)), new THREE.Vector3(1, 1, 1)); sp.setMatrixAt(i, m4); sp.setColorAt(i, c3.set(cols[i % 6])); }
-    sp.receiveShadow = true; scene.add(sp);
+  sc.count = n; tableRoot.add(sc);
+  // 撒在桌上的彩色糖粒
+  const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 260;
+  const sp = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.035, 0.14, 3, 6), new THREE.MeshStandardMaterial({ roughness: 0.45 }), N), c3 = new THREE.Color();
+  for (let i = 0; i < N; i++) {
+    let x, z; if (round) { const a = rnd() * 6.2832, d = Math.sqrt(rnd()) * (RR - 0.5); x = Math.cos(a) * d; z = Math.sin(a) * d; } else { x = (rnd() * 2 - 1) * (HW - 0.5); z = (rnd() * 2 - 1) * (HH - 0.5); }
+    m4.compose(new THREE.Vector3(x, 0.035, z), q4.setFromEuler(e4.set(Math.PI / 2, 0, rnd() * 6.283)), one); sp.setMatrixAt(i, m4); sp.setColorAt(i, c3.set(cols[i % 6]));
+  }
+  sp.receiveShadow = true; tableRoot.add(sp);
+}
+{ // 地板砖 + 椅子（装饰）
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+  g.fillStyle = '#e2b47c'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#d6a468'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 40);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -22; scene.add(floor);
+  const wm = new THREE.MeshStandardMaterial({ color: 0xb87a45, roughness: 0.7 }), cm = new THREE.MeshStandardMaterial({ color: 0xff9d8a, roughness: 0.9 });
+  for (const [x, z, ry] of [[-13, HH + 9, 0], [13, HH + 9, 0], [-13, -HH - 9, Math.PI], [13, -HH - 9, Math.PI], [HW + 7, 0, Math.PI / 2], [-HW - 7, 0, -Math.PI / 2]]) {
+    const ch = new THREE.Group(); ch.position.set(x, -10, z); ch.rotation.y = ry;
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(13, 1, 11), wm), cush = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.8, 28), cm), back = new THREE.Mesh(new THREE.BoxGeometry(13, 14, 1), wm);
+    cush.position.y = 0.8; back.position.set(0, 7, 5.5); ch.add(seat, cush, back); scene.add(ch);
   }
 }
 // ---------- 桌上的东西（障碍） ----------
@@ -354,6 +367,7 @@ function updateOcclusion(dt) {
   }
 }
 function buildMap() {
+  buildTable(S.round);
   obsRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose(); } });
   obsRoot.clear(); S.obs.forEach(buildObstacle);
   for (const c of S.puddles) { // 果酱：踩上去变慢
@@ -484,7 +498,7 @@ function stepPool(pool, dt, bounceTop) {
   for (const p of pool.arr) {
     if (p.life > 0) {
       p.life -= dt; p.vy -= 14 * p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rx += p.spin * dt; p.ry += p.spin * 0.7 * dt;
-      if (bounceTop && p.vy < 0 && p.y < 0.03 && Math.abs(p.x) < HW && Math.abs(p.z) < HH) { p.y = 0.03; p.vy *= -0.3; p.vx *= 0.6; p.vz *= 0.6; }
+      if (bounceTop && p.vy < 0 && p.y < 0.03 && SIM.edgeGap(S, p.x, p.z) > 0) { p.y = 0.03; p.vy *= -0.3; p.vx *= 0.6; p.vz *= 0.6; }
       const k = p.life > 0 ? Math.min(1, p.life / Math.min(0.25, p.max)) : 0;
       _s.setScalar(p.s * k + 1e-4); _q.setFromEuler(_e.set(p.rx, p.ry, 0)); _m.compose(_v.set(p.x, p.y, p.z), _q, _s);
     } else _m.makeScale(0, 0, 0);
@@ -744,7 +758,9 @@ addEventListener('resize', resize); resize();
 let matchN = 0, warned = 0, last10 = false;
 function newMatch() {
   matchN++;
-  S = SIM.create({ seed: (Math.random() * 1e9) | 0 });
+  // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
+  const played = store.get('played', 0);
+  S = SIM.create({ seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = 0;
   const me = S.players[ME]; me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
