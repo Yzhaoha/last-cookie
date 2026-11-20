@@ -21,7 +21,7 @@ const SIM = (() => {
     PICK_R: 1.0,
     RESPAWN_T: 2.0, INV_T: 1.2,
     // 巧克力豆：吃了变大
-    CHIP_N: 64, CHIP_R: 0.8, CHIP_RESPAWN: 0.45,
+    CHIP_N: 64, CHIP_R: 0.8, CHIP_RESPAWN: 0.25,
     LVL_AT: [0, 4, 10, 18],
     // 升级解锁的招：1 级冲得更远，2 级冲撞落地震开一圈人，3 级抱饼干时护盾挡一次
     DASH_LONG: 1.4, WAVE_R: 2.8, WAVE_K: 7.5, SHIELD_CD: 12,

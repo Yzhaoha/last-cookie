@@ -360,8 +360,10 @@ function updateOcclusion(dt) {
   for (const g of obsRoot.children) {
     const u = g.userData; if (!u.o) continue;
     const o = u.o, ex = o.r || o.hw, ez = o.r || o.hd, dz = o.z - me.z;
-    const hide = me.on && Math.abs(o.x - me.x) < ex + 0.9 && dz > -ez * 0.2 && dz < ez + u.h * 0.8 + 0.6;
-    const a = lerp(u.a, hide ? 0.28 : 1, 1 - Math.exp(-12 * dt));
+    // 开始界面镜头很低：把我和镜头之间那一片的东西直接藏掉
+    const hide = inLobby ? dz > -ez - 1 && Math.hypot(o.x - me.x, dz) < o.br + 11 : me.on && Math.abs(o.x - me.x) < ex + 0.9 && dz > -ez * 0.2 && dz < ez + u.h * 0.8 + 0.6;
+    const a = inLobby ? (hide ? 0 : 1) : lerp(u.a, hide ? 0.28 : 1, 1 - Math.exp(-12 * dt));
+    g.visible = a > 0.03;
     if (Math.abs(a - u.a) < 0.004) continue;
     u.a = a; g.traverse(m => { if (m.isMesh) { m.material.opacity = a; m.material.depthWrite = a > 0.9; m.castShadow = a > 0.6; } });
   }
@@ -775,7 +777,8 @@ function newMatch() {
   $('panel').hidden = true; feed.innerHTML = ''; tip('');
   camT.set(me.x, 0, me.z + 1); camPos.set(me.x, 30, me.z + 20);
   lastBeep = 4;
-  if (inLobby) { me.face = 0; setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0)); } else PF.setPlaying(true);
+  myChipsEaten = 0;
+  if (inLobby) { me.face = 0; lobbyUI(); } else PF.setPlaying(true);
 }
 function startFromLobby() {
   if (!inLobby) return;
@@ -837,7 +840,7 @@ function handleEvents() {
       }
       case 'chip': {
         const p = S.players[e.p]; emit(chipsFly, e.x, 0.3, e.z, (p.x - e.x) * 2.5, 5, (p.z - e.z) * 2.5, 0.35, 1, 1.2);
-        if (e.p === ME) { SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
+        if (e.p === ME) { myChipsEaten++; SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
         break;
       }
       case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
@@ -880,13 +883,14 @@ function showEnd() {
     if (won) { SFX.win(); PF.happy(); } else SFX.lose();
     banner(won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
   }, 200);
-  const crumbsN = 10 + (S.players.length - me.place) * 5 + Math.round(me.eaten) + me.steals * 3;
+  const questPay = questProgress(me, won);
+  const crumbsN = 10 + (S.players.length - me.place) * 5 + Math.round(me.eaten) + me.steals * 3 + questPay;
   store.set('crumbs', store.get('crumbs', 0) + crumbsN);
   store.set('played', store.get('played', 0) + 1);
   if (won) store.set('wins', store.get('wins', 0) + 1);
   setTimeout(() => {
     $('resT').textContent = won ? tl('win') : tl('place', { n: me.place });
-    $('reward').textContent = '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
+    $('reward').textContent = (questPay ? '✅ ' + tl('questDone', { n: questPay }) + '　' : '') + '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
     $('bSkins').textContent = '🎁 ' + tl('skins') + (store.get('crumbs', 0) >= BOX_COST && owned().size < LOOKS.length ? ' ❗' : '');
     const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / C.WIN_T * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
@@ -958,9 +962,34 @@ $('bSkins').addEventListener('click', () => openLocker('panel'));
 $('bSkins2').addEventListener('click', () => openLocker('menu'));
 $('bSkins3').addEventListener('click', () => { ensureAudio(); openLocker('lobby'); });
 
+// ---------- 每日奖励 + 每日任务 ----------
+const dayKey = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const QUESTS = [{ k: 'qSteal', n: 5 }, { k: 'qChips', n: 30 }, { k: 'qWin', n: 1 }], QUEST_PAY = 40;
+function dailyState() { const d = store.get('daily', { day: 0, streak: 0 }); return { ...d, can: d.day !== dayKey(), next: d.day === dayKey(new Date(Date.now() - 864e5)) ? Math.min(d.streak + 1, 7) : 1 }; }
+const dailyPay = k => 30 + 20 * Math.min(k, 5);
+function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
+function lobbyUI() {
+  setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0));
+  const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
+  const q = questState();
+  $('quests').innerHTML = QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
+}
+$('bDaily').addEventListener('click', () => {
+  const d = dailyState(); if (!d.can) return; ensureAudio();
+  store.set('daily', { day: dayKey(), streak: d.next }); store.set('crumbs', store.get('crumbs', 0) + dailyPay(d.next));
+  SFX.win(); PF.happy(); flash('#fff7c2', 0.5); lobbyUI();
+});
+// 一局结束：记任务进度，刚完成的发奖。返回这局拿到的任务奖励
+let myChipsEaten = 0;
+function questProgress(me, won) {
+  const q = questState(), add = [me.steals, myChipsEaten, won ? 1 : 0]; let pay = 0;
+  QUESTS.forEach((Q, i) => { const was = q.p[i] >= Q.n; q.p[i] += add[i]; if (!was && q.p[i] >= Q.n) pay += QUEST_PAY; });
+  store.set('quests', q); return pay;
+}
+
 // ---------- 菜单 ----------
 const ls = $('langSel'); for (const c of CODES) { const o = document.createElement('option'); o.value = c; o.textContent = LANG_NAMES[c]; ls.appendChild(o); }
-ls.addEventListener('change', () => { LANG = ls.value; store.set('lang_set', 1); try { localStorage.setItem('lc_lang', LANG); } catch (e) { } applyLang(); if (S) actors.forEach(a => a.tagTxt = ''); });
+ls.addEventListener('change', () => { LANG = ls.value; store.set('lang_set', 1); try { localStorage.setItem('lc_lang', LANG); } catch (e) { } applyLang(); if (S) actors.forEach(a => a.tagTxt = ''); lobbyUI(); });
 $('optMusic').checked = musicOn; $('optMusic').addEventListener('change', e => { musicOn = e.target.checked; store.set('music', musicOn); });
 $('optSound').checked = soundOn; $('optSound').addEventListener('change', e => { soundOn = e.target.checked; store.set('sound', soundOn); });
 let paused = false;

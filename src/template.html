@@ -106,6 +106,9 @@ body.lefty #chipBox{left:auto;right:14px}
 #lobby h1{margin:0;font-weight:normal;font-size:clamp(46px,8.5vw,96px);text-align:center;line-height:1;transform:rotate(-3deg);animation:bob 2.4s ease-in-out infinite}
 @keyframes bob{50%{transform:rotate(-3deg) translateY(-8px)}}
 #lobbyB{display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:auto}
+#quests{position:fixed;left:14px;bottom:max(14px,env(safe-area-inset-bottom));font-size:14px;background:rgba(255,246,230,.9);border:3px solid var(--ink);border-radius:14px;padding:5px 12px;text-align:left;line-height:1.5}
+#quests b{color:#b0602a;font-weight:normal}#quests i{font-style:normal;opacity:.7}#quests .ok{opacity:.55}
+#bDaily{font-size:18px;padding:6px 18px 8px;background:#ffd76a;animation:pulse 1.2s ease-in-out infinite}
 #bPlay{font-size:38px;padding:12px 64px 16px;background:#7be07b;border-width:4px;border-radius:26px;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.06)}}
 body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobby #touch,body.lobby #intro,body.lobby #tip,body.lobby #ptr,body.lobby #feed,body.lobby #banner{display:none!important}
@@ -122,6 +125,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
   #tip{bottom:auto;top:max(52px,calc(env(safe-area-inset-top) + 46px));left:10px;transform:none;max-width:56vw;text-align:left;font-size:14px;padding:5px 10px 6px}
   #intro{gap:6px;bottom:auto;top:max(54px,calc(env(safe-area-inset-top) + 48px))}#intro div{width:100px;font-size:12px;padding:5px 4px}#intro b{font-size:22px}
   #lobby h1{font-size:44px}
+  #quests{left:50%;transform:translateX(-50%);bottom:auto;top:max(92px,calc(env(safe-area-inset-top) + 84px));font-size:12px;white-space:nowrap}
 }
 </style>
 </head>
@@ -145,7 +149,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
-<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
+<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 /*GAME*/
