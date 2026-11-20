@@ -843,7 +843,7 @@ function handleEvents() {
         if (e.p === ME) { myChipsEaten++; SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
         break;
       }
-      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
+      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('how' + p.lvl + (p.lvl === 2 && touchMode ? 'T' : '')) }), false, 3.6); } break; }
       case 'fall': {
         if (e.p === ME || near(e.x, e.z)) SFX.fall();
         if (e.by === ME && e.p !== ME) { hitstop = 0.08; flash('#ffffff', 0.25); }

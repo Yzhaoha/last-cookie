@@ -578,15 +578,19 @@ const TL = {
   you: { en: 'YOU', zh: '你' },
   next: { en: '{n} more: {s}', zh: '再吃 {n} 颗：{s}' },
   skill1: { en: 'Long dash', zh: '冲得更远' },
-  skill2: { en: 'Slam (jump & land)', zh: '震地（跳起落地震开人）' },
-  skill3: { en: 'Cookie shield', zh: '护盾' },
-  newSkill: { en: 'New move: {s}!', zh: '变大了！新招：{s}' },
+  skill2: { en: 'Slam (jump)', zh: '跳起震地' },
+  skill3: { en: 'Auto shield', zh: '自动护盾' },
+  newSkill: { en: 'Bigger! New move — {s}', zh: '变大了！新招：{s}' },
+  how1: { en: 'Long dash: your bump goes further (automatic)', zh: '冲得更远——冲撞距离变长（自动生效，不用按）' },
+  how2: { en: 'Slam: press J to jump — landing knocks everyone away', zh: '震地——按 J 跳起来，落地震开周围的人' },
+  how2T: { en: 'Slam: tap JUMP — landing knocks everyone away', zh: '震地——点「跳」，落地震开周围的人' },
+  how3: { en: 'Shield: while holding the cookie it blocks one hit (automatic, recharges in 12s)', zh: '护盾——抱着饼干时自动挡一次撞（不用按，12 秒后恢复）' },
   it_chili: { en: 'Chili — speed up!', zh: '辣椒！跑得飞快' },
   it_ice: { en: 'Ice — everyone nearby is frozen!', zh: '冰块！附近的人都冻住了' },
   it_bubble: { en: 'Bubble — blocks one hit', zh: '泡泡！能挡一次撞' },
   frozen: { en: '{b} froze you!', zh: '你被 {b} 冻住了！' },
   blocked: { en: 'BLOCKED!', zh: '挡住了！' },
-  maxSize: { en: 'MAX — all moves', zh: '最大了，三招全有' },
+  maxSize: { en: 'MAX: long dash · slam · auto shield', zh: '远冲 · 跳起震地 · 自动护盾' },
   dash: { en: 'BUMP', zh: '冲撞' },
   jump: { en: 'JUMP', zh: '跳' },
   keysJump: { en: 'J / Shift  jump (dodge)', zh: 'J / Shift  跳（躲撞）' },
@@ -1500,7 +1504,7 @@ function handleEvents() {
         if (e.p === ME) { myChipsEaten++; SFX.chip(); float(p.x, 1.4, p.z, '+1 🍫', '#ffe08a'); }
         break;
       }
-      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
+      case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('how' + p.lvl + (p.lvl === 2 && touchMode ? 'T' : '')) }), false, 3.6); } break; }
       case 'fall': {
         if (e.p === ME || near(e.x, e.z)) SFX.fall();
         if (e.by === ME && e.p !== ME) { hitstop = 0.08; flash('#ffffff', 0.25); }
