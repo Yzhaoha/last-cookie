@@ -468,7 +468,7 @@ function updateGuides(now) {
     arrow.visible = true; arrow.position.set(me.x + Math.sin(a) * r, 0.3, me.z + Math.cos(a) * r); arrow.rotation.set(0, a, 0);
     arrow.material.opacity = 0.65 + 0.3 * Math.sin(now * 6);
   }
-  if (holder && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
+  if (holder && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= C.ME_GUARD && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
@@ -1049,7 +1049,7 @@ function updateActors(dt, now) {
     cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
     cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * p.eaten / C.WIN_T);
     beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
-    ckRing.material.color.set(p.guard > 0 ? 0x7fd4ff : holder === ME ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
+    ckRing.material.color.set(p.guard > C.ME_GUARD && holder !== ME ? 0x7fd4ff : holder === ME ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
   } else {
     cookieObj.position.set(ck.x, 0.75 + Math.sin(now * 3) * 0.15, ck.z); cookieObj.rotation.set(0.5, now * 2, 0); cookieObj.scale.setScalar(1.5);
     beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);
