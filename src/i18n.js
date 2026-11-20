@@ -48,6 +48,7 @@ const TL = {
   sound: { en: 'Sound', zh: '声音' },
   music: { en: 'Music', zh: '音乐' },
   lang: { en: 'Language', zh: '语言' },
+  play: { en: 'PLAY', zh: '开始' },
   skins: { en: 'Skins', zh: '皮肤' },
   use: { en: 'Use', zh: '用这个' },
   using: { en: 'Using', zh: '正在用' },

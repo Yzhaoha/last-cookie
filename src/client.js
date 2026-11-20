@@ -337,7 +337,21 @@ function buildObstacle(o) {
     const wide = o.hw >= o.hd, lab = add(new THREE.PlaneGeometry((wide ? o.hw : o.hd) * 1.96, (wide ? o.hd : o.hw) * 1.96), new THREE.MeshStandardMaterial({ map: cerealTex, roughness: 0.5 }), 1.205);
     lab.rotation.set(-Math.PI / 2, 0, wide ? 0 : Math.PI / 2); lab.castShadow = false;
   }
+  g.userData = { o, h: { mug: 2.2, bowl: 1.4, jar: 2.1, carton: 3.5, books: 1.6, cereal: 1.3 }[o.kind], a: 1 };
+  g.traverse(m => { if (m.isMesh) m.material.transparent = true; });
   obsRoot.add(g);
+}
+// 挡在镜头和我之间的东西变半透明，任何时候都看得见自己
+function updateOcclusion(dt) {
+  const me = S.players[ME];
+  for (const g of obsRoot.children) {
+    const u = g.userData; if (!u.o) continue;
+    const o = u.o, ex = o.r || o.hw, ez = o.r || o.hd, dz = o.z - me.z;
+    const hide = me.on && Math.abs(o.x - me.x) < ex + 0.9 && dz > -ez * 0.2 && dz < ez + u.h * 0.8 + 0.6;
+    const a = lerp(u.a, hide ? 0.28 : 1, 1 - Math.exp(-12 * dt));
+    if (Math.abs(a - u.a) < 0.004) continue;
+    u.a = a; g.traverse(m => { if (m.isMesh) { m.material.opacity = a; m.material.depthWrite = a > 0.9; m.castShadow = a > 0.6; } });
+  }
 }
 function buildMap() {
   obsRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose(); } });
@@ -574,6 +588,7 @@ addEventListener('keydown', e => {
   if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || e.code === 'Escape') toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden && $('locker').hidden) $('bAgain').click();
+  if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { startFromLobby(); return; }
   usedKeys = true;
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -697,8 +712,16 @@ let tipsOn = false;
 const camT = new THREE.Vector3(0, 0, 2), camPos = new THREE.Vector3(0, 30, 20);
 let camShake = 0;
 function camDist() { const a = VW / VH; return a < 0.8 ? 30 : a < 1.25 ? 29 : 26; }
+let inLobby = true;
 function updateCamera(dt) {
   const me = S.players[ME], ck = S.cookie;
+  if (inLobby) { // 开始界面：镜头凑近看自己的角色，慢慢左右晃
+    const a = Math.sin(performance.now() / 2600) * 0.45, up = VW / VH < 0.8 ? 1.5 : 0;
+    camera.position.set(me.x + Math.sin(a) * (9 + up * 2), 4.4 + up, me.z + Math.cos(a) * (9 + up * 2)); camera.lookAt(me.x, 1.0, me.z);
+    camPos.copy(camera.position); camT.set(me.x, 0, me.z + 1);
+    sun.position.set(me.x + 9, 20, me.z + 7); sun.target.position.set(me.x, 0, me.z);
+    return;
+  }
   let fx = me.on ? me.x : clamp(me.fx, -HW, HW), fz = me.on ? me.z : clamp(me.fz, -HH, HH);
   let ox = (ck.x - fx) * 0.22, oz = (ck.z - fz) * 0.22; const ol = Math.hypot(ox, oz); if (ol > 3.5) { ox *= 3.5 / ol; oz *= 3.5 / ol; }
   if (S.phase === 'end') { const wn = S.players[S.winner]; fx = wn.x; fz = wn.z; ox = oz = 0; }
@@ -736,9 +759,32 @@ function newMatch() {
   $('panel').hidden = true; feed.innerHTML = ''; tip('');
   camT.set(me.x, 0, me.z + 1); camPos.set(me.x, 30, me.z + 20);
   lastBeep = 4;
-  PF.setPlaying(true);
+  if (inLobby) { me.face = 0; setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0)); } else PF.setPlaying(true);
 }
+function startFromLobby() {
+  if (!inLobby) return;
+  ensureAudio(); inLobby = false; document.body.classList.remove('lobby'); $('lobby').hidden = true;
+  const me = S.players[ME]; me.face = Math.atan2(-me.x, -me.z); PF.setPlaying(true);
+}
+$('bPlay').addEventListener('click', startFromLobby);
 let lastBeep = 4;
+function flash(col, a = 0.5) { const f = $('flash'); f.style.transition = 'none'; f.style.background = col; f.style.opacity = a; void f.offsetWidth; f.style.transition = 'opacity .45s ease-out'; f.style.opacity = 0; }
+// 彩纸
+const CONF_N = 220, confIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.2, 0.12), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), CONF_N), conf = [];
+{ const cs = [0xff5a7a, 0x5ad1ff, 0xffe14d, 0x8cff7a, 0xffffff, 0xb67bff, 0xff9d4d], k = new THREE.Color(); for (let i = 0; i < CONF_N; i++) { conf.push({ life: 0, x: 0, y: -99, z: 0, vx: 0, vy: 0, vz: 0, r: 0, s: 0 }); confIM.setColorAt(i, k.set(cs[i % cs.length])); } confIM.frustumCulled = false; confIM.count = 0; scene.add(confIM); }
+let confNext = 0, confRain = 0, confX = 0, confZ = 0;
+function confetti(x, z, n, up) { for (let i = 0; i < n; i++) { const p = conf[confNext++ % CONF_N], a = Math.random() * 6.283, s = Math.random() * 4; Object.assign(p, { life: 2.6, x: x + (Math.random() - 0.5) * (up ? 1 : 9), y: up ? 1 : 7 + Math.random() * 4, z: z + (Math.random() - 0.5) * (up ? 1 : 9), vx: Math.cos(a) * s * (up ? 1 : 0.3), vy: up ? 6 + Math.random() * 5 : 0, vz: Math.sin(a) * s * (up ? 1 : 0.3), r: Math.random() * 6, s: 6 + Math.random() * 8 }); } }
+function stepConfetti(dt) {
+  if (confRain > 0) { confRain -= dt; if (Math.random() < dt * 60) confetti(confX, confZ, 2, false); }
+  let any = false;
+  for (let i = 0; i < CONF_N; i++) {
+    const p = conf[i];
+    if (p.life > 0) { any = true; p.life -= dt; p.vy = Math.max(-2.2, p.vy - 9 * dt); p.vx *= 1 - 1.5 * dt; p.vz *= 1 - 1.5 * dt; p.x += p.vx * dt + Math.sin(p.r) * dt * 0.6; p.y += p.vy * dt; p.z += p.vz * dt; p.r += p.s * dt; if (p.y < 0.03) { p.y = 0.03; p.s = 0; }
+      _q.setFromEuler(_e.set(p.r, p.r * 0.7, p.r * 0.3)); _m.compose(_v.set(p.x, p.y, p.z), _q, _s.setScalar(Math.min(1, p.life * 3))); } else _m.makeScale(0, 0, 0);
+    confIM.setMatrixAt(i, _m);
+  }
+  confIM.count = any ? CONF_N : 0; confIM.instanceMatrix.needsUpdate = true;
+}
 function starBurst(x, y, z, n, sp) { for (let i = 0; i < n; i++) { const a = i / n * 6.283; emit(stars, x, y, z, Math.cos(a) * sp, 2 + Math.random() * 2, Math.sin(a) * sp, 0.6, 1, 0.4); } }
 function handleEvents() {
   const me = S.players[ME];
@@ -757,14 +803,14 @@ function handleEvents() {
       }
       case 'steal': {
         const a = S.players[e.a]; actors[e.a].pop = 0.4; starBurst(a.x, 1.2, a.z, 14, 3.5);
-        if (e.a === ME) { SFX.grow(); banner(tl('gotIt'), false, 1.1); }
-        else if (e.b === ME) { SFX.lose(); banner(tl('lostIt', { b: a.name }), false, 1.4); camShake = 0.5; }
+        if (e.a === ME) { SFX.grow(); banner(tl('gotIt'), false, 1.1); hitstop = 0.11; flash('#fff7c2', 0.45); confetti(a.x, a.z, 26, true); }
+        else if (e.b === ME) { SFX.lose(); banner(tl('lostIt', { b: a.name }), false, 1.4); camShake = 0.5; hitstop = 0.09; flash('#ff5a4a', 0.3); }
         else feedMsg(tl('stole', { a: nameOf(e.b), b: nameOf(e.a) }));
         break;
       }
       case 'pick': {
         const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 1.2, p.z, 10, 3);
-        if (e.p === ME) { SFX.grow(); banner(tl('gotIt'), false, 1.1); } else feedMsg('🍪 ' + nameOf(e.p));
+        if (e.p === ME) { SFX.grow(); banner(tl('gotIt'), false, 1.1); flash('#fff7c2', 0.35); confetti(p.x, p.z, 18, true); } else feedMsg('🍪 ' + nameOf(e.p));
         break;
       }
       case 'munch': {
@@ -781,7 +827,8 @@ function handleEvents() {
       case 'grow': { const p = S.players[e.p]; actors[e.p].pop = 0.4; starBurst(p.x, 0.9, p.z, 14, 3); if (e.p === ME) { SFX.grow(); banner(tl('newSkill', { s: tl('skill' + p.lvl) }), false, 2); } break; }
       case 'fall': {
         if (e.p === ME || near(e.x, e.z)) SFX.fall();
-        if (e.p === ME) { camShake = 0.35; banner(e.by >= 0 ? tl('shoved', { b: S.players[e.by].name }) : tl('fellSelf'), false, 1.5); }
+        if (e.by === ME && e.p !== ME) { hitstop = 0.08; flash('#ffffff', 0.25); }
+        if (e.p === ME) { camShake = 0.35; flash('#ff5a4a', 0.3); banner(e.by >= 0 ? tl('shoved', { b: S.players[e.by].name }) : tl('fellSelf'), false, 1.5); }
         else { feedMsg(tl('fell', { a: nameOf(e.p) })); if (e.by === ME) float(e.x, 1.2, e.z, '💥', '#fff'); }
         break;
       }
@@ -812,7 +859,7 @@ function handleEvents() {
 function showEnd() {
   PF.setPlaying(false);
   const me = S.players[ME], won = S.winner === ME, wn = S.players[S.winner];
-  starBurst(wn.x, 1.5, wn.z, 24, 5);
+  starBurst(wn.x, 1.5, wn.z, 24, 5); slowT = 0.9; flash('#ffffff', 0.6); confetti(wn.x, wn.z, 50, true); confRain = won ? 3.5 : 1.2; confX = wn.x; confZ = wn.z;
   setTimeout(() => {
     if (won) { SFX.win(); PF.happy(); } else SFX.lose();
     banner(won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
@@ -867,7 +914,7 @@ function lockerUI() {
   b.textContent = all ? tl('allOwned') : crumbs < BOX_COST ? tl('needMore', { n: BOX_COST - crumbs }) : '🎁 ' + tl('openBox', { n: BOX_COST });
 }
 function openLocker(from) { lockerFrom = from; pvInit(); $('locker').hidden = false; $('menu').hidden = true; pvShow(store.get('look', 0)); }
-function closeLocker() { $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; }
+function closeLocker() { $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; if (inLobby) newMatch(); }
 function openBox() {
   const own = owned(), pool = []; LOOKS.forEach((L, i) => { if (!own.has(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
   if (!pool.length || store.get('crumbs', 0) < BOX_COST || pv.roll > 0) return;
@@ -893,6 +940,7 @@ $('bBox').addEventListener('click', () => { ensureAudio(); openBox(); });
 $('bLockerX').addEventListener('click', closeLocker);
 $('bSkins').addEventListener('click', () => openLocker('panel'));
 $('bSkins2').addEventListener('click', () => openLocker('menu'));
+$('bSkins3').addEventListener('click', () => { ensureAudio(); openLocker('lobby'); });
 
 // ---------- 菜单 ----------
 const ls = $('langSel'); for (const c of CODES) { const o = document.createElement('option'); o.value = c; o.textContent = LANG_NAMES[c]; ls.appendChild(o); }
@@ -900,7 +948,7 @@ ls.addEventListener('change', () => { LANG = ls.value; store.set('lang_set', 1);
 $('optMusic').checked = musicOn; $('optMusic').addEventListener('change', e => { musicOn = e.target.checked; store.set('music', musicOn); });
 $('optSound').checked = soundOn; $('optSound').addEventListener('change', e => { soundOn = e.target.checked; store.set('sound', soundOn); });
 let paused = false;
-function toggleMenu(force) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; paused = show; ls.value = LANG; PF.setPlaying(!show && S && S.phase !== 'end'); }
+function toggleMenu(force) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; paused = show; ls.value = LANG; PF.setPlaying(!show && !inLobby && S && S.phase !== 'end'); }
 $('gear').addEventListener('click', () => toggleMenu());
 $('bResume').addEventListener('click', () => toggleMenu(false));
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (S && S.phase === 'play' && !paused) toggleMenu(true); if (AC) AC.suspend(); } else if (AC && !PF.muted) AC.resume(); });
@@ -946,7 +994,7 @@ function updateActors(dt, now) {
     const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.75 : 1.05) * a.scale * VIS, a.root.position.z);
-    const show = vis && p.on; if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
+    const show = vis && p.on && !(inLobby && i !== ME); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
     if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
   }
   // 饼干
@@ -987,7 +1035,7 @@ function autoQuality(dt) {
 }
 
 // ---------- 主循环 ----------
-let last = performance.now(), acc = 0, hitstop = 0;
+let last = performance.now(), acc = 0, hitstop = 0, slowT = 0;
 const STEP = 1 / 60;
 function frame(now) {
   requestAnimationFrame(frame);
@@ -995,7 +1043,8 @@ function frame(now) {
   const rawDt = dt;
   const tsec = now / 1000;
   if (hitstop > 0) { hitstop -= dt; dt *= 0.05; }
-  if (!paused && !PF.adBusy) {
+  else if (slowT > 0) { slowT -= dt; dt *= 0.3; }
+  if (!paused && !PF.adBusy && !inLobby) {
     // 每一帧都按实际时间走，屏幕刷新多快人就动多顺（帧太长就拆成几小步）
     const n = Math.max(1, Math.ceil(dt / (1 / 50))), h = dt / n;
     for (let i = 0; i < n && h > 0; i++) {
@@ -1009,7 +1058,7 @@ function frame(now) {
   updateActors(dt, tsec);
   stepPool(crumbs, dt, true); stepPool(stars, dt, false); stepPool(chipsFly, dt, false);
   updateCamera(Math.max(dt, 0.001));
-  updateGuides(tsec); updateItems(tsec); updateWaves(dt);
+  updateGuides(tsec); updateItems(tsec); updateWaves(dt); updateOcclusion(Math.max(dt, 0.016)); stepConfetti(dt);
   musHot = S.cookie.holder === ME; musicTick(!paused && !PF.adBusy);
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
   updateHUD();
