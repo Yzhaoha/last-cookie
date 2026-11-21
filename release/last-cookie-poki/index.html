@@ -1687,14 +1687,14 @@ function findMatch(cb) {
   let done = false, ws = null;
   const el = $('netWait');
   const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
-  const to = setTimeout(() => finish(null), 9000);
+  let to = setTimeout(() => finish(null), 15000);   // 有的网络第一次连上服务器就要 6 秒左右，连接阶段多等一会
   el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
   try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-    if (m.k === 'wait') setT(el, tl('finding', { n: m.n, m: m.max }));
+    if (m.k === 'wait') { setT(el, tl('finding', { n: m.n, m: m.max })); clearTimeout(to); to = setTimeout(() => finish(null), (m.ms || 5000) + 4000); }   // 连上了：按服务器说的等人时间再多留 4 秒
     else if (m.k === 'full') finish(null);
     else if (m.k === 'start') finish(m);
     else if (m.k === 's' && net === mine) {

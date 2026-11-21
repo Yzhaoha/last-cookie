@@ -10,6 +10,8 @@ game = ("const THREE = await import('./three.module.min.js');\n"
         + open('src/sim.js').read().replace("if (typeof module !== 'undefined') module.exports = SIM;\n", "")
         + open('src/i18n.js').read() + open('src/i18n-x.js').read() + open('src/client.js').read())
 # 联机服务器地址：写在 server/url.txt 里（一行，https://…）。没有这个文件 = 纯单机
+# 平台包先不带联机（CrazyGames 对联机游戏另有要求，还没做），只有 GitHub 测试版带
+game_solo = game
 if os.path.exists('server/url.txt'):
     game = game.replace("/*NET_URL*/''", "'" + open('server/url.txt').read().strip() + "'")
 html = tpl.replace('/*GAME*/', game).replace('<!--PLATFORM_HEAD-->\n', '')
@@ -23,8 +25,8 @@ print('index.html', len(html))
 import shutil, zipfile
 SDK = {'crazygames': '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>',
        'poki': '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>'}
-a, z = game.index('/*PLATFORM_START*/'), game.index('/*PLATFORM_END*/')
-pgame = game[:a] + open('src/platform.js').read() + game[z:]
+a, z = game_solo.index('/*PLATFORM_START*/'), game_solo.index('/*PLATFORM_END*/')
+pgame = game_solo[:a] + open('src/platform.js').read() + game_solo[z:]
 dbg = "const DEBUG = /[?&]debug/.test(location.search);"
 assert dbg in pgame; pgame = pgame.replace(dbg, "const DEBUG = false;")
 shutil.rmtree('release', ignore_errors=True)

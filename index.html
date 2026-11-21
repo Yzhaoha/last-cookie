@@ -1617,7 +1617,7 @@ $('bPlay').addEventListener('click', playPressed);
 
 // ---------- 联机 ----------
 // 服务器地址：打包时写进来；测试时也可以在网址后面加 ?net=地址。没有地址 = 纯单机
-const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); return m ? decodeURIComponent(m[1]) : /*NET_URL*/''; })();
+const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); return m ? decodeURIComponent(m[1]) : 'https://last-cookie.scratch-2026-11-20-d80e13.workers.dev'; })();
 let net = null, finding = false;
 function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((100 + Math.random() * 900) | 0); store.set('name', n); } return n; }
 // 找对手：连上服务器、等开局。连不上 / 等太久 / 房间满 / 免费额度用完 → 回调 null，照旧打机器人局，玩家不会被卡住
@@ -1626,14 +1626,14 @@ function findMatch(cb) {
   let done = false, ws = null;
   const el = $('netWait');
   const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
-  const to = setTimeout(() => finish(null), 9000);
+  let to = setTimeout(() => finish(null), 15000);   // 有的网络第一次连上服务器就要 6 秒左右，连接阶段多等一会
   el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
   try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-    if (m.k === 'wait') setT(el, tl('finding', { n: m.n, m: m.max }));
+    if (m.k === 'wait') { setT(el, tl('finding', { n: m.n, m: m.max })); clearTimeout(to); to = setTimeout(() => finish(null), (m.ms || 5000) + 4000); }   // 连上了：按服务器说的等人时间再多留 4 秒
     else if (m.k === 'full') finish(null);
     else if (m.k === 'start') finish(m);
     else if (m.k === 's' && net === mine) {
