@@ -9,6 +9,9 @@ tpl = tpl.replace("url('fonts/LilitaOne.woff2') format('woff2')", "url(data:font
 game = ("const THREE = await import('./three.module.min.js');\n"
         + open('src/sim.js').read().replace("if (typeof module !== 'undefined') module.exports = SIM;\n", "")
         + open('src/i18n.js').read() + open('src/i18n-x.js').read() + open('src/client.js').read())
+# 联机服务器地址：写在 server/url.txt 里（一行，https://…）。没有这个文件 = 纯单机
+if os.path.exists('server/url.txt'):
+    game = game.replace("/*NET_URL*/''", "'" + open('server/url.txt').read().strip() + "'")
 html = tpl.replace('/*GAME*/', game).replace('<!--PLATFORM_HEAD-->\n', '')
 open('index.html', 'w').write(html)
 if not os.path.exists('three.module.min.js'):
@@ -32,3 +35,9 @@ for site, tag in SDK.items():
     with zipfile.ZipFile(out + '.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
         for f in sorted(os.listdir(out)): zf.write(out + '/' + f, f)
     print(site, 'zip', os.path.getsize(out + '.zip') // 1024, 'KB')
+
+# ---- 联机服务器：把 sim.js + room.js + worker.src.js 拼成 server/worker.js（部署用） ----
+sim = open('src/sim.js').read().replace("if (typeof module !== 'undefined') module.exports = SIM;\n", "")
+room = open('server/room.js').read().replace("if (typeof module !== 'undefined') module.exports = { RoomCore, GATHER_MS };\n", "")
+open('server/worker.js', 'w').write('// 自动生成，别手改：python3 tools/build.py\n' + sim + room + open('server/worker.src.js').read())
+print('server/worker.js', os.path.getsize('server/worker.js') // 1024, 'KB')

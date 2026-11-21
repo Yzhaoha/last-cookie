@@ -598,7 +598,7 @@ addEventListener('keydown', e => {
   if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || (e.code === 'Escape' && !PF.noEsc)) toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden && $('locker').hidden) $('bAgain').click();
-  if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { startFromLobby(); return; }
+  if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { playPressed(); return; }
   usedKeys = true;
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -752,16 +752,22 @@ addEventListener('resize', resize); resize();
 
 // ---------- 对局 ----------
 let matchN = 0, warned = 0, last10 = false;
-function newMatch() {
+function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create({ seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
-  ME = 0;
-  const me = S.players[ME]; me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
-  const used = new Set([me.look]);
-  S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
+  ME = cfg ? cfg.you : 0;
+  const me = S.players[ME];
+  if (cfg) { // 联机局：桌子、座位、名字、皮肤都由服务器定；本机不跑机器人
+    S.net = true;
+    S.players.forEach((p, i) => { p.bot = false; p.human = i === ME; p.name = cfg.names[i]; p.look = cfg.looks[i] % LOOKS.length; p.real = !!cfg.humans[i]; });
+  } else {
+    me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
+    const used = new Set([me.look]);
+    S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
+  }
   buildMap();
   $('tags').innerHTML = ''; buildActors();
   for (const pool of [crumbs, stars, chipsFly]) for (const p of pool.arr) p.life = 0;
@@ -776,10 +782,66 @@ function newMatch() {
 }
 function startFromLobby() {
   if (!inLobby) return;
+  if (net) net.lastMsg = performance.now();
   ensureAudio(); inLobby = false; document.body.classList.remove('lobby'); $('lobby').hidden = true;
   const me = S.players[ME]; me.face = Math.atan2(-me.x, -me.z); PF.setPlaying(true);
 }
-$('bPlay').addEventListener('click', startFromLobby);
+$('bPlay').addEventListener('click', playPressed);
+
+// ---------- 联机 ----------
+// 服务器地址：打包时写进来；测试时也可以在网址后面加 ?net=地址。没有地址 = 纯单机
+const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); return m ? decodeURIComponent(m[1]) : /*NET_URL*/''; })();
+let net = null, finding = false;
+function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((100 + Math.random() * 900) | 0); store.set('name', n); } return n; }
+// 找对手：连上服务器、等开局。连不上 / 等太久 / 房间满 / 免费额度用完 → 回调 null，照旧打机器人局，玩家不会被卡住
+function findMatch(cb) {
+  if (!NET_URL) return cb(null);
+  let done = false, ws = null;
+  const el = $('netWait');
+  const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const to = setTimeout(() => finish(null), 9000);
+  el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
+  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
+  const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
+  ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.k === 'wait') setT(el, tl('finding', { n: m.n, m: m.max }));
+    else if (m.k === 'full') finish(null);
+    else if (m.k === 'start') finish(m);
+    else if (m.k === 's' && net === mine) {
+      mine.lastMsg = performance.now();
+      if (m.e) mine.evq.push(...m.e);
+      if (mine.pend) { if (!m.ch && mine.pend.ch) m.ch = mine.pend.ch; if (!m.it && mine.pend.it) m.it = mine.pend.it; }   // 没来得及用的豆/道具清单别丢
+      mine.pend = m;
+    }
+  };
+  ws.onclose = ws.onerror = () => { if (!done) finish(null); else if (net === mine) netLost(); };
+}
+function netLost() { // 打到一半断线：其他人交给本机的机器人，接着打完这局
+  net = null; if (!S || !S.net) return;
+  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; });
+}
+function netFrame() { // 每帧：先套上服务器最新的局面，再处理服务器通报的事
+  if (!net || !S.net) return;
+  // 3 秒没收到服务器消息 = 断了（网络断开时浏览器不一定会马上通知）
+  if (performance.now() - net.lastMsg > 3000 && S.phase !== 'end') { const w = net.ws; netLost(); try { w.close(); } catch (e) { } return; }
+  if (net.pend) { SIM.applySnap(S, net.pend, ME); net.pend = null; }
+  if (net.evq.length) { const q = net.evq; net.evq = []; handleEvents(q, true); }
+}
+function netSend(me) { // 把我的操作发给服务器：方向变了才发（每秒最多 20 次），冲撞 / 跳立刻发
+  if (!net || net.ws.readyState !== 1) return;
+  const now = performance.now(), d = me.inp.dash, j = me.inp.jump, mx = +me.inp.mx.toFixed(2), mz = +me.inp.mz.toFixed(2);
+  if (d || j || ((mx !== net.lmx || mz !== net.lmz) && now - net.lastSend > 50)) {
+    net.lastSend = now; net.lmx = mx; net.lmz = mz;
+    net.ws.send(JSON.stringify({ k: 'in', mx, mz, d: d ? 1 : 0, j: j ? 1 : 0 }));
+  }
+}
+function playPressed() {
+  if (!inLobby || finding) return;
+  ensureAudio(); finding = true; $('lobbyB').style.visibility = 'hidden';
+  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg) newMatch(cfg); startFromLobby(); });
+}
 let lastBeep = 4;
 function flash(col, a = 0.5) { const f = $('flash'); f.style.transition = 'none'; f.style.background = col; f.style.opacity = a; void f.offsetWidth; f.style.transition = 'opacity .45s ease-out'; f.style.opacity = 0; }
 // 彩纸
@@ -799,10 +861,12 @@ function stepConfetti(dt) {
   confIM.count = any ? CONF_N : 0; confIM.instanceMatrix.needsUpdate = true;
 }
 function starBurst(x, y, z, n, sp) { for (let i = 0; i < n; i++) { const a = i / n * 6.283; emit(stars, x, y, z, Math.cos(a) * sp, 2 + Math.random() * 2, Math.sin(a) * sp, 0.6, 1, 0.4); } }
-function handleEvents() {
+const NET_EVENTS = { go: 1, steal: 1, pick: 1, drop: 1, chip: 1, grow: 1, fall: 1, respawn: 1, item: 1, block: 1, frozen: 1, end: 1 };
+function handleEvents(list, fromServer) {
   const me = S.players[ME];
   const near = (x, z) => Math.hypot(x - me.x, z - me.z) < 12;
-  for (const e of S.events) {
+  for (const e of list || S.events) {
+    if (S.net && !fromServer && NET_EVENTS[e.k]) continue;
     switch (e.k) {
       case 'go': banner(tl('go'), true, 0.9); SFX.beep(true); break;
       case 'dash': if (e.p === ME || near(S.players[e.p].x, S.players[e.p].z)) SFX.dash(e.p === ME); break;
@@ -860,6 +924,7 @@ function handleEvents() {
       case 'end': showEnd(); break;
     }
   }
+  if (fromServer) return;
   if (S.phase === 'count') { const n = Math.ceil(S.phaseT); if (n < lastBeep && n > 0) { lastBeep = n; banner(String(n), true, 0.8); SFX.beep(false); } }
   if (S.phase === 'play') {
     // 有人快吃完了：提醒去抢
@@ -896,7 +961,7 @@ $('bAgain').addEventListener('click', () => {
   ensureAudio();
   $('panel').hidden = true;
   // 广告只在两局之间
-  PF.midgame(() => newMatch());
+  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => newMatch(cfg)); });
 });
 
 // ---------- 皮肤柜 + 盲盒（饼干屑换） ----------
@@ -1089,9 +1154,10 @@ function frame(now) {
   if (!paused && !PF.adBusy && !inLobby) {
     // 每一帧都按实际时间走，屏幕刷新多快人就动多顺（帧太长就拆成几小步）
     const n = Math.max(1, Math.ceil(dt / (1 / 50))), h = dt / n;
+    netFrame();
     for (let i = 0; i < n && h > 0; i++) {
       readInput(S.players[ME]);
-      SIM.thinkBots(S, h);
+      if (S.net) netSend(S.players[ME]); else SIM.thinkBots(S, h);
       SIM.step(S, h);
       handleEvents();
     }
@@ -1117,7 +1183,7 @@ function frame(now) {
   PF.loadingDone();
   requestAnimationFrame(t => { last = t; frame(t); });
   if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; },
-    __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
+    __netKill: () => { if (net) { net.ws.onmessage = null; net.lastMsg = -1e9; } }, __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
     // 录像用：停掉自动刷新，由外面一帧一帧推进（每帧固定毫秒数），画面就不受机器快慢影响
     __manual: () => { manualFrames = true; vNow = performance.now(); }, __step: ms => { vNow += ms; frame(vNow); } });
 })();

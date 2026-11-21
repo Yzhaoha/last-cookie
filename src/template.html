@@ -101,6 +101,7 @@ body.lefty #chipBox{left:auto;right:14px}
 #menu select{font-family:inherit;font-size:18px;padding:6px;border:3px solid var(--ink);border-radius:12px;background:#fff}
 #menu label{display:flex;justify-content:space-between;align-items:center;font-size:20px}
 #menu input{width:24px;height:24px}
+#netWait{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:13;font-size:24px;padding:10px 24px 12px;animation:pulse 1.2s ease-in-out infinite}
 #flash{position:fixed;inset:0;pointer-events:none;z-index:8;opacity:0}
 #lobby{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(26px,env(safe-area-inset-top)) 16px max(34px,calc(env(safe-area-inset-bottom) + 24px));pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(255,246,230,0) 35%,rgba(255,226,180,.55) 100%)}
 #lobby h1{margin:0;font-weight:normal;font-size:clamp(46px,8.5vw,96px);text-align:center;line-height:1;transform:rotate(-3deg);animation:bob 2.4s ease-in-out infinite}
@@ -149,6 +150,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
+<div id="netWait" class="pill" hidden></div>
 <div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">

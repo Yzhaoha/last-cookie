@@ -101,6 +101,7 @@ body.lefty #chipBox{left:auto;right:14px}
 #menu select{font-family:inherit;font-size:18px;padding:6px;border:3px solid var(--ink);border-radius:12px;background:#fff}
 #menu label{display:flex;justify-content:space-between;align-items:center;font-size:20px}
 #menu input{width:24px;height:24px}
+#netWait{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:13;font-size:24px;padding:10px 24px 12px;animation:pulse 1.2s ease-in-out infinite}
 #flash{position:fixed;inset:0;pointer-events:none;z-index:8;opacity:0}
 #lobby{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(26px,env(safe-area-inset-top)) 16px max(34px,calc(env(safe-area-inset-bottom) + 24px));pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(255,246,230,0) 35%,rgba(255,226,180,.55) 100%)}
 #lobby h1{margin:0;font-weight:normal;font-size:clamp(46px,8.5vw,96px);text-align:center;line-height:1;transform:rotate(-3deg);animation:bob 2.4s ease-in-out infinite}
@@ -149,6 +150,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
+<div id="netWait" class="pill" hidden></div>
 <div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
@@ -274,7 +276,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, obs: makeObstacles(rng(seed), !!opts.round), players: [], chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
@@ -285,7 +287,7 @@ const SIM = (() => {
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
-        home: -1, grabT: 0, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
+        home: -1, grabT: 0, actT: -9, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
     for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && edgeGap(S, x, z) > 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
@@ -294,12 +296,13 @@ const SIM = (() => {
   }
   function addChip(S) {
     const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 3 && S.chips.every(c => Math.hypot(c.x - x, c.z - z) > 1.8));
-    S.chips.push({ id: S.chipId++, x, z });
+    S.chips.push({ id: S.chipId++, x, z }); S.chipVer++;
   }
   function lvlOf(chips) { let l = 0; for (let i = 0; i < CFG.LVL_AT.length; i++) if (chips >= CFG.LVL_AT[i]) l = i; return l; }
   function ev(S, e) { S.events.push(e); }
 
   function fall(S, p) {
+    if (S.net) return;
     p.on = false; p.fallT = 0; p.falls++; p.fx = p.x; p.fz = p.z; p.fvx = p.kvx + p.mvx; p.fvz = p.kvz + p.mvz; p.dashT = 0;
     p.chips = Math.floor(p.chips / 2); p.lvl = lvlOf(p.chips);
     const by = (p.lastHit >= 0 && S.t - p.lastHitT < 3) ? p.lastHit : -1;
@@ -320,7 +323,7 @@ const SIM = (() => {
     ev(S, { k: 'respawn', p: p.id, x, z });
   }
   function finish(S) {
-    if (S.phase === 'end') return;
+    if (S.phase === 'end' || S.net) return;
     S.phase = 'end'; S.phaseT = 0;
     const order = S.players.slice().sort((a, b) => b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
     order.forEach((p, i) => p.place = i + 1);
@@ -347,7 +350,7 @@ const SIM = (() => {
   }
   function trySteal(S, a, b) {
     const ck = S.cookie;
-    if (ck.holder !== b.id || S.phase !== 'play') return;
+    if (ck.holder !== b.id || S.phase !== 'play' || S.net) return;
     ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
@@ -368,7 +371,7 @@ const SIM = (() => {
   function addItem(S) {
     const kinds = ['chili', 'ice', 'bubble'], kind = kinds[(S.rnd() * 3) | 0];
     const [x, z] = freeSpot(S, (x, z) => S.items.every(c => Math.hypot(c.x - x, c.z - z) > 10) && S.players.every(q => Math.hypot(q.x - x, q.z - z) > 4));
-    S.items.push({ id: S.itemId++, kind, x, z }); ev(S, { k: 'itemSpawn', x, z });
+    S.items.push({ id: S.itemId++, kind, x, z }); S.itemVer++; ev(S, { k: 'itemSpawn', x, z });
   }
   function useItem(S, p, it) {
     const C = CFG;
@@ -381,7 +384,7 @@ const SIM = (() => {
   function step(S, dt) {
     const C = CFG, P = S.players, ck = S.cookie;
     S.events.length = 0;
-    S.t += dt;
+    S.t += dt; S.lt += dt;
     if (S.phase === 'count') { S.phaseT -= dt; if (S.phaseT <= 0) { S.phase = 'play'; S.playT = 0; ev(S, { k: 'go' }); } }
     const playing = S.phase === 'play';
     if (playing) S.playT += dt;
@@ -389,7 +392,7 @@ const SIM = (() => {
 
     for (const p of P) {
       p.grabT -= dt; p.inv -= dt; p.guard -= dt; p.dashCd -= dt; p.hitT -= dt; p.shieldCd -= dt; p.boostT -= dt; p.frozenT -= dt; p.bubbleT -= dt;
-      if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T) respawn(S, p); p.inp.dash = p.inp.jump = false; continue; }
+      if (!p.on) { p.fallT += dt; if (S.phase !== 'end' && p.fallT >= C.RESPAWN_T && !S.net) respawn(S, p); p.inp.dash = p.inp.jump = false; continue; }
       const stunned = p.hitT > 0 || p.frozenT > 0, carry = ck.holder === p.id;
       let mx = p.inp.mx, mz = p.inp.mz; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
       if (!playing || stunned) mx = mz = 0;
@@ -398,7 +401,7 @@ const SIM = (() => {
       if (p.inp.jump) p.jumpBuf = C.DASH_BUF; else p.jumpBuf -= dt;
       p.inp.jump = false;
       if (p.jumpT > 0) { p.jumpT -= dt; if (p.jumpT <= 0) { ev(S, { k: 'land', p: p.id, x: p.x, z: p.z }); if (p.lvl >= 2 && p.frozenT <= 0) shock(S, p); } }
-      else if (playing && p.jumpBuf > 0 && p.jumpCd <= 0 && !stunned && p.dashT <= 0) { p.jumpBuf = 0; p.jumpT = C.JUMP_T; p.jumpCd = C.JUMP_CD; ev(S, { k: 'jump', p: p.id }); }
+      else if (playing && p.jumpBuf > 0 && p.jumpCd <= 0 && !stunned && p.dashT <= 0) { p.jumpBuf = 0; p.jumpT = C.JUMP_T; p.jumpCd = C.JUMP_CD; p.actT = S.lt; ev(S, { k: 'jump', p: p.id }); }
       if (playing && p.dashBuf > 0 && p.dashCd <= 0 && !stunned && p.jumpT <= 0) {
         p.dashBuf = 0;
         const noDir = Math.hypot(mx, mz) < 0.2;
@@ -408,7 +411,7 @@ const SIM = (() => {
           p.home = -1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; p.home = h.id; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.actT = S.lt;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
@@ -469,27 +472,27 @@ const SIM = (() => {
         const d = Math.hypot(p.x - ck.x, p.z - ck.z);
         if (d < C.PICK_R * C.SCALE[p.lvl] && d < bd) { bd = d; best = p; }
       }
-      if (best) { ck.holder = best.id; best.guard = 1.5; best.grabT = 1.0; ev(S, { k: 'pick', p: best.id }); }
+      if (best && !S.net) { ck.holder = best.id; best.guard = 1.5; best.grabT = 1.0; ev(S, { k: 'pick', p: best.id }); }
     }
     // 巧克力豆
-    for (let i = S.chips.length - 1; i >= 0; i--) {
+    for (let i = S.net ? -1 : S.chips.length - 1; i >= 0; i--) {
       const c = S.chips[i];
       for (const p of P) {
         if (!p.on) continue;
         if (Math.hypot(p.x - c.x, p.z - c.z) < C.CHIP_R * C.SCALE[p.lvl]) {
-          S.chips.splice(i, 1); p.chips++;
+          S.chips.splice(i, 1); p.chips++; S.chipVer++;
           const l = lvlOf(p.chips); ev(S, { k: 'chip', p: p.id, x: c.x, z: c.z });
           if (l > p.lvl) { p.lvl = l; ev(S, { k: 'grow', p: p.id }); }
           break;
         }
       }
     }
-    for (let i = S.items.length - 1; i >= 0; i--) {
+    for (let i = S.net ? -1 : S.items.length - 1; i >= 0; i--) {
       const it = S.items[i];
-      for (const p of P) if (p.on && p.frozenT <= 0 && Math.hypot(p.x - it.x, p.z - it.z) < 0.95 * C.SCALE[p.lvl]) { S.items.splice(i, 1); useItem(S, p, it); break; }
+      for (const p of P) if (p.on && p.frozenT <= 0 && Math.hypot(p.x - it.x, p.z - it.z) < 0.95 * C.SCALE[p.lvl]) { S.items.splice(i, 1); S.itemVer++; useItem(S, p, it); break; }
     }
-    if (playing && S.items.length < C.ITEM_N) { S.itemT -= dt; if (S.itemT <= 0) { S.itemT = C.ITEM_T; addItem(S); } }
-    if (S.chips.length < C.CHIP_N) { S.chipT += dt; if (S.chipT >= C.CHIP_RESPAWN) { S.chipT = 0; addChip(S); } }
+    if (playing && !S.net && S.items.length < C.ITEM_N) { S.itemT -= dt; if (S.itemT <= 0) { S.itemT = C.ITEM_T; addItem(S); } }
+    if (!S.net && S.chips.length < C.CHIP_N) { S.chipT += dt; if (S.chipT >= C.CHIP_RESPAWN) { S.chipT = 0; addChip(S); } }
     if (playing && S.playT >= C.MAX_T) finish(S);
   }
 
@@ -568,7 +571,43 @@ const SIM = (() => {
   }
   function thinkBots(S, dt) { for (const p of S.players) if (p.bot) botThink(S, p, dt); }
 
-  return { CFG, rng, create, step, thinkBots, blocked, lvlOf, edgeGap };
+  // ---------------- 联机快照：服务器 snap() 打包，客户端 applySnap() 套到自己的 S 上 ----------------
+  const PF_ = ['x', 'z', 'face', 'mvx', 'mvz', 'kvx', 'kvz', 'chips', 'lvl', 'on', 'fallT', 'fx', 'fz', 'fvx', 'fvz', 'inv', 'guard', 'dashCd', 'dashT', 'dashX', 'dashZ', 'dashHit', 'hitT', 'eaten', 'steals', 'shieldCd', 'boostT', 'frozenT', 'bubbleT', 'jumpT', 'jumpCd', 'grabT', 'home', 'place', 'lastHit', 'lastHitT'];
+  const BOOL_ = { on: 1, dashHit: 1 }, MINE_ = { face: 1, mvx: 1, mvz: 1 }, ACT_ = { dashCd: 1, dashT: 1, dashX: 1, dashZ: 1, dashHit: 1, jumpT: 1, jumpCd: 1, home: 1 };
+  const r3 = v => typeof v === 'number' ? Math.round(v * 1000) / 1000 : (v ? 1 : 0);
+  function snap(S, withLists) {
+    const ck = S.cookie, m = { t: r3(S.t), pt: r3(S.playT), ph: S.phase, pT: r3(S.phaseT), w: S.winner, c: [r3(ck.x), r3(ck.z), ck.holder, r3(ck.cd), ck.no, r3(ck.noT)],
+      p: S.players.map(p => PF_.map(f => r3(p[f])).concat(r3(p.inp.mx), r3(p.inp.mz))), cv: S.chipVer, iv: S.itemVer };
+    if (withLists & 1) m.ch = S.chips.map(c => [c.id, r3(c.x), r3(c.z)]);
+    if (withLists & 2) m.it = S.items.map(c => [c.id, c.kind, r3(c.x), r3(c.z)]);
+    return m;
+  }
+  function applySnap(S, m, me) {
+    S.t = m.t; S.playT = m.pt; S.phase = m.ph; S.phaseT = m.pT; S.winner = m.w;
+    const ck = S.cookie; [ck.x, ck.z, ck.holder, ck.cd, ck.no, ck.noT] = m.c;
+    m.p.forEach((a, i) => {
+      const p = S.players[i], mine = i === me, n = PF_.length;
+      const sx = a[0], sz = a[1], err = Math.hypot(sx - p.x, sz - p.z), wasOn = p.on;
+      const acting = mine && S.lt - p.actT < 0.4;       // 我刚按了冲撞/跳，服务器还没收到：先信自己的
+      for (let k = 2; k < n; k++) {
+        const f = PF_[k];
+        if (mine && (MINE_[f] || (acting && ACT_[f]))) continue;
+        p[f] = BOOL_[f] ? !!a[k] : a[k];
+      }
+      if (mine) {
+        // 自己的位置以自己为准（不然会有延迟感）；只有被撞飞、刚回到桌上、或偏差太大时才听服务器的
+        const forced = !p.on || !wasOn || p.hitT > 0 || p.frozenT > 0 || Math.hypot(p.kvx, p.kvz) > 1.5;
+        if (forced || err > 3) { p.x = sx; p.z = sz; } else if (err > 1.3) { p.x += (sx - p.x) * 0.25; p.z += (sz - p.z) * 0.25; }
+      } else {
+        if (err > 2.5 || !p.on) { p.x = sx; p.z = sz; } else { p.x += (sx - p.x) * 0.35; p.z += (sz - p.z) * 0.35; }
+        p.inp.mx = a[n]; p.inp.mz = a[n + 1];
+      }
+    });
+    if (m.ch) S.chips = m.ch.map(c => ({ id: c[0], x: c[1], z: c[2] }));
+    if (m.it) S.items = m.it.map(c => ({ id: c[0], kind: c[1], x: c[2], z: c[3] }));
+  }
+
+  return { CFG, rng, create, step, thinkBots, blocked, lvlOf, edgeGap, snap, applySnap };
 })();
 // ===== SIM END =====
 // ===== I18N =====
@@ -630,6 +669,7 @@ const TL = {
   qChips: { en: 'Eat {n} chocolate chips', zh: '吃 {n} 颗巧克力豆' },
   qWin: { en: 'Win {n} match', zh: '赢 {n} 局' },
   questDone: { en: 'Quest done +{n}', zh: '任务完成 +{n}' },
+  finding: { en: 'Finding players… {n}/{m}', zh: '正在找对手… {n}/{m}' },
   play: { en: 'PLAY', zh: '开始' },
   skins: { en: 'Skins', zh: '皮肤' },
   use: { en: 'Use', zh: '用这个' },
@@ -667,7 +707,7 @@ function applyLang() {
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
-    title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
+    finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
     newSkill: 'Tu grandis ! Nouveau coup — {s}', how1: 'Longue charge : ta charge va plus loin (automatique)', how2: 'Onde de choc : appuie sur J pour sauter — l’atterrissage repousse tout le monde', how2T: 'Onde de choc : touche SAUT — l’atterrissage repousse tout le monde', how3: 'Bouclier : quand tu tiens le cookie, il bloque un coup (automatique, se recharge en 12 s)',
     it_chili: 'Piment — vitesse !', it_ice: 'Glaçon — tous ceux autour sont gelés !', it_bubble: 'Bulle — bloque un coup', frozen: '{b} t’a gelé !', blocked: 'BLOQUÉ !', maxSize: 'MAX : longue charge · onde de choc · bouclier',
     dash: 'CHARGE', jump: 'SAUT', keysJump: 'J / Maj  sauter (esquive)', keysDash: 'Espace / K  charger',
@@ -680,7 +720,7 @@ const TLX = {
     play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
-    title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
+    finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
     newSkill: 'Più grande! Nuova mossa — {s}', how1: 'Scatto lungo: la tua carica arriva più lontano (automatico)', how2: 'Schianto: premi J per saltare — l’atterraggio respinge tutti', how2T: 'Schianto: tocca SALTA — l’atterraggio respinge tutti', how3: 'Scudo: mentre tieni il biscotto blocca un colpo (automatico, si ricarica in 12 s)',
     it_chili: 'Peperoncino — più veloce!', it_ice: 'Ghiaccio — tutti i vicini sono congelati!', it_bubble: 'Bolla — blocca un colpo', frozen: '{b} ti ha congelato!', blocked: 'PARATO!', maxSize: 'MAX: scatto lungo · schianto · scudo',
     dash: 'CARICA', jump: 'SALTA', keysJump: 'J / Shift  salta (schiva)', keysDash: 'Spazio / K  carica',
@@ -693,7 +733,7 @@ const TLX = {
     play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
-    title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
+    finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
     newSkill: 'Größer! Neuer Trick — {s}', how1: 'Weiter Sprint: dein Rempler reicht weiter (automatisch)', how2: 'Stampfer: drücke J zum Springen — die Landung stößt alle weg', how2T: 'Stampfer: tippe SPRUNG — die Landung stößt alle weg', how3: 'Schild: solange du den Keks hältst, blockt er einen Treffer (automatisch, lädt in 12 s)',
     it_chili: 'Chili — Tempo!', it_ice: 'Eis — alle in der Nähe sind eingefroren!', it_bubble: 'Blase — blockt einen Treffer', frozen: '{b} hat dich eingefroren!', blocked: 'GEBLOCKT!', maxSize: 'MAX: Sprint · Stampfer · Schild',
     dash: 'RAMMEN', jump: 'SPRUNG', keysJump: 'J / Shift  springen (ausweichen)', keysDash: 'Leertaste / K  rammen',
@@ -706,7 +746,7 @@ const TLX = {
     play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
-    title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
+    finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
     newSkill: '¡Más grande! Nuevo truco — {s}', how1: 'Embestida larga: tu empujón llega más lejos (automático)', how2: 'Pisotón: pulsa J para saltar — al caer apartas a todos', how2T: 'Pisotón: toca SALTAR — al caer apartas a todos', how3: 'Escudo: mientras llevas la galleta bloquea un golpe (automático, se recarga en 12 s)',
     it_chili: '¡Chile — a toda velocidad!', it_ice: '¡Hielo — todos los cercanos congelados!', it_bubble: 'Burbuja — bloquea un golpe', frozen: '¡{b} te ha congelado!', blocked: '¡BLOQUEADO!', maxSize: 'MÁX: embestida · pisotón · escudo',
     dash: 'EMBESTIR', jump: 'SALTAR', keysJump: 'J / Mayús  saltar (esquivar)', keysDash: 'Espacio / K  embestir',
@@ -719,7 +759,7 @@ const TLX = {
     play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
-    title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
+    finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
     newSkill: 'Büyüdün! Yeni hamle — {s}', how1: 'Uzun atılış: çarpman daha uzağa gider (otomatik)', how2: 'Yer sarsma: zıplamak için J’ye bas — yere inince herkesi savurursun', how2T: 'Yer sarsma: ZIPLA’ya dokun — yere inince herkesi savurursun', how3: 'Kalkan: kurabiye sendeyken bir darbeyi engeller (otomatik, 12 sn’de dolar)',
     it_chili: 'Acı biber — hızlan!', it_ice: 'Buz — yakındaki herkes dondu!', it_bubble: 'Balon — bir darbeyi engeller', frozen: '{b} seni dondurdu!', blocked: 'ENGELLENDİ!', maxSize: 'MAKS: atılış · sarsma · kalkan',
     dash: 'ÇARP', jump: 'ZIPLA', keysJump: 'J / Shift  zıpla (kaç)', keysDash: 'Boşluk / K  çarp',
@@ -732,7 +772,7 @@ const TLX = {
     play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
-    title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
+    finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
     newSkill: '大きくなった！新ワザ — {s}', how1: 'ロングダッシュ：たいあたりが遠くまでとどく（自動）', how2: '地ひびき：Jでジャンプ — 着地でまわりをふきとばす', how2T: '地ひびき：「ジャンプ」をタップ — 着地でまわりをふきとばす', how3: 'シールド：クッキーを持っている間、1回だけ攻撃をふせぐ（自動・12秒で回復）',
     it_chili: 'トウガラシ — スピードアップ！', it_ice: 'こおり — まわりの全員がこおった！', it_bubble: 'バブル — 1回ふせぐ', frozen: '{b}にこおらされた！', blocked: 'ガード！', maxSize: 'MAX：ダッシュ・地ひびき・シールド',
     dash: 'アタック', jump: 'ジャンプ', keysJump: 'J / Shift  ジャンプ（よける）', keysDash: 'スペース / K  たいあたり',
@@ -745,7 +785,7 @@ const TLX = {
     play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
-    title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
+    finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
     newSkill: '커졌다! 새 기술 — {s}', how1: '긴 돌진: 박치기가 더 멀리 나간다 (자동)', how2: '내려찍기: J를 눌러 점프 — 착지하면 주변을 날려 버린다', how2T: '내려찍기: 점프 버튼을 누르면 — 착지할 때 주변을 날려 버린다', how3: '방패: 쿠키를 들고 있으면 한 번 막아 준다 (자동, 12초 후 회복)',
     it_chili: '고추 — 속도 업!', it_ice: '얼음 — 주변 모두 얼었다!', it_bubble: '방울 — 한 번 막아 준다', frozen: '{b}에게 얼었다!', blocked: '막았다!', maxSize: 'MAX: 긴 돌진 · 내려찍기 · 방패',
     dash: '박치기', jump: '점프', keysJump: 'J / Shift  점프(피하기)', keysDash: '스페이스 / K  박치기',
@@ -758,7 +798,7 @@ const TLX = {
     play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
-    title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
+    finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
     newSkill: 'Cresceu! Novo golpe — {s}', how1: 'Investida longa: seu empurrão vai mais longe (automático)', how2: 'Pisão: aperte J para pular — ao cair, afasta todo mundo', how2T: 'Pisão: toque em PULAR — ao cair, afasta todo mundo', how3: 'Escudo: enquanto segura o biscoito, bloqueia um golpe (automático, recarrega em 12 s)',
     it_chili: 'Pimenta — mais velocidade!', it_ice: 'Gelo — todos por perto congelaram!', it_bubble: 'Bolha — bloqueia um golpe', frozen: '{b} congelou você!', blocked: 'BLOQUEADO!', maxSize: 'MÁX: investida · pisão · escudo',
     dash: 'INVESTIR', jump: 'PULAR', keysJump: 'J / Shift  pular (desviar)', keysDash: 'Espaço / K  investir',
@@ -771,7 +811,7 @@ const TLX = {
     play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
-    title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
+    finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
     newSkill: 'Ты вырос! Новый приём — {s}', how1: 'Длинный рывок: толчок бьёт дальше (автоматически)', how2: 'Удар о стол: нажми J, чтобы прыгнуть — приземление отбрасывает всех вокруг', how2T: 'Удар о стол: нажми ПРЫЖОК — приземление отбрасывает всех вокруг', how3: 'Щит: пока держишь печенье, он блокирует один удар (автоматически, восстановление 12 с)',
     it_chili: 'Перец — ускорение!', it_ice: 'Лёд — все рядом заморожены!', it_bubble: 'Пузырь — блокирует один удар', frozen: '{b} заморозил тебя!', blocked: 'БЛОК!', maxSize: 'МАКС: рывок · удар о стол · щит',
     dash: 'ТОЛЧОК', jump: 'ПРЫЖОК', keysJump: 'J / Shift  прыжок (уклон)', keysDash: 'Пробел / K  толчок',
@@ -1446,7 +1486,7 @@ addEventListener('keydown', e => {
   if (KB_JUMP.includes(e.code)) wantJump = true;
   if (e.code === 'KeyP' || (e.code === 'Escape' && !PF.noEsc)) toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden && $('locker').hidden) $('bAgain').click();
-  if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { startFromLobby(); return; }
+  if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { playPressed(); return; }
   usedKeys = true;
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -1600,16 +1640,22 @@ addEventListener('resize', resize); resize();
 
 // ---------- 对局 ----------
 let matchN = 0, warned = 0, last10 = false;
-function newMatch() {
+function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create({ seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
-  ME = 0;
-  const me = S.players[ME]; me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
-  const used = new Set([me.look]);
-  S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
+  ME = cfg ? cfg.you : 0;
+  const me = S.players[ME];
+  if (cfg) { // 联机局：桌子、座位、名字、皮肤都由服务器定；本机不跑机器人
+    S.net = true;
+    S.players.forEach((p, i) => { p.bot = false; p.human = i === ME; p.name = cfg.names[i]; p.look = cfg.looks[i] % LOOKS.length; p.real = !!cfg.humans[i]; });
+  } else {
+    me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
+    const used = new Set([me.look]);
+    S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
+  }
   buildMap();
   $('tags').innerHTML = ''; buildActors();
   for (const pool of [crumbs, stars, chipsFly]) for (const p of pool.arr) p.life = 0;
@@ -1624,10 +1670,66 @@ function newMatch() {
 }
 function startFromLobby() {
   if (!inLobby) return;
+  if (net) net.lastMsg = performance.now();
   ensureAudio(); inLobby = false; document.body.classList.remove('lobby'); $('lobby').hidden = true;
   const me = S.players[ME]; me.face = Math.atan2(-me.x, -me.z); PF.setPlaying(true);
 }
-$('bPlay').addEventListener('click', startFromLobby);
+$('bPlay').addEventListener('click', playPressed);
+
+// ---------- 联机 ----------
+// 服务器地址：打包时写进来；测试时也可以在网址后面加 ?net=地址。没有地址 = 纯单机
+const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); return m ? decodeURIComponent(m[1]) : /*NET_URL*/''; })();
+let net = null, finding = false;
+function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((100 + Math.random() * 900) | 0); store.set('name', n); } return n; }
+// 找对手：连上服务器、等开局。连不上 / 等太久 / 房间满 / 免费额度用完 → 回调 null，照旧打机器人局，玩家不会被卡住
+function findMatch(cb) {
+  if (!NET_URL) return cb(null);
+  let done = false, ws = null;
+  const el = $('netWait');
+  const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const to = setTimeout(() => finish(null), 9000);
+  el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
+  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
+  const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
+  ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.k === 'wait') setT(el, tl('finding', { n: m.n, m: m.max }));
+    else if (m.k === 'full') finish(null);
+    else if (m.k === 'start') finish(m);
+    else if (m.k === 's' && net === mine) {
+      mine.lastMsg = performance.now();
+      if (m.e) mine.evq.push(...m.e);
+      if (mine.pend) { if (!m.ch && mine.pend.ch) m.ch = mine.pend.ch; if (!m.it && mine.pend.it) m.it = mine.pend.it; }   // 没来得及用的豆/道具清单别丢
+      mine.pend = m;
+    }
+  };
+  ws.onclose = ws.onerror = () => { if (!done) finish(null); else if (net === mine) netLost(); };
+}
+function netLost() { // 打到一半断线：其他人交给本机的机器人，接着打完这局
+  net = null; if (!S || !S.net) return;
+  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; });
+}
+function netFrame() { // 每帧：先套上服务器最新的局面，再处理服务器通报的事
+  if (!net || !S.net) return;
+  // 3 秒没收到服务器消息 = 断了（网络断开时浏览器不一定会马上通知）
+  if (performance.now() - net.lastMsg > 3000 && S.phase !== 'end') { const w = net.ws; netLost(); try { w.close(); } catch (e) { } return; }
+  if (net.pend) { SIM.applySnap(S, net.pend, ME); net.pend = null; }
+  if (net.evq.length) { const q = net.evq; net.evq = []; handleEvents(q, true); }
+}
+function netSend(me) { // 把我的操作发给服务器：方向变了才发（每秒最多 20 次），冲撞 / 跳立刻发
+  if (!net || net.ws.readyState !== 1) return;
+  const now = performance.now(), d = me.inp.dash, j = me.inp.jump, mx = +me.inp.mx.toFixed(2), mz = +me.inp.mz.toFixed(2);
+  if (d || j || ((mx !== net.lmx || mz !== net.lmz) && now - net.lastSend > 50)) {
+    net.lastSend = now; net.lmx = mx; net.lmz = mz;
+    net.ws.send(JSON.stringify({ k: 'in', mx, mz, d: d ? 1 : 0, j: j ? 1 : 0 }));
+  }
+}
+function playPressed() {
+  if (!inLobby || finding) return;
+  ensureAudio(); finding = true; $('lobbyB').style.visibility = 'hidden';
+  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg) newMatch(cfg); startFromLobby(); });
+}
 let lastBeep = 4;
 function flash(col, a = 0.5) { const f = $('flash'); f.style.transition = 'none'; f.style.background = col; f.style.opacity = a; void f.offsetWidth; f.style.transition = 'opacity .45s ease-out'; f.style.opacity = 0; }
 // 彩纸
@@ -1647,10 +1749,12 @@ function stepConfetti(dt) {
   confIM.count = any ? CONF_N : 0; confIM.instanceMatrix.needsUpdate = true;
 }
 function starBurst(x, y, z, n, sp) { for (let i = 0; i < n; i++) { const a = i / n * 6.283; emit(stars, x, y, z, Math.cos(a) * sp, 2 + Math.random() * 2, Math.sin(a) * sp, 0.6, 1, 0.4); } }
-function handleEvents() {
+const NET_EVENTS = { go: 1, steal: 1, pick: 1, drop: 1, chip: 1, grow: 1, fall: 1, respawn: 1, item: 1, block: 1, frozen: 1, end: 1 };
+function handleEvents(list, fromServer) {
   const me = S.players[ME];
   const near = (x, z) => Math.hypot(x - me.x, z - me.z) < 12;
-  for (const e of S.events) {
+  for (const e of list || S.events) {
+    if (S.net && !fromServer && NET_EVENTS[e.k]) continue;
     switch (e.k) {
       case 'go': banner(tl('go'), true, 0.9); SFX.beep(true); break;
       case 'dash': if (e.p === ME || near(S.players[e.p].x, S.players[e.p].z)) SFX.dash(e.p === ME); break;
@@ -1708,6 +1812,7 @@ function handleEvents() {
       case 'end': showEnd(); break;
     }
   }
+  if (fromServer) return;
   if (S.phase === 'count') { const n = Math.ceil(S.phaseT); if (n < lastBeep && n > 0) { lastBeep = n; banner(String(n), true, 0.8); SFX.beep(false); } }
   if (S.phase === 'play') {
     // 有人快吃完了：提醒去抢
@@ -1744,7 +1849,7 @@ $('bAgain').addEventListener('click', () => {
   ensureAudio();
   $('panel').hidden = true;
   // 广告只在两局之间
-  PF.midgame(() => newMatch());
+  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => newMatch(cfg)); });
 });
 
 // ---------- 皮肤柜 + 盲盒（饼干屑换） ----------
@@ -1937,9 +2042,10 @@ function frame(now) {
   if (!paused && !PF.adBusy && !inLobby) {
     // 每一帧都按实际时间走，屏幕刷新多快人就动多顺（帧太长就拆成几小步）
     const n = Math.max(1, Math.ceil(dt / (1 / 50))), h = dt / n;
+    netFrame();
     for (let i = 0; i < n && h > 0; i++) {
       readInput(S.players[ME]);
-      SIM.thinkBots(S, h);
+      if (S.net) netSend(S.players[ME]); else SIM.thinkBots(S, h);
       SIM.step(S, h);
       handleEvents();
     }
@@ -1965,7 +2071,7 @@ function frame(now) {
   PF.loadingDone();
   requestAnimationFrame(t => { last = t; frame(t); });
   if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; },
-    __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
+    __netKill: () => { if (net) { net.ws.onmessage = null; net.lastMsg = -1e9; } }, __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
     // 录像用：停掉自动刷新，由外面一帧一帧推进（每帧固定毫秒数），画面就不受机器快慢影响
     __manual: () => { manualFrames = true; vNow = performance.now(); }, __step: ms => { vNow += ms; frame(vNow); } });
 })();
