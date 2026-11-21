@@ -57,6 +57,7 @@ const TL = {
   qChips: { en: 'Eat {n} chocolate chips', zh: '吃 {n} 颗巧克力豆' },
   qWin: { en: 'Win {n} match', zh: '赢 {n} 局' },
   questDone: { en: 'Quest done +{n}', zh: '任务完成 +{n}' },
+  skip: { en: 'Play now (vs bots)', zh: '不等了，直接开始' },
   finding: { en: 'Finding players… {n}/{m}', zh: '正在找对手… {n}/{m}' },
   play: { en: 'PLAY', zh: '开始' },
   skins: { en: 'Skins', zh: '皮肤' },

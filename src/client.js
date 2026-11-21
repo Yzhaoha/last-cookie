@@ -794,19 +794,25 @@ const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); ret
 let net = null, finding = false;
 function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((100 + Math.random() * 900) | 0); store.set('name', n); } return n; }
 // 找对手：连上服务器、等开局。连不上 / 等太久 / 房间满 / 免费额度用完 → 回调 null，照旧打机器人局，玩家不会被卡住
+// 一打开页面就先碰一下服务器：把连接预热好（之后点开始会快很多），也顺便知道服务器到底连不连得上
+let netOK = null;
+if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL) return cb(null);
-  let done = false, ws = null;
-  const el = $('netWait');
-  const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
-  let to = setTimeout(() => finish(null), 15000);   // 有的网络第一次连上服务器就要 6 秒左右，连接阶段多等一会
-  el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
+  if (!NET_URL || netOK === false) return cb(null);          // 服务器连不上：不让人干等，直接打机器人局
+  let done = false, ws = null, n = 1, max = C.N;
+  const el = $('netWait'), t0 = performance.now();
+  let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
+  const show = () => setT($('netTxt'), tl('finding', { n, m: max }) + '  ' + Math.max(0, Math.ceil((dead - performance.now()) / 1000)));
+  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const iv = setInterval(() => { if (performance.now() >= dead) finish(null); else show(); }, 250);
+  el.hidden = false; show();
+  $('netSkip').onclick = () => finish(null);                  // 不想等：直接开始（机器人局）
   try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-    if (m.k === 'wait') { setT(el, tl('finding', { n: m.n, m: m.max })); clearTimeout(to); to = setTimeout(() => finish(null), (m.ms || 5000) + 4000); }   // 连上了：按服务器说的等人时间再多留 4 秒
+    if (m.k === 'wait') { n = m.n; max = m.max; dead = performance.now() + (m.ms || 5000) + 3000; show(); }   // 连上了：按服务器说的等人时间，再多留 3 秒
     else if (m.k === 'full') finish(null);
     else if (m.k === 'start') finish(m);
     else if (m.k === 's' && net === mine) {

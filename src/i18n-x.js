@@ -1,7 +1,7 @@
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
-    finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
+    skip: 'Jouer tout de suite (bots)', finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
     newSkill: 'Tu grandis ! Nouveau coup — {s}', how1: 'Longue charge : ta charge va plus loin (automatique)', how2: 'Onde de choc : appuie sur J pour sauter — l’atterrissage repousse tout le monde', how2T: 'Onde de choc : touche SAUT — l’atterrissage repousse tout le monde', how3: 'Bouclier : quand tu tiens le cookie, il bloque un coup (automatique, se recharge en 12 s)',
     it_chili: 'Piment — vitesse !', it_ice: 'Glaçon — tous ceux autour sont gelés !', it_bubble: 'Bulle — bloque un coup', frozen: '{b} t’a gelé !', blocked: 'BLOQUÉ !', maxSize: 'MAX : longue charge · onde de choc · bouclier',
     dash: 'CHARGE', jump: 'SAUT', keysJump: 'J / Maj  sauter (esquive)', keysDash: 'Espace / K  charger',
@@ -14,7 +14,7 @@ const TLX = {
     play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
-    finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
+    skip: 'Gioca subito (bot)', finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
     newSkill: 'Più grande! Nuova mossa — {s}', how1: 'Scatto lungo: la tua carica arriva più lontano (automatico)', how2: 'Schianto: premi J per saltare — l’atterraggio respinge tutti', how2T: 'Schianto: tocca SALTA — l’atterraggio respinge tutti', how3: 'Scudo: mentre tieni il biscotto blocca un colpo (automatico, si ricarica in 12 s)',
     it_chili: 'Peperoncino — più veloce!', it_ice: 'Ghiaccio — tutti i vicini sono congelati!', it_bubble: 'Bolla — blocca un colpo', frozen: '{b} ti ha congelato!', blocked: 'PARATO!', maxSize: 'MAX: scatto lungo · schianto · scudo',
     dash: 'CARICA', jump: 'SALTA', keysJump: 'J / Shift  salta (schiva)', keysDash: 'Spazio / K  carica',
@@ -27,7 +27,7 @@ const TLX = {
     play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
-    finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
+    skip: 'Sofort spielen (Bots)', finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
     newSkill: 'Größer! Neuer Trick — {s}', how1: 'Weiter Sprint: dein Rempler reicht weiter (automatisch)', how2: 'Stampfer: drücke J zum Springen — die Landung stößt alle weg', how2T: 'Stampfer: tippe SPRUNG — die Landung stößt alle weg', how3: 'Schild: solange du den Keks hältst, blockt er einen Treffer (automatisch, lädt in 12 s)',
     it_chili: 'Chili — Tempo!', it_ice: 'Eis — alle in der Nähe sind eingefroren!', it_bubble: 'Blase — blockt einen Treffer', frozen: '{b} hat dich eingefroren!', blocked: 'GEBLOCKT!', maxSize: 'MAX: Sprint · Stampfer · Schild',
     dash: 'RAMMEN', jump: 'SPRUNG', keysJump: 'J / Shift  springen (ausweichen)', keysDash: 'Leertaste / K  rammen',
@@ -40,7 +40,7 @@ const TLX = {
     play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
-    finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
+    skip: 'Jugar ya (bots)', finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
     newSkill: '¡Más grande! Nuevo truco — {s}', how1: 'Embestida larga: tu empujón llega más lejos (automático)', how2: 'Pisotón: pulsa J para saltar — al caer apartas a todos', how2T: 'Pisotón: toca SALTAR — al caer apartas a todos', how3: 'Escudo: mientras llevas la galleta bloquea un golpe (automático, se recarga en 12 s)',
     it_chili: '¡Chile — a toda velocidad!', it_ice: '¡Hielo — todos los cercanos congelados!', it_bubble: 'Burbuja — bloquea un golpe', frozen: '¡{b} te ha congelado!', blocked: '¡BLOQUEADO!', maxSize: 'MÁX: embestida · pisotón · escudo',
     dash: 'EMBESTIR', jump: 'SALTAR', keysJump: 'J / Mayús  saltar (esquivar)', keysDash: 'Espacio / K  embestir',
@@ -53,7 +53,7 @@ const TLX = {
     play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
-    finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
+    skip: 'Hemen oyna (botlar)', finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
     newSkill: 'Büyüdün! Yeni hamle — {s}', how1: 'Uzun atılış: çarpman daha uzağa gider (otomatik)', how2: 'Yer sarsma: zıplamak için J’ye bas — yere inince herkesi savurursun', how2T: 'Yer sarsma: ZIPLA’ya dokun — yere inince herkesi savurursun', how3: 'Kalkan: kurabiye sendeyken bir darbeyi engeller (otomatik, 12 sn’de dolar)',
     it_chili: 'Acı biber — hızlan!', it_ice: 'Buz — yakındaki herkes dondu!', it_bubble: 'Balon — bir darbeyi engeller', frozen: '{b} seni dondurdu!', blocked: 'ENGELLENDİ!', maxSize: 'MAKS: atılış · sarsma · kalkan',
     dash: 'ÇARP', jump: 'ZIPLA', keysJump: 'J / Shift  zıpla (kaç)', keysDash: 'Boşluk / K  çarp',
@@ -66,7 +66,7 @@ const TLX = {
     play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
-    finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
+    skip: '待たずに始める（ボット戦）', finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
     newSkill: '大きくなった！新ワザ — {s}', how1: 'ロングダッシュ：たいあたりが遠くまでとどく（自動）', how2: '地ひびき：Jでジャンプ — 着地でまわりをふきとばす', how2T: '地ひびき：「ジャンプ」をタップ — 着地でまわりをふきとばす', how3: 'シールド：クッキーを持っている間、1回だけ攻撃をふせぐ（自動・12秒で回復）',
     it_chili: 'トウガラシ — スピードアップ！', it_ice: 'こおり — まわりの全員がこおった！', it_bubble: 'バブル — 1回ふせぐ', frozen: '{b}にこおらされた！', blocked: 'ガード！', maxSize: 'MAX：ダッシュ・地ひびき・シールド',
     dash: 'アタック', jump: 'ジャンプ', keysJump: 'J / Shift  ジャンプ（よける）', keysDash: 'スペース / K  たいあたり',
@@ -79,7 +79,7 @@ const TLX = {
     play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
-    finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
+    skip: '바로 시작 (봇전)', finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
     newSkill: '커졌다! 새 기술 — {s}', how1: '긴 돌진: 박치기가 더 멀리 나간다 (자동)', how2: '내려찍기: J를 눌러 점프 — 착지하면 주변을 날려 버린다', how2T: '내려찍기: 점프 버튼을 누르면 — 착지할 때 주변을 날려 버린다', how3: '방패: 쿠키를 들고 있으면 한 번 막아 준다 (자동, 12초 후 회복)',
     it_chili: '고추 — 속도 업!', it_ice: '얼음 — 주변 모두 얼었다!', it_bubble: '방울 — 한 번 막아 준다', frozen: '{b}에게 얼었다!', blocked: '막았다!', maxSize: 'MAX: 긴 돌진 · 내려찍기 · 방패',
     dash: '박치기', jump: '점프', keysJump: 'J / Shift  점프(피하기)', keysDash: '스페이스 / K  박치기',
@@ -92,7 +92,7 @@ const TLX = {
     play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
-    finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
+    skip: 'Jogar agora (bots)', finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
     newSkill: 'Cresceu! Novo golpe — {s}', how1: 'Investida longa: seu empurrão vai mais longe (automático)', how2: 'Pisão: aperte J para pular — ao cair, afasta todo mundo', how2T: 'Pisão: toque em PULAR — ao cair, afasta todo mundo', how3: 'Escudo: enquanto segura o biscoito, bloqueia um golpe (automático, recarrega em 12 s)',
     it_chili: 'Pimenta — mais velocidade!', it_ice: 'Gelo — todos por perto congelaram!', it_bubble: 'Bolha — bloqueia um golpe', frozen: '{b} congelou você!', blocked: 'BLOQUEADO!', maxSize: 'MÁX: investida · pisão · escudo',
     dash: 'INVESTIR', jump: 'PULAR', keysJump: 'J / Shift  pular (desviar)', keysDash: 'Espaço / K  investir',
@@ -105,7 +105,7 @@ const TLX = {
     play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
-    finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
+    skip: 'Играть сразу (боты)', finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
     newSkill: 'Ты вырос! Новый приём — {s}', how1: 'Длинный рывок: толчок бьёт дальше (автоматически)', how2: 'Удар о стол: нажми J, чтобы прыгнуть — приземление отбрасывает всех вокруг', how2T: 'Удар о стол: нажми ПРЫЖОК — приземление отбрасывает всех вокруг', how3: 'Щит: пока держишь печенье, он блокирует один удар (автоматически, восстановление 12 с)',
     it_chili: 'Перец — ускорение!', it_ice: 'Лёд — все рядом заморожены!', it_bubble: 'Пузырь — блокирует один удар', frozen: '{b} заморозил тебя!', blocked: 'БЛОК!', maxSize: 'МАКС: рывок · удар о стол · щит',
     dash: 'ТОЛЧОК', jump: 'ПРЫЖОК', keysJump: 'J / Shift  прыжок (уклон)', keysDash: 'Пробел / K  толчок',

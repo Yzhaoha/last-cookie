@@ -100,7 +100,9 @@ body.lefty #chipBox{left:auto;right:14px}
 #menu select{font-family:inherit;font-size:18px;padding:6px;border:3px solid var(--ink);border-radius:12px;background:#fff}
 #menu label{display:flex;justify-content:space-between;align-items:center;font-size:20px}
 #menu input{width:24px;height:24px}
-#netWait{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:13;font-size:24px;padding:10px 24px 12px;animation:pulse 1.2s ease-in-out infinite}
+#netWait{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:13;display:flex;flex-direction:column;align-items:center;gap:12px}
+#netTxt{font-size:24px;padding:10px 24px 12px}
+#netSkip{font-size:18px;padding:6px 18px 8px}
 #flash{position:fixed;inset:0;pointer-events:none;z-index:8;opacity:0}
 #lobby{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(26px,env(safe-area-inset-top)) 16px max(34px,calc(env(safe-area-inset-bottom) + 24px));pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(255,246,230,0) 35%,rgba(255,226,180,.55) 100%)}
 #lobby h1{margin:0;font-weight:normal;font-size:clamp(46px,8.5vw,96px);text-align:center;line-height:1;transform:rotate(-3deg);animation:bob 2.4s ease-in-out infinite}
@@ -149,7 +151,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
-<div id="netWait" class="pill" hidden></div>
+<div id="netWait" hidden><div class="pill" id="netTxt"></div><button class="btn sec" id="netSkip" data-t="skip"></button></div>
 <div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
@@ -668,6 +670,7 @@ const TL = {
   qChips: { en: 'Eat {n} chocolate chips', zh: '吃 {n} 颗巧克力豆' },
   qWin: { en: 'Win {n} match', zh: '赢 {n} 局' },
   questDone: { en: 'Quest done +{n}', zh: '任务完成 +{n}' },
+  skip: { en: 'Play now (vs bots)', zh: '不等了，直接开始' },
   finding: { en: 'Finding players… {n}/{m}', zh: '正在找对手… {n}/{m}' },
   play: { en: 'PLAY', zh: '开始' },
   skins: { en: 'Skins', zh: '皮肤' },
@@ -706,7 +709,7 @@ function applyLang() {
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
-    finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
+    skip: 'Jouer tout de suite (bots)', finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
     newSkill: 'Tu grandis ! Nouveau coup — {s}', how1: 'Longue charge : ta charge va plus loin (automatique)', how2: 'Onde de choc : appuie sur J pour sauter — l’atterrissage repousse tout le monde', how2T: 'Onde de choc : touche SAUT — l’atterrissage repousse tout le monde', how3: 'Bouclier : quand tu tiens le cookie, il bloque un coup (automatique, se recharge en 12 s)',
     it_chili: 'Piment — vitesse !', it_ice: 'Glaçon — tous ceux autour sont gelés !', it_bubble: 'Bulle — bloque un coup', frozen: '{b} t’a gelé !', blocked: 'BLOQUÉ !', maxSize: 'MAX : longue charge · onde de choc · bouclier',
     dash: 'CHARGE', jump: 'SAUT', keysJump: 'J / Maj  sauter (esquive)', keysDash: 'Espace / K  charger',
@@ -719,7 +722,7 @@ const TLX = {
     play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
-    finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
+    skip: 'Gioca subito (bot)', finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
     newSkill: 'Più grande! Nuova mossa — {s}', how1: 'Scatto lungo: la tua carica arriva più lontano (automatico)', how2: 'Schianto: premi J per saltare — l’atterraggio respinge tutti', how2T: 'Schianto: tocca SALTA — l’atterraggio respinge tutti', how3: 'Scudo: mentre tieni il biscotto blocca un colpo (automatico, si ricarica in 12 s)',
     it_chili: 'Peperoncino — più veloce!', it_ice: 'Ghiaccio — tutti i vicini sono congelati!', it_bubble: 'Bolla — blocca un colpo', frozen: '{b} ti ha congelato!', blocked: 'PARATO!', maxSize: 'MAX: scatto lungo · schianto · scudo',
     dash: 'CARICA', jump: 'SALTA', keysJump: 'J / Shift  salta (schiva)', keysDash: 'Spazio / K  carica',
@@ -732,7 +735,7 @@ const TLX = {
     play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
-    finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
+    skip: 'Sofort spielen (Bots)', finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
     newSkill: 'Größer! Neuer Trick — {s}', how1: 'Weiter Sprint: dein Rempler reicht weiter (automatisch)', how2: 'Stampfer: drücke J zum Springen — die Landung stößt alle weg', how2T: 'Stampfer: tippe SPRUNG — die Landung stößt alle weg', how3: 'Schild: solange du den Keks hältst, blockt er einen Treffer (automatisch, lädt in 12 s)',
     it_chili: 'Chili — Tempo!', it_ice: 'Eis — alle in der Nähe sind eingefroren!', it_bubble: 'Blase — blockt einen Treffer', frozen: '{b} hat dich eingefroren!', blocked: 'GEBLOCKT!', maxSize: 'MAX: Sprint · Stampfer · Schild',
     dash: 'RAMMEN', jump: 'SPRUNG', keysJump: 'J / Shift  springen (ausweichen)', keysDash: 'Leertaste / K  rammen',
@@ -745,7 +748,7 @@ const TLX = {
     play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
-    finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
+    skip: 'Jugar ya (bots)', finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
     newSkill: '¡Más grande! Nuevo truco — {s}', how1: 'Embestida larga: tu empujón llega más lejos (automático)', how2: 'Pisotón: pulsa J para saltar — al caer apartas a todos', how2T: 'Pisotón: toca SALTAR — al caer apartas a todos', how3: 'Escudo: mientras llevas la galleta bloquea un golpe (automático, se recarga en 12 s)',
     it_chili: '¡Chile — a toda velocidad!', it_ice: '¡Hielo — todos los cercanos congelados!', it_bubble: 'Burbuja — bloquea un golpe', frozen: '¡{b} te ha congelado!', blocked: '¡BLOQUEADO!', maxSize: 'MÁX: embestida · pisotón · escudo',
     dash: 'EMBESTIR', jump: 'SALTAR', keysJump: 'J / Mayús  saltar (esquivar)', keysDash: 'Espacio / K  embestir',
@@ -758,7 +761,7 @@ const TLX = {
     play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
-    finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
+    skip: 'Hemen oyna (botlar)', finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
     newSkill: 'Büyüdün! Yeni hamle — {s}', how1: 'Uzun atılış: çarpman daha uzağa gider (otomatik)', how2: 'Yer sarsma: zıplamak için J’ye bas — yere inince herkesi savurursun', how2T: 'Yer sarsma: ZIPLA’ya dokun — yere inince herkesi savurursun', how3: 'Kalkan: kurabiye sendeyken bir darbeyi engeller (otomatik, 12 sn’de dolar)',
     it_chili: 'Acı biber — hızlan!', it_ice: 'Buz — yakındaki herkes dondu!', it_bubble: 'Balon — bir darbeyi engeller', frozen: '{b} seni dondurdu!', blocked: 'ENGELLENDİ!', maxSize: 'MAKS: atılış · sarsma · kalkan',
     dash: 'ÇARP', jump: 'ZIPLA', keysJump: 'J / Shift  zıpla (kaç)', keysDash: 'Boşluk / K  çarp',
@@ -771,7 +774,7 @@ const TLX = {
     play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
-    finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
+    skip: '待たずに始める（ボット戦）', finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
     newSkill: '大きくなった！新ワザ — {s}', how1: 'ロングダッシュ：たいあたりが遠くまでとどく（自動）', how2: '地ひびき：Jでジャンプ — 着地でまわりをふきとばす', how2T: '地ひびき：「ジャンプ」をタップ — 着地でまわりをふきとばす', how3: 'シールド：クッキーを持っている間、1回だけ攻撃をふせぐ（自動・12秒で回復）',
     it_chili: 'トウガラシ — スピードアップ！', it_ice: 'こおり — まわりの全員がこおった！', it_bubble: 'バブル — 1回ふせぐ', frozen: '{b}にこおらされた！', blocked: 'ガード！', maxSize: 'MAX：ダッシュ・地ひびき・シールド',
     dash: 'アタック', jump: 'ジャンプ', keysJump: 'J / Shift  ジャンプ（よける）', keysDash: 'スペース / K  たいあたり',
@@ -784,7 +787,7 @@ const TLX = {
     play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
-    finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
+    skip: '바로 시작 (봇전)', finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
     newSkill: '커졌다! 새 기술 — {s}', how1: '긴 돌진: 박치기가 더 멀리 나간다 (자동)', how2: '내려찍기: J를 눌러 점프 — 착지하면 주변을 날려 버린다', how2T: '내려찍기: 점프 버튼을 누르면 — 착지할 때 주변을 날려 버린다', how3: '방패: 쿠키를 들고 있으면 한 번 막아 준다 (자동, 12초 후 회복)',
     it_chili: '고추 — 속도 업!', it_ice: '얼음 — 주변 모두 얼었다!', it_bubble: '방울 — 한 번 막아 준다', frozen: '{b}에게 얼었다!', blocked: '막았다!', maxSize: 'MAX: 긴 돌진 · 내려찍기 · 방패',
     dash: '박치기', jump: '점프', keysJump: 'J / Shift  점프(피하기)', keysDash: '스페이스 / K  박치기',
@@ -797,7 +800,7 @@ const TLX = {
     play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
-    finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
+    skip: 'Jogar agora (bots)', finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
     newSkill: 'Cresceu! Novo golpe — {s}', how1: 'Investida longa: seu empurrão vai mais longe (automático)', how2: 'Pisão: aperte J para pular — ao cair, afasta todo mundo', how2T: 'Pisão: toque em PULAR — ao cair, afasta todo mundo', how3: 'Escudo: enquanto segura o biscoito, bloqueia um golpe (automático, recarrega em 12 s)',
     it_chili: 'Pimenta — mais velocidade!', it_ice: 'Gelo — todos por perto congelaram!', it_bubble: 'Bolha — bloqueia um golpe', frozen: '{b} congelou você!', blocked: 'BLOQUEADO!', maxSize: 'MÁX: investida · pisão · escudo',
     dash: 'INVESTIR', jump: 'PULAR', keysJump: 'J / Shift  pular (desviar)', keysDash: 'Espaço / K  investir',
@@ -810,7 +813,7 @@ const TLX = {
     play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
-    finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
+    skip: 'Играть сразу (боты)', finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
     newSkill: 'Ты вырос! Новый приём — {s}', how1: 'Длинный рывок: толчок бьёт дальше (автоматически)', how2: 'Удар о стол: нажми J, чтобы прыгнуть — приземление отбрасывает всех вокруг', how2T: 'Удар о стол: нажми ПРЫЖОК — приземление отбрасывает всех вокруг', how3: 'Щит: пока держишь печенье, он блокирует один удар (автоматически, восстановление 12 с)',
     it_chili: 'Перец — ускорение!', it_ice: 'Лёд — все рядом заморожены!', it_bubble: 'Пузырь — блокирует один удар', frozen: '{b} заморозил тебя!', blocked: 'БЛОК!', maxSize: 'МАКС: рывок · удар о стол · щит',
     dash: 'ТОЛЧОК', jump: 'ПРЫЖОК', keysJump: 'J / Shift  прыжок (уклон)', keysDash: 'Пробел / K  толчок',
@@ -1621,19 +1624,25 @@ const NET_URL = (() => { const m = location.search.match(/[?&]net=([^&]+)/); ret
 let net = null, finding = false;
 function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((100 + Math.random() * 900) | 0); store.set('name', n); } return n; }
 // 找对手：连上服务器、等开局。连不上 / 等太久 / 房间满 / 免费额度用完 → 回调 null，照旧打机器人局，玩家不会被卡住
+// 一打开页面就先碰一下服务器：把连接预热好（之后点开始会快很多），也顺便知道服务器到底连不连得上
+let netOK = null;
+if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL) return cb(null);
-  let done = false, ws = null;
-  const el = $('netWait');
-  const finish = cfg => { if (done) return; done = true; clearTimeout(to); el.hidden = true; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
-  let to = setTimeout(() => finish(null), 15000);   // 有的网络第一次连上服务器就要 6 秒左右，连接阶段多等一会
-  el.hidden = false; setT(el, tl('finding', { n: 1, m: C.N }));
+  if (!NET_URL || netOK === false) return cb(null);          // 服务器连不上：不让人干等，直接打机器人局
+  let done = false, ws = null, n = 1, max = C.N;
+  const el = $('netWait'), t0 = performance.now();
+  let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
+  const show = () => setT($('netTxt'), tl('finding', { n, m: max }) + '  ' + Math.max(0, Math.ceil((dead - performance.now()) / 1000)));
+  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const iv = setInterval(() => { if (performance.now() >= dead) finish(null); else show(); }, 250);
+  el.hidden = false; show();
+  $('netSkip').onclick = () => finish(null);                  // 不想等：直接开始（机器人局）
   try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
-    if (m.k === 'wait') { setT(el, tl('finding', { n: m.n, m: m.max })); clearTimeout(to); to = setTimeout(() => finish(null), (m.ms || 5000) + 4000); }   // 连上了：按服务器说的等人时间再多留 4 秒
+    if (m.k === 'wait') { n = m.n; max = m.max; dead = performance.now() + (m.ms || 5000) + 3000; show(); }   // 连上了：按服务器说的等人时间，再多留 3 秒
     else if (m.k === 'full') finish(null);
     else if (m.k === 'start') finish(m);
     else if (m.k === 's' && net === mine) {
