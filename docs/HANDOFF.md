@@ -1,4 +1,20 @@
-# 最后一块饼干 Last Cookie v2 — 交接（2026-11-17）
+# 最后一块饼干 Last Cookie v3「抢饼干」— 交接（2026-11-21，云端会话 → 本地会话）
+
+## ★ 给本地会话：从这里接着做
+用户要在自己电脑上开本地会话接手。云端会话做不了的两件事正好本地能做：登录 Cloudflare、用 Chrome 提交 CrazyGames。
+
+**第一件：把联机服务器放上线**（代码已写好并在云端本机测通，见下面「联机」一节）
+1. `git pull`（main 分支就是最新的），`cd server && npm install`。
+2. `npx wrangler login`：会打开浏览器，让用户自己点授权（用户已有 Cloudflare 账号，是以前买域名时开的；不替他输密码）。本地这样登录就行，**不需要**云端会话想要的那个 API 令牌。
+3. `npx wrangler deploy`。第一次可能要求先注册一个 workers.dev 子域名，按提示让用户自己选名字。成功后会打印地址，形如 `https://last-cookie.<子域名>.workers.dev`。
+4. 把这个地址写进 `server/url.txt`（一行），回仓库根目录 `python3 tools/build.py`，提交并推到 main。
+5. 给用户新的试玩链接 `https://yzhaoha.github.io/last-cookie/?v=提交号`，让他拉朋友（或自己开电脑 + 手机）同时点开始，5 秒内进来的人会进同一局。
+6. 重点看：**真实网络下自己移动有没有延迟感、别人会不会瞬移、抢饼干的判定对不对**。这些云端没法测，是最大的未知数。出问题先看 client.js「联机」一节和 `SIM.applySnap`（sim.js 末尾）。
+
+**第二件：提交 CrazyGames**（用户确认封面、视频、各语言之后）
+材料都在仓库里：`release/last-cookie-crazygames.zip`、`submission/` 里的 3 张封面、2 段视频、`表单文字.md`。规矩见下面「用户规矩」。注意：`server/url.txt` 有了以后重新 build，zip 里的游戏也会带联机；带联机提交的话 CrazyGames 有额外要求（把房间信息报给它的 SDK，见 docs.crazygames.com/requirements/multiplayer），还没做。想先不带联机提交，就在 build 前把 `server/url.txt` 挪开。
+
+**云端会话最后停在哪**：让用户建 Cloudflare API 令牌、弹安全表单时，用户决定改用本地会话，表单没填，**没有任何令牌或密码留在仓库或聊天里**。
 
 ## 用户规矩
 - 全程中文，说话直白少术语。用户不看代码，只看效果，给测试链接让他自己玩。
