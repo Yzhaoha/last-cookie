@@ -14,3 +14,21 @@ open('index.html', 'w').write(html)
 if not os.path.exists('three.module.min.js'):
     import shutil; shutil.copy('vendor/three.module.min.js', 'three.module.min.js')
 print('index.html', len(html))
+
+# ---- 平台包：release/last-cookie-<平台>/ 和同名 zip（index.html 在 zip 根目录）----
+# 和测试版的区别：换上真的平台包装（src/platform.js）、加载平台 SDK、关掉调试入口
+import shutil, zipfile
+SDK = {'crazygames': '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>',
+       'poki': '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>'}
+a, z = game.index('/*PLATFORM_START*/'), game.index('/*PLATFORM_END*/')
+pgame = game[:a] + open('src/platform.js').read() + game[z:]
+dbg = "const DEBUG = /[?&]debug/.test(location.search);"
+assert dbg in pgame; pgame = pgame.replace(dbg, "const DEBUG = false;")
+shutil.rmtree('release', ignore_errors=True)
+for site, tag in SDK.items():
+    out = 'release/last-cookie-' + site; os.makedirs(out)
+    open(out + '/index.html', 'w').write(tpl.replace('/*GAME*/', pgame).replace('<!--PLATFORM_HEAD-->', tag))
+    shutil.copy('three.module.min.js', out + '/three.module.min.js')
+    with zipfile.ZipFile(out + '.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(os.listdir(out)): zf.write(out + '/' + f, f)
+    print(site, 'zip', os.path.getsize(out + '.zip') // 1024, 'KB')

@@ -602,7 +602,7 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (KB_DASH.includes(e.code)) wantDash = true;
   if (KB_JUMP.includes(e.code)) wantJump = true;
-  if (e.code === 'KeyP' || e.code === 'Escape') toggleMenu();
+  if (e.code === 'KeyP' || (e.code === 'Escape' && !PF.noEsc)) toggleMenu();
   if (e.code === 'Enter' && !$('panel').hidden && $('locker').hidden) $('bAgain').click();
   if ((e.code === 'Enter' || e.code === 'Space') && inLobby && $('locker').hidden && $('menu').hidden) { startFromLobby(); return; }
   usedKeys = true;
@@ -977,7 +977,7 @@ function lobbyUI() {
 $('bDaily').addEventListener('click', () => {
   const d = dailyState(); if (!d.can) return; ensureAudio();
   store.set('daily', { day: dayKey(), streak: d.next }); store.set('crumbs', store.get('crumbs', 0) + dailyPay(d.next));
-  SFX.win(); PF.happy(); flash('#fff7c2', 0.5); lobbyUI();
+  SFX.win(); flash('#fff7c2', 0.5); lobbyUI();
 });
 // 一局结束：记任务进度，刚完成的发奖。返回这局拿到的任务奖励
 let myChipsEaten = 0;
@@ -993,10 +993,10 @@ ls.addEventListener('change', () => { LANG = ls.value; store.set('lang_set', 1);
 $('optMusic').checked = musicOn; $('optMusic').addEventListener('change', e => { musicOn = e.target.checked; store.set('music', musicOn); });
 $('optSound').checked = soundOn; $('optSound').addEventListener('change', e => { soundOn = e.target.checked; store.set('sound', soundOn); });
 let paused = false;
-function toggleMenu(force) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; paused = show; ls.value = LANG; PF.setPlaying(!show && !inLobby && S && S.phase !== 'end'); }
+function toggleMenu(force, focusLost) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; paused = show; ls.value = LANG; PF.setPlaying(!show && !inLobby && S && S.phase !== 'end', focusLost); }
 $('gear').addEventListener('click', () => toggleMenu());
 $('bResume').addEventListener('click', () => toggleMenu(false));
-document.addEventListener('visibilitychange', () => { if (document.hidden) { if (S && S.phase === 'play' && !paused) toggleMenu(true); if (AC) AC.suspend(); } else if (AC && !PF.muted) AC.resume(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (S && S.phase === 'play' && !paused && !inLobby) toggleMenu(true, true); if (AC) AC.suspend(); } else if (AC && !PF.muted) AC.resume(); });
 
 // ---------- 每帧画角色、饼干、豆 ----------
 function updateActors(dt, now) {
