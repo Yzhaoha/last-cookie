@@ -62,10 +62,18 @@
 - 机器人只有“水平”参数（`CHASERS` 同时几个人追、`BOT_RATE`、`BOT_REACT`），不改规则。
 验证方法：`CHASERS=7 node tools/sim-test.js 100` 模拟人人都在追。现在数据：默认（4 人追）一局 88 秒、每次抱住 5.3 秒、每局换手 16 次；7 人全追时抱住 6.5 秒。0 号“真人”第一名 18%（和机器人同等水平时本该 12.5%）。获胜门槛 24 秒（8 人平分时间，门槛高了一局太长）。
 
+## 11-21 用户确认「这次手感比之前都好」✅，并说「其他的你都可以自己加上」。做完的：
+- **平台接入**：`src/platform.js`（CrazyGames SDK v3 / Poki，照 burnt-again 验证过的写法）；`python3 tools/build.py` 现在同时产出 `release/last-cookie-crazygames.zip` 和 `release/last-cookie-poki.zip`（平台包里关掉了 `?debug`）。本地跑过 CG 包：SDK 初始化、loadingStart/Stop、gameplayStart/Stop 都正常，Esc 不开菜单、P 开菜单。**两局之间的广告没法在本地真测**（有 6 秒超时兜底）。
+- **11 种语言齐了**：en、zh 在 `src/i18n.js`，其余 9 种在 `src/i18n-x.js`（机器翻的，没有母语者校对）。
+- **封面**三张 + **预览视频**两段都在 `submission/`，生成脚本 `tools/cover.js`、`tools/video.js`（先 `python3 -m http.server 8765`；视频每段要跑约 10 分钟）。提交表单的英文文字在 `submission/表单文字.md`。
+- 开始界面加了战绩（🏆 胜场、🎮 局数）；去掉了背景里的椅子（低机位看是两块棕色板子）。
+- 没做「给机器人起像真人的网名 + 国旗」：那是让玩家误以为在和真人玩，没加。
+
+## 联机（用户问过云服务账号）
+规则已经按“全是真人”设计好了。真联机需要一台服务器，建议用户用**自己的** Cloudflare 免费账号（不替用户注册、不碰密码）。还没开始做；做之前先查清当时的免费额度。
+
 ## 之后按顺序做
-1. 接 CrazyGames SDK、打 zip（要点见 Yzhaoha/burnt-again 的 `docs/总交接-全部游戏.md`「平台要点」；`PF` 平台包装在 client.js 顶部）
-2. 手机真机测
-3. 补齐 9 种语言（fr it de es tr ja ko pt ru）
-4. 封面和预览视频
-5. 再加一个模式（想法：两块饼干同时抢 / 分队）
-6. 联机（最后再看要不要做）
+1. 用户看封面、视频、各语言，确认后在本机 Chrome 提交 CrazyGames（云端会话提交不了）
+2. 手机真机多测几台
+3. 再加一个模式（想法：两块饼干同时抢 / 分队）
+4. 联机（见上）

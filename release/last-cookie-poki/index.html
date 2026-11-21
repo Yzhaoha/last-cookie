@@ -107,7 +107,7 @@ body.lefty #chipBox{left:auto;right:14px}
 @keyframes bob{50%{transform:rotate(-3deg) translateY(-8px)}}
 #lobbyB{display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:auto}
 #quests{position:fixed;left:14px;bottom:max(14px,env(safe-area-inset-bottom));font-size:14px;background:rgba(255,246,230,.9);border:3px solid var(--ink);border-radius:14px;padding:5px 12px;text-align:left;line-height:1.5}
-#quests b{color:#b0602a;font-weight:normal}#quests i{font-style:normal;opacity:.7}#quests .ok{opacity:.55}
+#quests b{color:#b0602a;font-weight:normal}#quests i{font-style:normal;opacity:.7}#quests .ok{opacity:.55}#quests .st{font-size:16px;border-bottom:2px dashed rgba(74,38,18,.3);margin-bottom:2px}
 #bDaily{font-size:18px;padding:6px 18px 8px;background:#ffd76a;animation:pulse 1.2s ease-in-out infinite}
 #bPlay{font-size:38px;padding:12px 64px 16px;background:#7be07b;border-width:4px;border-radius:26px;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.06)}}
@@ -1119,18 +1119,12 @@ function buildTable(round) {
   }
   sp.receiveShadow = true; tableRoot.add(sp);
 }
-{ // 地板砖 + 椅子（装饰）
+{ // 地板砖（装饰）
   const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
   g.fillStyle = '#e2b47c'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#d6a468'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 40);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = -22; scene.add(floor);
-  const wm = new THREE.MeshStandardMaterial({ color: 0xb87a45, roughness: 0.7 }), cm = new THREE.MeshStandardMaterial({ color: 0xff9d8a, roughness: 0.9 });
-  for (const [x, z, ry] of [[-13, HH + 9, 0], [13, HH + 9, 0], [-13, -HH - 9, Math.PI], [13, -HH - 9, Math.PI], [HW + 7, 0, Math.PI / 2], [-HW - 7, 0, -Math.PI / 2]]) {
-    const ch = new THREE.Group(); ch.position.set(x, -10, z); ch.rotation.y = ry;
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(13, 1, 11), wm), cush = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.8, 28), cm), back = new THREE.Mesh(new THREE.BoxGeometry(13, 14, 1), wm);
-    cush.position.y = 0.8; back.position.set(0, 7, 5.5); ch.add(seat, cush, back); scene.add(ch);
-  }
 }
 // ---------- 桌上的东西（障碍） ----------
 const obsRoot = new THREE.Group(); scene.add(obsRoot);
@@ -1820,7 +1814,8 @@ function lobbyUI() {
   setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
-  $('quests').innerHTML = QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
+  const stat = `<div class="st">🏆 ${store.get('wins', 0)}　🎮 ${store.get('played', 0)}</div>`;
+  $('quests').innerHTML = stat + QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
 }
 $('bDaily').addEventListener('click', () => {
   const d = dailyState(); if (!d.can) return; ensureAudio();
@@ -1970,6 +1965,7 @@ function frame(now) {
   PF.loadingDone();
   requestAnimationFrame(t => { last = t; frame(t); });
   if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; },
+    __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
     // 录像用：停掉自动刷新，由外面一帧一帧推进（每帧固定毫秒数），画面就不受机器快慢影响
     __manual: () => { manualFrames = true; vNow = performance.now(); }, __step: ms => { vNow += ms; frame(vNow); } });
 })();
