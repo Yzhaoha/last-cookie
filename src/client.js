@@ -1070,6 +1070,7 @@ function setQuality(l) {
   if (renderer.shadowMap.enabled !== !!sh) { renderer.shadowMap.enabled = !!sh; sun.castShadow = !!sh; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); }
 }
 function autoQuality(dt) {
+  if (DEBUG) return;   // 调试/截图/录像时保持最高画质
   qT += dt; qN++;
   if (qT < 1) return;
   fpsNow = qN / qT; qT = 0; qN = 0;
@@ -1082,8 +1083,9 @@ function autoQuality(dt) {
 // ---------- 主循环 ----------
 let last = performance.now(), acc = 0, hitstop = 0, slowT = 0;
 const STEP = 1 / 60;
+let manualFrames = false, vNow = 0;
 function frame(now) {
-  requestAnimationFrame(frame);
+  if (!manualFrames) requestAnimationFrame(frame);
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
   const rawDt = dt;
   const tsec = now / 1000;
@@ -1119,6 +1121,8 @@ function frame(now) {
   newMatch();
   PF.loadingDone();
   requestAnimationFrame(t => { last = t; frame(t); });
-  if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; } });
+  if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; },
+    // 录像用：停掉自动刷新，由外面一帧一帧推进（每帧固定毫秒数），画面就不受机器快慢影响
+    __manual: () => { manualFrames = true; vNow = performance.now(); }, __step: ms => { vNow += ms; frame(vNow); } });
 })();
 // ===== CLIENT END =====

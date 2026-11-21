@@ -87,5 +87,7 @@ function applyLang() {
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = tl(el.dataset.t); });
   document.title = tl('title');
+  // 手机按钮上的字：长的语言自动缩小，免得撑出圆按钮
+  document.querySelectorAll('.tb span').forEach(s => { const n = s.textContent.length; s.style.fontSize = n > 6 ? '11px' : n > 4 ? '14px' : ''; });
 }
 // ===== I18N END =====

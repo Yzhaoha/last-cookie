@@ -8,7 +8,7 @@ tpl = tpl.replace("url('fonts/LilitaOne.woff2') format('woff2')", "url(data:font
 # three.js 只从同目录加载（Poki 不允许外部请求，不再回退到 CDN）
 game = ("const THREE = await import('./three.module.min.js');\n"
         + open('src/sim.js').read().replace("if (typeof module !== 'undefined') module.exports = SIM;\n", "")
-        + open('src/i18n.js').read() + open('src/client.js').read())
+        + open('src/i18n.js').read() + open('src/i18n-x.js').read() + open('src/client.js').read())
 html = tpl.replace('/*GAME*/', game).replace('<!--PLATFORM_HEAD-->\n', '')
 open('index.html', 'w').write(html)
 if not os.path.exists('three.module.min.js'):
