@@ -70,6 +70,21 @@ const TL = {
   close: { en: 'Close', zh: '关闭' },
   paused: { en: 'Paused', zh: '暂停' },
   resume: { en: 'Resume', zh: '继续' },
+  modeSolo: { en: "Solo", zh: "单挑" },
+  modeSoloD: { en: "Every snack for itself", zh: "各抢各的" },
+  modeTeam: { en: "Teams", zh: "组队" },
+  modeTeamD: { en: "4 vs 4 — eat together", zh: "4 对 4，一起吃" },
+  blue: { en: "Blue", zh: "蓝队" },
+  red: { en: "Red", zh: "红队" },
+  usTeam: { en: "Your team", zh: "我们队" },
+  intro2T: { en: "Teammate holding = your team eating. First team to 100% wins", zh: "队友抱着也算你们队在吃，先吃到 100% 的队赢" },
+  intro3T: { en: "Bump enemies: guard your carrier, steal theirs", zh: "撞敌人：护住自家的，抢走他们的" },
+  tipGuard: { en: "Your teammate has it — bump enemies near them (Space)!", zh: "队友拿着饼干——按空格撞靠近他的敌人，护住他！" },
+  tipGuardT: { en: "Your teammate has it — tap BUMP on enemies near them!", zh: "队友拿着饼干——点「冲撞」撞靠近他的敌人，护住他！" },
+  teamWin: { en: "YOUR TEAM WINS!", zh: "你们队赢了！" },
+  teamLose: { en: "{t} wins!", zh: "{t}赢了！" },
+  almostUs: { en: "Your team is almost done — hold on!", zh: "你们队快吃完了，撑住！" },
+  almostThem: { en: "{t} has almost finished — stop them!", zh: "{t}快吃完了，快去抢！" },
 };
 const BOT_NAMES = ['Muffin', 'Biscotti', 'Toffee', 'Mochi', 'Scone', 'Churro', 'Waffle', 'Praline', 'Brownie', 'Eclair', 'Crumble', 'Fudge', 'Sprinkle', 'Nougat', 'Truffle', 'Pretzel'];
 let LANG = 'en';

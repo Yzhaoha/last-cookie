@@ -43,7 +43,14 @@ const SIM = (() => {
     CHASERS: 4,           // 同时追饼干的机器人数量
     BOT_RATE: 4,          // 机器人够得着时每秒出手的概率（越小越不爱撞）
     BOT_REACT: 0.35,      // 机器人出手前的反应时间
+    // 组队模式：红蓝两队各 4 人，队友抱着也算本队在吃；队友之间撞不动、抢不走、冻不住、震不开
+    TEAM_WIN: 45,         // 一队累计抱满这么多秒就赢
+    TEAM_CHASE: 3,        // 敌人抱着时，本队同时去追的机器人数
+    TEAM_GUARD: 2,        // 队友抱着时，本队去护驾的机器人数
   };
+  // 同一队吗（单挑模式永远不是）
+  const ally = (S, a, b) => S.team && a.team === b.team;
+  const winT = S => S.team ? CFG.TEAM_WIN : CFG.WIN_T;
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -120,14 +127,14 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, team: !!opts.team, teamEat: [0, 0], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
       let x = Math.cos(a) * 11, z = Math.sin(a) * 8.5;
       [x, z] = pushOut(S.obs, x, z, 0.9);
       S.players.push({
-        id: i, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
+        id: i, team: i % 2, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
@@ -169,13 +176,16 @@ const SIM = (() => {
   function finish(S) {
     if (S.phase === 'end' || S.net) return;
     S.phase = 'end'; S.phaseT = 0;
-    const order = S.players.slice().sort((a, b) => b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
+    if (S.team) S.winTeam = S.teamEat[1] > S.teamEat[0] ? 1 : 0;
+    const tw = p => S.team && p.team === S.winTeam ? 1 : 0;
+    const order = S.players.slice().sort((a, b) => tw(b) - tw(a) || b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
     order.forEach((p, i) => p.place = i + 1);
     S.winner = order[0].id;
     ev(S, { k: 'end' });
   }
   function bonk(S, a, b) {
     const C = CFG;
+    if (ally(S, a, b)) return;   // 撞到队友：直接穿过去，冲撞继续
     a.dashHit = true; a.dashT = Math.min(a.dashT, 0.05);
     if (b.inv > 0) return;
     let dx = b.x - a.x, dz = b.z - a.z; const d = Math.hypot(dx, dz) || 1; dx = dx / d * 0.6 + a.dashX * 0.4; dz = dz / d * 0.6 + a.dashZ * 0.4;
@@ -194,7 +204,7 @@ const SIM = (() => {
   }
   function trySteal(S, a, b) {
     const ck = S.cookie;
-    if (ck.holder !== b.id || S.phase !== 'play' || S.net) return;
+    if (ck.holder !== b.id || S.phase !== 'play' || S.net || ally(S, a, b)) return;
     ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
@@ -203,7 +213,7 @@ const SIM = (() => {
     const C = CFG, R = C.WAVE_R * C.SCALE[a.lvl];
     ev(S, { k: 'wave', p: a.id, x: a.x, z: a.z, r: R });
     for (const b of S.players) {
-      if (b === a || !b.on || b.inv > 0 || b.jumpT > 0) continue;
+      if (b === a || !b.on || b.inv > 0 || b.jumpT > 0 || ally(S, a, b)) continue;
       const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01;
       if (d > R || (S.t - b.lastHitT < 0.3 && b.lastHit === a.id)) continue;
       if (shielded(S, b)) continue;
@@ -222,7 +232,7 @@ const SIM = (() => {
     ev(S, { k: 'item', p: p.id, kind: it.kind, x: it.x, z: it.z });
     if (it.kind === 'chili') p.boostT = C.BOOST_T;
     else if (it.kind === 'bubble') p.bubbleT = C.BUBBLE_T;
-    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
+    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || ally(S, o, p) || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
   }
 
   function step(S, dt) {
@@ -250,18 +260,23 @@ const SIM = (() => {
         p.dashBuf = 0;
         const noDir = Math.hypot(mx, mz) < 0.2;
         let dx = mx, dz = mz; if (noDir) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
-        if (ck.holder >= 0 && !carry) { // 自动对准
-          const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
-          p.home = -1;
+        let aimAt = ck.holder >= 0 && !carry && !ally(S, p, P[ck.holder]) ? P[ck.holder] : null;
+        if (S.team && ck.holder >= 0 && !carry && !aimAt) { // 组队：队友抱着时，自动对准离他最近、想抢他的敌人（护驾）
+          const h = P[ck.holder]; let bd = 1e9;
+          for (const o of P) { if (!o.on || o.team === p.team) continue; const d = Math.hypot(o.x - h.x, o.z - h.z) + Math.hypot(o.x - p.x, o.z - p.z) * 0.5; if (d < bd) { bd = d; aimAt = o; } }
+        }
+        p.home = -1;
+        if (aimAt) { // 自动对准
+          const h = aimAt, hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; p.home = h.id; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.actT = S.lt;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 && !ally(S, p, P[ck.holder]) ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.actT = S.lt;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
       const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.grabT > 0 ? C.GRAB_BOOST : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
       if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
-      if (p.dashT > 0 && p.home >= 0 && ck.holder === p.home && !p.dashHit) { // 冲的过程中跟着目标拐（有转弯上限）
+      if (p.dashT > 0 && p.home >= 0 && (ck.holder === p.home || (S.team && ck.holder >= 0 && ally(S, p, P[ck.holder]))) && P[p.home].on && !p.dashHit) { // 冲的过程中跟着目标拐（有转弯上限）
         const h = P[p.home], want = Math.atan2(h.z - p.z, h.x - p.x), cur = Math.atan2(p.dashZ, p.dashX);
         let d = want - cur; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832;
         const na = cur + Math.max(-C.HOME_TURN * dt, Math.min(C.HOME_TURN * dt, d)); p.dashX = Math.cos(na); p.dashZ = Math.sin(na);
@@ -290,7 +305,7 @@ const SIM = (() => {
       const a = P[i]; if (!a.on) continue;
       for (let j = i + 1; j < P.length; j++) {
         const b = P[j]; if (!b.on) continue;
-        const pad = (a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.dashT > 0 && !b.dashHit && ck.holder === a.id) ? C.PAD : 0;
+        const pad = !ally(S, a, b) && ((a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.dashT > 0 && !b.dashHit && ck.holder === a.id)) ? C.PAD : 0;
         const dx = b.x - a.x, dz = b.z - a.z, m = C.BODY_R * (C.SCALE[a.lvl] + C.SCALE[b.lvl]) + pad, d2 = dx * dx + dz * dz;
         if (d2 >= m * m) continue;
         if (a.jumpT > 0 || b.jumpT > 0) continue; // 空中：互相穿过，撞不到
@@ -307,7 +322,8 @@ const SIM = (() => {
       if (playing) {
         h.eaten += dt; ck.munch -= dt;
         if (ck.munch <= 0) { ck.munch = 0.42; ev(S, { k: 'munch', p: h.id }); }
-        if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
+        if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= C.TEAM_WIN) { S.teamEat[h.team] = C.TEAM_WIN; finish(S); } }
+        else if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
       }
     } else if (playing && ck.cd <= 0) {
       let best = null, bd = 1e9;
@@ -366,7 +382,7 @@ const SIM = (() => {
           const a = i / 16 * 6.2832, dx = Math.cos(a), dz = Math.sin(a);
           const qx = p.x + dx * 3.5, qz = p.z + dz * 3.5;
           let sc = 0;
-          for (const o of P) { if (o === p || !o.on) continue; const d0 = Math.hypot(o.x - p.x, o.z - p.z); if (d0 > 13) continue; sc -= 3 / (Math.hypot(o.x - qx, o.z - qz) + 0.4); }
+          for (const o of P) { if (o === p || !o.on || ally(S, o, p)) continue; const d0 = Math.hypot(o.x - p.x, o.z - p.z); if (d0 > 13) continue; sc -= 3 / (Math.hypot(o.x - qx, o.z - qz) + 0.4); }
           if (blocked(S, p.x + dx * 1.2, p.z + dz * 1.2, 0.7) || blocked(S, p.x + dx * 2.4, p.z + dz * 2.4, 0.7)) sc -= 6;
           else if (blocked(S, qx, qz, 0.7, 1.6)) sc -= 2.5;
           sc -= 0.03 * Math.hypot(qx / C.HW, qz / C.HH) * 10;
@@ -376,14 +392,31 @@ const SIM = (() => {
         ai.mx = bx; ai.mz = bz;
       }
       inp.mx = ai.mx; inp.mz = ai.mz;
-      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * 2.5) { inp.jump = true; break; } }
-      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * 3) { inp.dash = true; break; } }
+      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0 || ally(S, o, p)) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * 2.5) { inp.jump = true; break; } }
+      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on || ally(S, o, p)) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * 3) { inp.dash = true; break; } }
       return;
     }
     // 没抱饼干：离饼干近的几个去追，其余去吃豆
     const dck = Math.hypot(ck.x - p.x, ck.z - p.z);
-    let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
-    const chase = rank < (holder ? C.CHASERS : C.CHASERS + 1) || dck < 3;
+    let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && (!S.team || o.team === p.team) && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
+    const mates = holder && ally(S, p, holder);
+    if (mates && rank < C.TEAM_GUARD) { // 组队：队友抱着饼干 → 去挡住离他最近的敌人
+      let foe = null, bd = 1e9;
+      for (const o of P) { if (!o.on || o.team === p.team) continue; const d = Math.hypot(o.x - holder.x, o.z - holder.z); if (d < bd) { bd = d; foe = o; } }
+      if (foe) {
+        const k = bd > 6 ? 0.3 : 0.65, gx = holder.x + (foe.x - holder.x) * k, gz = holder.z + (foe.z - holder.z) * k;
+        let dx = gx - p.x, dz = gz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+        if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
+        inp.mx = d > 0.6 ? dx : 0; inp.mz = d > 0.6 ? dz : 0;
+        const df = Math.hypot(foe.x - p.x, foe.z - p.z);
+        if (p.dashCd <= 0 && bd < 6 && df < 2.9 + 0.5 * p.lvl && foe.inv <= 0) {
+          if (ai.react <= -0.5) ai.react = C.BOT_REACT + S.rnd() * 0.3;
+          if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * C.BOT_RATE) { const a = Math.atan2(foe.z - p.z, foe.x - p.x) + (S.rnd() - 0.5) * 0.6; inp.mx = Math.cos(a); inp.mz = Math.sin(a); inp.dash = true; ai.react = -1; }
+        } else if (ai.react > -0.5 && df > 4.5) ai.react = -1;
+        return;
+      }
+    }
+    const chase = !mates && (rank < (S.team ? (holder ? C.TEAM_CHASE : 2) : holder ? C.CHASERS : C.CHASERS + 1) || dck < 3);
     let tx, tz;
     if (chase) {
       tx = ck.x; tz = ck.z;
@@ -422,6 +455,7 @@ const SIM = (() => {
   function snap(S, withLists) {
     const ck = S.cookie, m = { t: r3(S.t), pt: r3(S.playT), ph: S.phase, pT: r3(S.phaseT), w: S.winner, c: [r3(ck.x), r3(ck.z), ck.holder, r3(ck.cd), ck.no, r3(ck.noT)],
       p: S.players.map(p => PF_.map(f => r3(p[f])).concat(r3(p.inp.mx), r3(p.inp.mz))), cv: S.chipVer, iv: S.itemVer };
+    if (S.team) { m.te = S.teamEat.map(r3); m.wt = S.winTeam; }
     if (withLists & 1) m.ch = S.chips.map(c => [c.id, r3(c.x), r3(c.z)]);
     if (withLists & 2) m.it = S.items.map(c => [c.id, c.kind, r3(c.x), r3(c.z)]);
     return m;
@@ -429,6 +463,7 @@ const SIM = (() => {
   function applySnap(S, m, me) {
     S.t = m.t; S.playT = m.pt; S.phase = m.ph; S.phaseT = m.pT; S.winner = m.w;
     const ck = S.cookie; [ck.x, ck.z, ck.holder, ck.cd, ck.no, ck.noT] = m.c;
+    if (m.te) { S.teamEat = m.te.slice(); S.winTeam = m.wt; }
     m.p.forEach((a, i) => {
       const p = S.players[i], mine = i === me, n = PF_.length;
       const sx = a[0], sz = a[1], err = Math.hypot(sx - p.x, sz - p.z), wasOn = p.on;

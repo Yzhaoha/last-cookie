@@ -71,6 +71,14 @@ body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
 #tags div{position:absolute;left:0;top:0;will-change:transform;font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
 #tags div.me{font-size:17px;color:#ffe08a}
+#tags div.t0:not(.me){color:#bfe3ff}#tags div.t1:not(.me){color:#ffc4c0}
+#tags div.t0::before,#tags div.t1::before{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink);margin-right:3px;vertical-align:-1px;background:#3d9bff}#tags div.t1::before{background:#ff4d4d}
+#modeSel{display:flex;gap:10px}
+#modeSel .btn{font-size:19px;padding:6px 14px 8px;width:168px;line-height:1.1;opacity:.75}
+#modeSel .btn b{display:block;font-weight:normal;font-size:24px}#modeSel .btn i{display:block;font-style:normal;font-size:12px;opacity:.75;margin-top:2px}
+#modeSel .btn.on{opacity:1;background:#ffd76a;box-shadow:0 5px 0 var(--ink),0 0 0 4px #fff}
+#board div.t0{background:#d8ecff}#board div.t1{background:#ffe0dc}#board div.t0 em{background:#3d9bff}#board div.t1 em{background:#ff4d4d}
+#prog.t0:not(.mine) #progFill{background:#5aa9ff}
 #tags div.me::after{content:'';display:block;margin:2px auto 0;width:0;height:0;border:7px solid transparent;border-top:9px solid #ffe08a;filter:drop-shadow(0 1px 0 var(--ink))}
 #floats{position:fixed;inset:0;pointer-events:none;z-index:4}
 #floats div{position:absolute;transform:translate(-50%,-50%);font-size:20px;white-space:nowrap;animation:fup .9s ease-out forwards}
@@ -128,6 +136,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
   #tip{bottom:auto;top:max(52px,calc(env(safe-area-inset-top) + 46px));left:10px;transform:none;max-width:56vw;text-align:left;font-size:14px;padding:5px 10px 6px}
   #intro{gap:6px;bottom:auto;top:max(54px,calc(env(safe-area-inset-top) + 48px))}#intro div{width:100px;font-size:12px;padding:5px 4px}#intro b{font-size:22px}
   #lobby h1{font-size:44px}
+  #modeSel .btn{width:142px;font-size:16px}#modeSel .btn i{font-size:11px}
   #quests{left:50%;transform:translateX(-50%);bottom:auto;top:max(92px,calc(env(safe-area-inset-top) + 84px));font-size:12px;white-space:nowrap}
 }
 </style>
@@ -153,7 +162,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
 <div id="netWait" hidden><div class="pill" id="netTxt"></div><button class="btn sec" id="netSkip" data-t="skip"></button></div>
-<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
+<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 /*GAME*/

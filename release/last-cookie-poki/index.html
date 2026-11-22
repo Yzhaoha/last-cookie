@@ -71,6 +71,14 @@ body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
 #tags div{position:absolute;left:0;top:0;will-change:transform;font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
 #tags div.me{font-size:17px;color:#ffe08a}
+#tags div.t0:not(.me){color:#bfe3ff}#tags div.t1:not(.me){color:#ffc4c0}
+#tags div.t0::before,#tags div.t1::before{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink);margin-right:3px;vertical-align:-1px;background:#3d9bff}#tags div.t1::before{background:#ff4d4d}
+#modeSel{display:flex;gap:10px}
+#modeSel .btn{font-size:19px;padding:6px 14px 8px;width:168px;line-height:1.1;opacity:.75}
+#modeSel .btn b{display:block;font-weight:normal;font-size:24px}#modeSel .btn i{display:block;font-style:normal;font-size:12px;opacity:.75;margin-top:2px}
+#modeSel .btn.on{opacity:1;background:#ffd76a;box-shadow:0 5px 0 var(--ink),0 0 0 4px #fff}
+#board div.t0{background:#d8ecff}#board div.t1{background:#ffe0dc}#board div.t0 em{background:#3d9bff}#board div.t1 em{background:#ff4d4d}
+#prog.t0:not(.mine) #progFill{background:#5aa9ff}
 #tags div.me::after{content:'';display:block;margin:2px auto 0;width:0;height:0;border:7px solid transparent;border-top:9px solid #ffe08a;filter:drop-shadow(0 1px 0 var(--ink))}
 #floats{position:fixed;inset:0;pointer-events:none;z-index:4}
 #floats div{position:absolute;transform:translate(-50%,-50%);font-size:20px;white-space:nowrap;animation:fup .9s ease-out forwards}
@@ -128,6 +136,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
   #tip{bottom:auto;top:max(52px,calc(env(safe-area-inset-top) + 46px));left:10px;transform:none;max-width:56vw;text-align:left;font-size:14px;padding:5px 10px 6px}
   #intro{gap:6px;bottom:auto;top:max(54px,calc(env(safe-area-inset-top) + 48px))}#intro div{width:100px;font-size:12px;padding:5px 4px}#intro b{font-size:22px}
   #lobby h1{font-size:44px}
+  #modeSel .btn{width:142px;font-size:16px}#modeSel .btn i{font-size:11px}
   #quests{left:50%;transform:translateX(-50%);bottom:auto;top:max(92px,calc(env(safe-area-inset-top) + 84px));font-size:12px;white-space:nowrap}
 }
 </style>
@@ -153,7 +162,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
 <div id="netWait" hidden><div class="pill" id="netTxt"></div><button class="btn sec" id="netSkip" data-t="skip"></button></div>
-<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
+<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 const THREE = await import('./three.module.min.js');
@@ -201,7 +210,14 @@ const SIM = (() => {
     CHASERS: 4,           // 同时追饼干的机器人数量
     BOT_RATE: 4,          // 机器人够得着时每秒出手的概率（越小越不爱撞）
     BOT_REACT: 0.35,      // 机器人出手前的反应时间
+    // 组队模式：红蓝两队各 4 人，队友抱着也算本队在吃；队友之间撞不动、抢不走、冻不住、震不开
+    TEAM_WIN: 45,         // 一队累计抱满这么多秒就赢
+    TEAM_CHASE: 3,        // 敌人抱着时，本队同时去追的机器人数
+    TEAM_GUARD: 2,        // 队友抱着时，本队去护驾的机器人数
   };
+  // 同一队吗（单挑模式永远不是）
+  const ally = (S, a, b) => S.team && a.team === b.team;
+  const winT = S => S.team ? CFG.TEAM_WIN : CFG.WIN_T;
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -278,14 +294,14 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, team: !!opts.team, teamEat: [0, 0], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
       let x = Math.cos(a) * 11, z = Math.sin(a) * 8.5;
       [x, z] = pushOut(S.obs, x, z, 0.9);
       S.players.push({
-        id: i, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
+        id: i, team: i % 2, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
@@ -327,13 +343,16 @@ const SIM = (() => {
   function finish(S) {
     if (S.phase === 'end' || S.net) return;
     S.phase = 'end'; S.phaseT = 0;
-    const order = S.players.slice().sort((a, b) => b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
+    if (S.team) S.winTeam = S.teamEat[1] > S.teamEat[0] ? 1 : 0;
+    const tw = p => S.team && p.team === S.winTeam ? 1 : 0;
+    const order = S.players.slice().sort((a, b) => tw(b) - tw(a) || b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
     order.forEach((p, i) => p.place = i + 1);
     S.winner = order[0].id;
     ev(S, { k: 'end' });
   }
   function bonk(S, a, b) {
     const C = CFG;
+    if (ally(S, a, b)) return;   // 撞到队友：直接穿过去，冲撞继续
     a.dashHit = true; a.dashT = Math.min(a.dashT, 0.05);
     if (b.inv > 0) return;
     let dx = b.x - a.x, dz = b.z - a.z; const d = Math.hypot(dx, dz) || 1; dx = dx / d * 0.6 + a.dashX * 0.4; dz = dz / d * 0.6 + a.dashZ * 0.4;
@@ -352,7 +371,7 @@ const SIM = (() => {
   }
   function trySteal(S, a, b) {
     const ck = S.cookie;
-    if (ck.holder !== b.id || S.phase !== 'play' || S.net) return;
+    if (ck.holder !== b.id || S.phase !== 'play' || S.net || ally(S, a, b)) return;
     ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
@@ -361,7 +380,7 @@ const SIM = (() => {
     const C = CFG, R = C.WAVE_R * C.SCALE[a.lvl];
     ev(S, { k: 'wave', p: a.id, x: a.x, z: a.z, r: R });
     for (const b of S.players) {
-      if (b === a || !b.on || b.inv > 0 || b.jumpT > 0) continue;
+      if (b === a || !b.on || b.inv > 0 || b.jumpT > 0 || ally(S, a, b)) continue;
       const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01;
       if (d > R || (S.t - b.lastHitT < 0.3 && b.lastHit === a.id)) continue;
       if (shielded(S, b)) continue;
@@ -380,7 +399,7 @@ const SIM = (() => {
     ev(S, { k: 'item', p: p.id, kind: it.kind, x: it.x, z: it.z });
     if (it.kind === 'chili') p.boostT = C.BOOST_T;
     else if (it.kind === 'bubble') p.bubbleT = C.BUBBLE_T;
-    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
+    else for (const o of S.players) { if (o === p || !o.on || o.inv > 0 || ally(S, o, p) || Math.hypot(o.x - p.x, o.z - p.z) > C.FREEZE_R) continue; if (o.bubbleT > 0) { o.bubbleT = 0; ev(S, { k: 'block', p: o.id, why: 'bubble' }); continue; } o.frozenT = C.FREEZE_T; o.dashT = 0; ev(S, { k: 'frozen', p: o.id, by: p.id }); }
   }
 
   function step(S, dt) {
@@ -408,18 +427,23 @@ const SIM = (() => {
         p.dashBuf = 0;
         const noDir = Math.hypot(mx, mz) < 0.2;
         let dx = mx, dz = mz; if (noDir) { dx = Math.sin(p.face); dz = Math.cos(p.face); }
-        if (ck.holder >= 0 && !carry) { // 自动对准
-          const h = P[ck.holder], hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
-          p.home = -1;
+        let aimAt = ck.holder >= 0 && !carry && !ally(S, p, P[ck.holder]) ? P[ck.holder] : null;
+        if (S.team && ck.holder >= 0 && !carry && !aimAt) { // 组队：队友抱着时，自动对准离他最近、想抢他的敌人（护驾）
+          const h = P[ck.holder]; let bd = 1e9;
+          for (const o of P) { if (!o.on || o.team === p.team) continue; const d = Math.hypot(o.x - h.x, o.z - h.z) + Math.hypot(o.x - p.x, o.z - p.z) * 0.5; if (d < bd) { bd = d; aimAt = o; } }
+        }
+        p.home = -1;
+        if (aimAt) { // 自动对准
+          const h = aimAt, hx = h.x + h.mvx * 0.1 - p.x, hz = h.z + h.mvz * 0.1 - p.z, hd = Math.hypot(hx, hz) || 1, l0 = Math.hypot(dx, dz) || 1;
           if (hd < C.AIM_R * C.SCALE[p.lvl] && (noDir || (dx * hx + dz * hz) / (l0 * hd) > Math.cos(C.AIM_ANG))) { dx = hx; dz = hz; p.home = h.id; }
         }
-        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.actT = S.lt;
+        const l = Math.hypot(dx, dz); p.dashX = dx / l; p.dashZ = dz / l; p.dashT = C.DASH_T * (p.lvl >= 1 ? C.DASH_LONG : 1) * (!carry && ck.holder >= 0 && !ally(S, p, P[ck.holder]) ? C.CHASE_DASH : 1); p.dashCd = C.DASH_CD; p.dashHit = false; p.actT = S.lt;
         ev(S, { k: 'dash', p: p.id });
       }
       p.inp.dash = false;
       const sp = C.SPEED * C.SLOW[p.lvl] * (carry ? C.CARRY_SLOW : 1) * (p.grabT > 0 ? C.GRAB_BOOST : 1) * (p.boostT > 0 ? C.BOOST : 1) * (p.jumpT <= 0 && S.puddles.some(c => (c.x - p.x) ** 2 + (c.z - p.z) ** 2 < c.r * c.r) ? C.PUDDLE_SLOW : 1);
       if (p.frozenT > 0) { p.mvx = p.mvz = 0; p.dashT = 0; }
-      if (p.dashT > 0 && p.home >= 0 && ck.holder === p.home && !p.dashHit) { // 冲的过程中跟着目标拐（有转弯上限）
+      if (p.dashT > 0 && p.home >= 0 && (ck.holder === p.home || (S.team && ck.holder >= 0 && ally(S, p, P[ck.holder]))) && P[p.home].on && !p.dashHit) { // 冲的过程中跟着目标拐（有转弯上限）
         const h = P[p.home], want = Math.atan2(h.z - p.z, h.x - p.x), cur = Math.atan2(p.dashZ, p.dashX);
         let d = want - cur; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832;
         const na = cur + Math.max(-C.HOME_TURN * dt, Math.min(C.HOME_TURN * dt, d)); p.dashX = Math.cos(na); p.dashZ = Math.sin(na);
@@ -448,7 +472,7 @@ const SIM = (() => {
       const a = P[i]; if (!a.on) continue;
       for (let j = i + 1; j < P.length; j++) {
         const b = P[j]; if (!b.on) continue;
-        const pad = (a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.dashT > 0 && !b.dashHit && ck.holder === a.id) ? C.PAD : 0;
+        const pad = !ally(S, a, b) && ((a.dashT > 0 && !a.dashHit && ck.holder === b.id) || (b.dashT > 0 && !b.dashHit && ck.holder === a.id)) ? C.PAD : 0;
         const dx = b.x - a.x, dz = b.z - a.z, m = C.BODY_R * (C.SCALE[a.lvl] + C.SCALE[b.lvl]) + pad, d2 = dx * dx + dz * dz;
         if (d2 >= m * m) continue;
         if (a.jumpT > 0 || b.jumpT > 0) continue; // 空中：互相穿过，撞不到
@@ -465,7 +489,8 @@ const SIM = (() => {
       if (playing) {
         h.eaten += dt; ck.munch -= dt;
         if (ck.munch <= 0) { ck.munch = 0.42; ev(S, { k: 'munch', p: h.id }); }
-        if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
+        if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= C.TEAM_WIN) { S.teamEat[h.team] = C.TEAM_WIN; finish(S); } }
+        else if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
       }
     } else if (playing && ck.cd <= 0) {
       let best = null, bd = 1e9;
@@ -524,7 +549,7 @@ const SIM = (() => {
           const a = i / 16 * 6.2832, dx = Math.cos(a), dz = Math.sin(a);
           const qx = p.x + dx * 3.5, qz = p.z + dz * 3.5;
           let sc = 0;
-          for (const o of P) { if (o === p || !o.on) continue; const d0 = Math.hypot(o.x - p.x, o.z - p.z); if (d0 > 13) continue; sc -= 3 / (Math.hypot(o.x - qx, o.z - qz) + 0.4); }
+          for (const o of P) { if (o === p || !o.on || ally(S, o, p)) continue; const d0 = Math.hypot(o.x - p.x, o.z - p.z); if (d0 > 13) continue; sc -= 3 / (Math.hypot(o.x - qx, o.z - qz) + 0.4); }
           if (blocked(S, p.x + dx * 1.2, p.z + dz * 1.2, 0.7) || blocked(S, p.x + dx * 2.4, p.z + dz * 2.4, 0.7)) sc -= 6;
           else if (blocked(S, qx, qz, 0.7, 1.6)) sc -= 2.5;
           sc -= 0.03 * Math.hypot(qx / C.HW, qz / C.HH) * 10;
@@ -534,14 +559,31 @@ const SIM = (() => {
         ai.mx = bx; ai.mz = bz;
       }
       inp.mx = ai.mx; inp.mz = ai.mz;
-      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * 2.5) { inp.jump = true; break; } }
-      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * 3) { inp.dash = true; break; } }
+      if (p.jumpCd <= 0) for (const o of P) { if (o === p || !o.on || o.dashT <= 0 || ally(S, o, p)) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 3 && S.rnd() < dt * 2.5) { inp.jump = true; break; } }
+      if (p.dashCd <= 0) for (const o of P) { if (o === p || !o.on || ally(S, o, p)) continue; if (Math.hypot(o.x - p.x, o.z - p.z) < 2.0 && S.rnd() < dt * 3) { inp.dash = true; break; } }
       return;
     }
     // 没抱饼干：离饼干近的几个去追，其余去吃豆
     const dck = Math.hypot(ck.x - p.x, ck.z - p.z);
-    let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
-    const chase = rank < (holder ? C.CHASERS : C.CHASERS + 1) || dck < 3;
+    let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && (!S.team || o.team === p.team) && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
+    const mates = holder && ally(S, p, holder);
+    if (mates && rank < C.TEAM_GUARD) { // 组队：队友抱着饼干 → 去挡住离他最近的敌人
+      let foe = null, bd = 1e9;
+      for (const o of P) { if (!o.on || o.team === p.team) continue; const d = Math.hypot(o.x - holder.x, o.z - holder.z); if (d < bd) { bd = d; foe = o; } }
+      if (foe) {
+        const k = bd > 6 ? 0.3 : 0.65, gx = holder.x + (foe.x - holder.x) * k, gz = holder.z + (foe.z - holder.z) * k;
+        let dx = gx - p.x, dz = gz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+        if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
+        inp.mx = d > 0.6 ? dx : 0; inp.mz = d > 0.6 ? dz : 0;
+        const df = Math.hypot(foe.x - p.x, foe.z - p.z);
+        if (p.dashCd <= 0 && bd < 6 && df < 2.9 + 0.5 * p.lvl && foe.inv <= 0) {
+          if (ai.react <= -0.5) ai.react = C.BOT_REACT + S.rnd() * 0.3;
+          if (ai.react <= 0 && ai.react > -0.5 && S.rnd() < dt * C.BOT_RATE) { const a = Math.atan2(foe.z - p.z, foe.x - p.x) + (S.rnd() - 0.5) * 0.6; inp.mx = Math.cos(a); inp.mz = Math.sin(a); inp.dash = true; ai.react = -1; }
+        } else if (ai.react > -0.5 && df > 4.5) ai.react = -1;
+        return;
+      }
+    }
+    const chase = !mates && (rank < (S.team ? (holder ? C.TEAM_CHASE : 2) : holder ? C.CHASERS : C.CHASERS + 1) || dck < 3);
     let tx, tz;
     if (chase) {
       tx = ck.x; tz = ck.z;
@@ -580,6 +622,7 @@ const SIM = (() => {
   function snap(S, withLists) {
     const ck = S.cookie, m = { t: r3(S.t), pt: r3(S.playT), ph: S.phase, pT: r3(S.phaseT), w: S.winner, c: [r3(ck.x), r3(ck.z), ck.holder, r3(ck.cd), ck.no, r3(ck.noT)],
       p: S.players.map(p => PF_.map(f => r3(p[f])).concat(r3(p.inp.mx), r3(p.inp.mz))), cv: S.chipVer, iv: S.itemVer };
+    if (S.team) { m.te = S.teamEat.map(r3); m.wt = S.winTeam; }
     if (withLists & 1) m.ch = S.chips.map(c => [c.id, r3(c.x), r3(c.z)]);
     if (withLists & 2) m.it = S.items.map(c => [c.id, c.kind, r3(c.x), r3(c.z)]);
     return m;
@@ -587,6 +630,7 @@ const SIM = (() => {
   function applySnap(S, m, me) {
     S.t = m.t; S.playT = m.pt; S.phase = m.ph; S.phaseT = m.pT; S.winner = m.w;
     const ck = S.cookie; [ck.x, ck.z, ck.holder, ck.cd, ck.no, ck.noT] = m.c;
+    if (m.te) { S.teamEat = m.te.slice(); S.winTeam = m.wt; }
     m.p.forEach((a, i) => {
       const p = S.players[i], mine = i === me, n = PF_.length;
       const sx = a[0], sz = a[1], err = Math.hypot(sx - p.x, sz - p.z), wasOn = p.on;
@@ -684,6 +728,21 @@ const TL = {
   close: { en: 'Close', zh: '关闭' },
   paused: { en: 'Paused', zh: '暂停' },
   resume: { en: 'Resume', zh: '继续' },
+  modeSolo: { en: "Solo", zh: "单挑" },
+  modeSoloD: { en: "Every snack for itself", zh: "各抢各的" },
+  modeTeam: { en: "Teams", zh: "组队" },
+  modeTeamD: { en: "4 vs 4 — eat together", zh: "4 对 4，一起吃" },
+  blue: { en: "Blue", zh: "蓝队" },
+  red: { en: "Red", zh: "红队" },
+  usTeam: { en: "Your team", zh: "我们队" },
+  intro2T: { en: "Teammate holding = your team eating. First team to 100% wins", zh: "队友抱着也算你们队在吃，先吃到 100% 的队赢" },
+  intro3T: { en: "Bump enemies: guard your carrier, steal theirs", zh: "撞敌人：护住自家的，抢走他们的" },
+  tipGuard: { en: "Your teammate has it — bump enemies near them (Space)!", zh: "队友拿着饼干——按空格撞靠近他的敌人，护住他！" },
+  tipGuardT: { en: "Your teammate has it — tap BUMP on enemies near them!", zh: "队友拿着饼干——点「冲撞」撞靠近他的敌人，护住他！" },
+  teamWin: { en: "YOUR TEAM WINS!", zh: "你们队赢了！" },
+  teamLose: { en: "{t} wins!", zh: "{t}赢了！" },
+  almostUs: { en: "Your team is almost done — hold on!", zh: "你们队快吃完了，撑住！" },
+  almostThem: { en: "{t} has almost finished — stop them!", zh: "{t}快吃完了，快去抢！" },
 };
 const BOT_NAMES = ['Muffin', 'Biscotti', 'Toffee', 'Mochi', 'Scone', 'Churro', 'Waffle', 'Praline', 'Brownie', 'Eclair', 'Crumble', 'Fudge', 'Sprinkle', 'Nougat', 'Truffle', 'Pretzel'];
 let LANG = 'en';
@@ -710,6 +769,7 @@ function applyLang() {
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
+    modeSolo: "Solo", modeSoloD: "Chacun pour soi", modeTeam: "Équipes", modeTeamD: "4 contre 4 — on mange ensemble", blue: "Bleus", red: "Rouges", usTeam: "Ton équipe", intro2T: "Si un coéquipier le tient, ton équipe mange. Première équipe à 100 % gagne", intro3T: "Charge les ennemis : protège ton porteur, vole le leur", tipGuard: "Ton coéquipier l’a — charge les ennemis près de lui (Espace) !", tipGuardT: "Ton coéquipier l’a — touche CHARGE sur les ennemis près de lui !", teamWin: "TON ÉQUIPE GAGNE !", teamLose: "Les {t} gagnent !", almostUs: "Ton équipe a presque fini — tiens bon !", almostThem: "Les {t} ont presque fini — arrête-les !",
     skip: 'Jouer tout de suite (bots)', finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
     newSkill: 'Tu grandis ! Nouveau coup — {s}', how1: 'Longue charge : ta charge va plus loin (automatique)', how2: 'Onde de choc : appuie sur J pour sauter — l’atterrissage repousse tout le monde', how2T: 'Onde de choc : touche SAUT — l’atterrissage repousse tout le monde', how3: 'Bouclier : quand tu tiens le cookie, il bloque un coup (automatique, se recharge en 12 s)',
     it_chili: 'Piment — vitesse !', it_ice: 'Glaçon — tous ceux autour sont gelés !', it_bubble: 'Bulle — bloque un coup', frozen: '{b} t’a gelé !', blocked: 'BLOQUÉ !', maxSize: 'MAX : longue charge · onde de choc · bouclier',
@@ -723,6 +783,7 @@ const TLX = {
     play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
+    modeSolo: "Solo", modeSoloD: "Ognuno per sé", modeTeam: "Squadre", modeTeamD: "4 contro 4 — si mangia insieme", blue: "Blu", red: "Rossi", usTeam: "La tua squadra", intro2T: "Se lo tiene un compagno, mangia la tua squadra. Vince la prima squadra al 100%", intro3T: "Colpisci i nemici: proteggi il tuo portatore, ruba il loro", tipGuard: "Ce l’ha un compagno — colpisci i nemici vicino a lui (Spazio)!", tipGuardT: "Ce l’ha un compagno — tocca SPINTA sui nemici vicino a lui!", teamWin: "LA TUA SQUADRA VINCE!", teamLose: "Vincono i {t}!", almostUs: "La tua squadra ha quasi finito — resisti!", almostThem: "I {t} hanno quasi finito — fermali!",
     skip: 'Gioca subito (bot)', finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
     newSkill: 'Più grande! Nuova mossa — {s}', how1: 'Scatto lungo: la tua carica arriva più lontano (automatico)', how2: 'Schianto: premi J per saltare — l’atterraggio respinge tutti', how2T: 'Schianto: tocca SALTA — l’atterraggio respinge tutti', how3: 'Scudo: mentre tieni il biscotto blocca un colpo (automatico, si ricarica in 12 s)',
     it_chili: 'Peperoncino — più veloce!', it_ice: 'Ghiaccio — tutti i vicini sono congelati!', it_bubble: 'Bolla — blocca un colpo', frozen: '{b} ti ha congelato!', blocked: 'PARATO!', maxSize: 'MAX: scatto lungo · schianto · scudo',
@@ -736,6 +797,7 @@ const TLX = {
     play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
+    modeSolo: "Solo", modeSoloD: "Jeder für sich", modeTeam: "Teams", modeTeamD: "4 gegen 4 — zusammen futtern", blue: "Blau", red: "Rot", usTeam: "Dein Team", intro2T: "Hält ein Mitspieler ihn, isst dein Team. Erstes Team bei 100 % gewinnt", intro3T: "Rempel Gegner: schütze deinen Träger, klau ihren", tipGuard: "Dein Mitspieler hat ihn — rempel Gegner in seiner Nähe (Leertaste)!", tipGuardT: "Dein Mitspieler hat ihn — tippe RAMMEN bei Gegnern in seiner Nähe!", teamWin: "DEIN TEAM GEWINNT!", teamLose: "Team {t} gewinnt!", almostUs: "Dein Team ist fast fertig — halte durch!", almostThem: "Team {t} ist fast fertig — stoppt sie!",
     skip: 'Sofort spielen (Bots)', finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
     newSkill: 'Größer! Neuer Trick — {s}', how1: 'Weiter Sprint: dein Rempler reicht weiter (automatisch)', how2: 'Stampfer: drücke J zum Springen — die Landung stößt alle weg', how2T: 'Stampfer: tippe SPRUNG — die Landung stößt alle weg', how3: 'Schild: solange du den Keks hältst, blockt er einen Treffer (automatisch, lädt in 12 s)',
     it_chili: 'Chili — Tempo!', it_ice: 'Eis — alle in der Nähe sind eingefroren!', it_bubble: 'Blase — blockt einen Treffer', frozen: '{b} hat dich eingefroren!', blocked: 'GEBLOCKT!', maxSize: 'MAX: Sprint · Stampfer · Schild',
@@ -749,6 +811,7 @@ const TLX = {
     play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
+    modeSolo: "Solo", modeSoloD: "Cada uno a lo suyo", modeTeam: "Equipos", modeTeamD: "4 contra 4 — a comer juntos", blue: "Azules", red: "Rojos", usTeam: "Tu equipo", intro2T: "Si lo tiene un compañero, come tu equipo. Gana el primer equipo en llegar al 100 %", intro3T: "Empuja a los rivales: protege a tu portador, roba el suyo", tipGuard: "Lo tiene tu compañero: ¡empuja a los rivales cerca de él (Espacio)!", tipGuardT: "Lo tiene tu compañero: ¡toca EMPUJAR sobre los rivales cerca de él!", teamWin: "¡GANA TU EQUIPO!", teamLose: "¡Ganan los {t}!", almostUs: "Tu equipo casi termina: ¡aguanta!", almostThem: "Los {t} casi terminan: ¡detenlos!",
     skip: 'Jugar ya (bots)', finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
     newSkill: '¡Más grande! Nuevo truco — {s}', how1: 'Embestida larga: tu empujón llega más lejos (automático)', how2: 'Pisotón: pulsa J para saltar — al caer apartas a todos', how2T: 'Pisotón: toca SALTAR — al caer apartas a todos', how3: 'Escudo: mientras llevas la galleta bloquea un golpe (automático, se recarga en 12 s)',
     it_chili: '¡Chile — a toda velocidad!', it_ice: '¡Hielo — todos los cercanos congelados!', it_bubble: 'Burbuja — bloquea un golpe', frozen: '¡{b} te ha congelado!', blocked: '¡BLOQUEADO!', maxSize: 'MÁX: embestida · pisotón · escudo',
@@ -762,6 +825,7 @@ const TLX = {
     play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
+    modeSolo: "Tekli", modeSoloD: "Herkes kendi için", modeTeam: "Takım", modeTeamD: "4’e 4 — birlikte ye", blue: "Mavi", red: "Kırmızı", usTeam: "Takımın", intro2T: "Takım arkadaşın tutuyorsa takımın yiyor. %100’e ilk ulaşan takım kazanır", intro3T: "Rakiplere çarp: taşıyıcını koru, onlarınkini çal", tipGuard: "Kurabiye takım arkadaşında — yakınındaki rakiplere çarp (Boşluk)!", tipGuardT: "Kurabiye takım arkadaşında — yakınındaki rakiplere ÇARP’a dokun!", teamWin: "TAKIMIN KAZANDI!", teamLose: "{t} takım kazandı!", almostUs: "Takımın neredeyse bitirdi — dayan!", almostThem: "{t} takım neredeyse bitirdi — durdur onları!",
     skip: 'Hemen oyna (botlar)', finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
     newSkill: 'Büyüdün! Yeni hamle — {s}', how1: 'Uzun atılış: çarpman daha uzağa gider (otomatik)', how2: 'Yer sarsma: zıplamak için J’ye bas — yere inince herkesi savurursun', how2T: 'Yer sarsma: ZIPLA’ya dokun — yere inince herkesi savurursun', how3: 'Kalkan: kurabiye sendeyken bir darbeyi engeller (otomatik, 12 sn’de dolar)',
     it_chili: 'Acı biber — hızlan!', it_ice: 'Buz — yakındaki herkes dondu!', it_bubble: 'Balon — bir darbeyi engeller', frozen: '{b} seni dondurdu!', blocked: 'ENGELLENDİ!', maxSize: 'MAKS: atılış · sarsma · kalkan',
@@ -775,6 +839,7 @@ const TLX = {
     play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
+    modeSolo: "ソロ", modeSoloD: "みんなライバル", modeTeam: "チーム", modeTeamD: "4対4 — みんなで食べよう", blue: "青チーム", red: "赤チーム", usTeam: "自分のチーム", intro2T: "仲間が持っていてもチームの得点。先に100%になったチームの勝ち", intro3T: "敵に体当たり：仲間を守って、相手のを奪おう", tipGuard: "仲間がクッキーを持っている — 近くの敵に体当たり（スペース）！", tipGuardT: "仲間がクッキーを持っている — 近くの敵に「体当たり」！", teamWin: "チームの勝ち！", teamLose: "{t}の勝ち！", almostUs: "チームはもう少し — 耐えて！", almostThem: "{t}がもう少しで食べ終わる — 止めよう！",
     skip: '待たずに始める（ボット戦）', finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
     newSkill: '大きくなった！新ワザ — {s}', how1: 'ロングダッシュ：たいあたりが遠くまでとどく（自動）', how2: '地ひびき：Jでジャンプ — 着地でまわりをふきとばす', how2T: '地ひびき：「ジャンプ」をタップ — 着地でまわりをふきとばす', how3: 'シールド：クッキーを持っている間、1回だけ攻撃をふせぐ（自動・12秒で回復）',
     it_chili: 'トウガラシ — スピードアップ！', it_ice: 'こおり — まわりの全員がこおった！', it_bubble: 'バブル — 1回ふせぐ', frozen: '{b}にこおらされた！', blocked: 'ガード！', maxSize: 'MAX：ダッシュ・地ひびき・シールド',
@@ -788,6 +853,7 @@ const TLX = {
     play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
+    modeSolo: "개인전", modeSoloD: "각자 알아서", modeTeam: "팀전", modeTeamD: "4 대 4 — 같이 먹자", blue: "파랑 팀", red: "빨강 팀", usTeam: "우리 팀", intro2T: "팀원이 들고 있어도 우리 팀이 먹는 거예요. 먼저 100%가 된 팀이 승리", intro3T: "적에게 몸통 박치기: 우리 팀 쿠키는 지키고, 상대 것은 빼앗기", tipGuard: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기(스페이스)!", tipGuardT: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기를 누르세요!", teamWin: "우리 팀 승리!", teamLose: "{t} 승리!", almostUs: "우리 팀이 거의 다 먹었어요 — 버텨요!", almostThem: "{t}이 거의 다 먹었어요 — 막아요!",
     skip: '바로 시작 (봇전)', finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
     newSkill: '커졌다! 새 기술 — {s}', how1: '긴 돌진: 박치기가 더 멀리 나간다 (자동)', how2: '내려찍기: J를 눌러 점프 — 착지하면 주변을 날려 버린다', how2T: '내려찍기: 점프 버튼을 누르면 — 착지할 때 주변을 날려 버린다', how3: '방패: 쿠키를 들고 있으면 한 번 막아 준다 (자동, 12초 후 회복)',
     it_chili: '고추 — 속도 업!', it_ice: '얼음 — 주변 모두 얼었다!', it_bubble: '방울 — 한 번 막아 준다', frozen: '{b}에게 얼었다!', blocked: '막았다!', maxSize: 'MAX: 긴 돌진 · 내려찍기 · 방패',
@@ -801,6 +867,7 @@ const TLX = {
     play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
+    modeSolo: "Solo", modeSoloD: "Cada um por si", modeTeam: "Equipes", modeTeamD: "4 contra 4 — comam juntos", blue: "Azul", red: "Vermelho", usTeam: "Sua equipe", intro2T: "Se um colega segura, sua equipe come. A primeira equipe a 100% vence", intro3T: "Empurre os inimigos: proteja seu carregador, roube o deles", tipGuard: "Seu colega está com ele — empurre os inimigos perto dele (Espaço)!", tipGuardT: "Seu colega está com ele — toque EMPURRAR nos inimigos perto dele!", teamWin: "SUA EQUIPE VENCEU!", teamLose: "{t} venceu!", almostUs: "Sua equipe quase terminou — aguente!", almostThem: "{t} quase terminou — pare-os!",
     skip: 'Jogar agora (bots)', finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
     newSkill: 'Cresceu! Novo golpe — {s}', how1: 'Investida longa: seu empurrão vai mais longe (automático)', how2: 'Pisão: aperte J para pular — ao cair, afasta todo mundo', how2T: 'Pisão: toque em PULAR — ao cair, afasta todo mundo', how3: 'Escudo: enquanto segura o biscoito, bloqueia um golpe (automático, recarrega em 12 s)',
     it_chili: 'Pimenta — mais velocidade!', it_ice: 'Gelo — todos por perto congelaram!', it_bubble: 'Bolha — bloqueia um golpe', frozen: '{b} congelou você!', blocked: 'BLOQUEADO!', maxSize: 'MÁX: investida · pisão · escudo',
@@ -814,6 +881,7 @@ const TLX = {
     play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
+    modeSolo: "Соло", modeSoloD: "Каждый сам за себя", modeTeam: "Команды", modeTeamD: "4 на 4 — едим вместе", blue: "Синие", red: "Красные", usTeam: "Твоя команда", intro2T: "Если печенье у союзника — ест твоя команда. Первая команда до 100% побеждает", intro3T: "Толкай врагов: защищай своего, отнимай у чужих", tipGuard: "Печенье у союзника — толкай врагов рядом с ним (Пробел)!", tipGuardT: "Печенье у союзника — жми ТОЛЧОК на врагов рядом с ним!", teamWin: "ТВОЯ КОМАНДА ПОБЕДИЛА!", teamLose: "Победили {t}!", almostUs: "Твоя команда почти доела — держись!", almostThem: "{t} почти доели — останови их!",
     skip: 'Играть сразу (боты)', finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
     newSkill: 'Ты вырос! Новый приём — {s}', how1: 'Длинный рывок: толчок бьёт дальше (автоматически)', how2: 'Удар о стол: нажми J, чтобы прыгнуть — приземление отбрасывает всех вокруг', how2T: 'Удар о стол: нажми ПРЫЖОК — приземление отбрасывает всех вокруг', how3: 'Щит: пока держишь печенье, он блокирует один удар (автоматически, восстановление 12 с)',
     it_chili: 'Перец — ускорение!', it_ice: 'Лёд — все рядом заморожены!', it_bubble: 'Пузырь — блокирует один удар', frozen: '{b} заморозил тебя!', blocked: 'БЛОК!', maxSize: 'МАКС: рывок · удар о стол · щит',
@@ -1326,14 +1394,19 @@ const ckRing = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.2, 40), new THREE.M
 ckRing.geometry.rotateX(-Math.PI / 2); ckRing.position.y = 0.03; scene.add(ckRing);
 
 let actors = [];
+const TEAM_COL = [0x3d9bff, 0xff4d4d], TEAM_CSS = ['#3d9bff', '#ff4d4d'], teamName = t => tl(t ? 'red' : 'blue');
+const teamRingGeo = new THREE.RingGeometry(0.5, 0.64, 32); teamRingGeo.rotateX(-Math.PI / 2);
+let mode = store.get('mode', 'solo') === 'team' ? 'team' : 'solo';
 function nameTxt(p) { return p.human ? tl('you') : p.name; }
 function buildActors() {
   for (const a of actors) scene.remove(a.root);
   actors = S.players.map(p => {
     const sn = buildSnack(p.look); scene.add(sn.g);
-    const tag = document.createElement('div'); tag.textContent = nameTxt(p); if (p.human) tag.className = 'me'; $('tags').appendChild(tag);
+    const tag = document.createElement('div'); tag.textContent = nameTxt(p); tag.className = (p.human ? 'me' : '') + (S.team ? ' t' + p.team : ''); $('tags').appendChild(tag);
+    let tr = null;
+    if (S.team) { tr = new THREE.Mesh(teamRingGeo, new THREE.MeshBasicMaterial({ color: TEAM_COL[p.team], transparent: true, opacity: 0.9, depthWrite: false })); tr.position.y = 0.025; sn.g.add(tr); }
     const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
-    return { root: sn.g, sn, tag, ice, bub, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
+    return { root: sn.g, sn, tag, ice, bub, tr, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
 }
 
@@ -1353,7 +1426,13 @@ function updateGuides(now) {
     arrow.visible = true; arrow.position.set(me.x + Math.sin(a) * r, 0.3, me.z + Math.cos(a) * r); arrow.rotation.set(0, a, 0);
     arrow.material.opacity = 0.65 + 0.3 * Math.sin(now * 6);
   }
-  if (holder && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
+  const mates = holder && S.team && holder.team === me.team;
+  if (mates && me.on && me.dashCd <= 0 && me.jumpT <= 0 && S.phase === 'play') { // 队友抱着：红圈标出冲撞会撞向的敌人
+    let foe = null, bd = 1e9;
+    for (const o of S.players) { if (!o.on || o.team === me.team) continue; const dd = Math.hypot(o.x - holder.x, o.z - holder.z) + Math.hypot(o.x - me.x, o.z - me.z) * 0.5; if (dd < bd) { bd = dd; foe = o; } }
+    if (foe && Math.hypot(foe.x - me.x, foe.z - me.z) < C.AIM_R * C.SCALE[me.lvl]) { tgtRing.visible = true; tgtRing.position.set(foe.x, 0.06, foe.z); tgtRing.scale.setScalar(C.SCALE[foe.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10))); }
+  }
+  if (holder && !mates && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
@@ -1576,16 +1655,28 @@ function updateHUD() {
   const left = Math.max(0, Math.ceil(C.MAX_T - (S.playT || 0)));
   // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
   const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
-  setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
+  if (S.team) { // 组队：左边显示两队比分，进度条是我们队的
+    const pc = t => Math.floor(S.teamEat[t] / C.TEAM_WIN * 100), mt = me.team;
+    setT($('timeP'), late ? '⏱ ' + left : (mt ? '🔴 ' : '🔵 ') + pc(mt) + '%  :  ' + pc(1 - mt) + '% ' + (mt ? '🔵' : '🔴'));
+    setTf($('progFill'), `scaleX(${(S.teamEat[mt] / C.TEAM_WIN).toFixed(3)})`);
+    setT($('progTxt'), '🍪 ' + tl('usTeam') + ' ' + pc(mt) + '%');
+  } else {
+    setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
+    // 我的进度条
+    setTf($('progFill'), `scaleX(${(me.eaten / C.WIN_T).toFixed(3)})`);
+    setT($('progTxt'), '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%');
+  }
   $('timeP').classList.toggle('hot', late);
-  // 我的进度条
-  setTf($('progFill'), `scaleX(${(me.eaten / C.WIN_T).toFixed(3)})`);
-  setT($('progTxt'), '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%');
-  $('prog').classList.toggle('mine', holder === ME);
+  $('prog').classList.toggle('mine', holder === ME || (S.team && holder >= 0 && S.players[holder].team === me.team));
+  $('prog').classList.toggle('t0', S.team);
   // 排行：吃得最多的 4 个
   const top = S.players.slice().sort((a, b) => b.eaten - a.eaten).slice(0, 4);
-  const key = top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
-  if (key !== boardKey) {
+  const key = S.team ? 'T' + Math.floor(S.teamEat[0] / C.TEAM_WIN * 100) + ':' + Math.floor(S.teamEat[1] / C.TEAM_WIN * 100) + '|' + (holder >= 0 ? S.players[holder].team : -1) + LANG
+    : top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
+  if (key !== boardKey && S.team) { // 组队：两行，各队进度
+    boardKey = key; const ht = holder >= 0 ? S.players[holder].team : -1;
+    $('board').innerHTML = [me.team, 1 - me.team].map(t => `<div class="t${t}${ht === t ? ' has' : ''}"><i class="dot" style="background:${TEAM_CSS[t]}"></i><span>${esc(t === me.team ? tl('usTeam') : teamName(t))}</span><u><em style="width:${(S.teamEat[t] / C.TEAM_WIN * 100).toFixed(0)}%"></em></u>${ht === t ? '🍪' : ''}</div>`).join('');
+  } else if (key !== boardKey) {
     boardKey = key;
     $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${dotCol(p.look)}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
   }
@@ -1603,6 +1694,7 @@ function updateHUD() {
     const T = touchMode;
     if (!me.on) tip(tl('tipFell'));
     else if (holder === ME) tip(tl(T ? 'tipCarryT' : 'tipCarry'));
+    else if (S.team && holder >= 0 && S.players[holder].team === me.team) tip(tl(T ? 'tipGuardT' : 'tipGuard'));
     else if (holder < 0) tip(tl('tipLoose'));
     else tip(tl(T ? 'tipChaseT' : 'tipChase'));
   } else if (tipTxt) tip('');
@@ -1647,7 +1739,8 @@ function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' });
+  $('intro').children[1].lastChild.dataset.t = S.team ? 'intro2T' : 'intro2'; $('intro').children[2].lastChild.dataset.t = S.team ? 'intro3T' : 'intro3'; applyLang();
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = cfg ? cfg.you : 0;
   const me = S.players[ME];
@@ -1689,7 +1782,7 @@ function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((10
 let netOK = null;
 if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL || netOK === false) return cb(null);          // 服务器连不上：不让人干等，直接打机器人局
+  if (!NET_URL || netOK === false || mode === 'team') return cb(null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
   let done = false, ws = null, n = 1, max = C.N;
   const el = $('netWait'), t0 = performance.now();
   let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
@@ -1826,18 +1919,19 @@ function handleEvents(list, fromServer) {
   if (S.phase === 'play') {
     // 有人快吃完了：提醒去抢
     const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a);
-    if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
+    if (S.team) { const t = S.teamEat[0] > S.teamEat[1] ? 0 : 1; if (warned < 1 && S.teamEat[t] > C.TEAM_WIN * 0.8) { warned = 1; SFX.beep(true); banner(t === me.team ? tl('almostUs') : tl('almostThem', { t: teamName(t) }), false, 2); } }
+    else if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
     if (!last10 && S.playT > C.MAX_T - 20) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
   }
 }
 
 function showEnd() {
   PF.setPlaying(false);
-  const me = S.players[ME], won = S.winner === ME, wn = S.players[S.winner];
+  const me = S.players[ME], won = S.team ? S.winTeam === me.team : S.winner === ME, wn = S.players[S.winner];
   starBurst(wn.x, 1.5, wn.z, 24, 5); slowT = 0.9; flash('#ffffff', 0.6); confetti(wn.x, wn.z, 50, true); confRain = won ? 3.5 : 1.2; confX = wn.x; confZ = wn.z;
   setTimeout(() => {
     if (won) { SFX.win(); PF.happy(); } else SFX.lose();
-    banner(won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
+    banner(S.team ? (won ? tl('teamWin') : tl('teamLose', { t: teamName(S.winTeam) })) : won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
   }, 200);
   const questPay = questProgress(me, won);
   const crumbsN = 10 + (S.players.length - me.place) * 5 + Math.round(me.eaten) + me.steals * 3 + questPay;
@@ -1845,10 +1939,11 @@ function showEnd() {
   store.set('played', store.get('played', 0) + 1);
   if (won) store.set('wins', store.get('wins', 0) + 1);
   setTimeout(() => {
-    $('resT').textContent = won ? tl('win') : tl('place', { n: me.place });
+    $('resT').textContent = S.team ? (won ? tl('teamWin') : tl('teamLose', { t: teamName(S.winTeam) })) : won ? tl('win') : tl('place', { n: me.place });
     $('reward').textContent = (questPay ? '✅ ' + tl('questDone', { n: questPay }) + '　' : '') + '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
     $('bSkins').textContent = '🎁 ' + tl('skins') + (store.get('crumbs', 0) >= BOX_COST && owned().size < LOOKS.length ? ' ❗' : '');
-    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / C.WIN_T * 100)}% · 💥${p.steals}</s></div>`);
+    const goal = S.team ? C.TEAM_WIN : C.WIN_T;
+    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${S.team ? (p.team === S.winTeam ? '👑' : '') : p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${S.team ? TEAM_CSS[p.team] : dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / goal * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
     tip('');
@@ -1925,12 +2020,15 @@ function dailyState() { const d = store.get('daily', { day: 0, streak: 0 }); ret
 const dailyPay = k => 30 + 20 * Math.min(k, 5);
 function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
 function lobbyUI() {
+  modeUI();
   setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
   const stat = `<div class="st">🏆 ${store.get('wins', 0)}　🎮 ${store.get('played', 0)}</div>`;
   $('quests').innerHTML = stat + QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
 }
+function modeUI() { $('bSolo').classList.toggle('on', mode === 'solo'); $('bTeam').classList.toggle('on', mode === 'team'); }
+for (const [id, m] of [['bSolo', 'solo'], ['bTeam', 'team']]) $(id).addEventListener('click', () => { if (!inLobby || finding || mode === m) return; ensureAudio(); mode = m; store.set('mode', m); SFX.chip(); modeUI(); newMatch(); });
 $('bDaily').addEventListener('click', () => {
   const d = dailyState(); if (!d.can) return; ensureAudio();
   store.set('daily', { day: dayKey(), streak: d.next }); store.set('crumbs', store.get('crumbs', 0) + dailyPay(d.next));
@@ -1982,7 +2080,7 @@ function updateActors(dt, now) {
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
-      a.ice.visible = p.frozenT > 0;
+      a.ice.visible = p.frozenT > 0; if (a.tr) a.tr.visible = a.drop <= 0;
       const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
       if ((p.boostT > 0 || p.grabT > 0) && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);
       a.root.visible = !(p.inv > 0 && a.drop <= 0 && Math.sin(now * 30) > 0.3);
@@ -2004,9 +2102,10 @@ function updateActors(dt, now) {
   if (holder >= 0) {
     const p = S.players[holder], a = actors[holder];
     cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
-    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * p.eaten / C.WIN_T);
+    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * (S.team ? S.teamEat[p.team] / C.TEAM_WIN : p.eaten / C.WIN_T));
     beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
-    ckRing.material.color.set(p.guard > 0 && holder !== ME ? 0x7fd4ff : holder === ME ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
+    const ours = holder === ME || (S.team && p.team === S.players[ME].team);
+    ckRing.material.color.set(p.guard > 0 && !ours ? 0x7fd4ff : ours ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
   } else {
     cookieObj.position.set(ck.x, 0.75 + Math.sin(now * 3) * 0.15, ck.z); cookieObj.rotation.set(0.5, now * 2, 0); cookieObj.scale.setScalar(1.5);
     beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);

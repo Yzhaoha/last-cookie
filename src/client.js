@@ -435,14 +435,19 @@ const ckRing = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.2, 40), new THREE.M
 ckRing.geometry.rotateX(-Math.PI / 2); ckRing.position.y = 0.03; scene.add(ckRing);
 
 let actors = [];
+const TEAM_COL = [0x3d9bff, 0xff4d4d], TEAM_CSS = ['#3d9bff', '#ff4d4d'], teamName = t => tl(t ? 'red' : 'blue');
+const teamRingGeo = new THREE.RingGeometry(0.5, 0.64, 32); teamRingGeo.rotateX(-Math.PI / 2);
+let mode = store.get('mode', 'solo') === 'team' ? 'team' : 'solo';
 function nameTxt(p) { return p.human ? tl('you') : p.name; }
 function buildActors() {
   for (const a of actors) scene.remove(a.root);
   actors = S.players.map(p => {
     const sn = buildSnack(p.look); scene.add(sn.g);
-    const tag = document.createElement('div'); tag.textContent = nameTxt(p); if (p.human) tag.className = 'me'; $('tags').appendChild(tag);
+    const tag = document.createElement('div'); tag.textContent = nameTxt(p); tag.className = (p.human ? 'me' : '') + (S.team ? ' t' + p.team : ''); $('tags').appendChild(tag);
+    let tr = null;
+    if (S.team) { tr = new THREE.Mesh(teamRingGeo, new THREE.MeshBasicMaterial({ color: TEAM_COL[p.team], transparent: true, opacity: 0.9, depthWrite: false })); tr.position.y = 0.025; sn.g.add(tr); }
     const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
-    return { root: sn.g, sn, tag, ice, bub, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
+    return { root: sn.g, sn, tag, ice, bub, tr, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
 }
 
@@ -462,7 +467,13 @@ function updateGuides(now) {
     arrow.visible = true; arrow.position.set(me.x + Math.sin(a) * r, 0.3, me.z + Math.cos(a) * r); arrow.rotation.set(0, a, 0);
     arrow.material.opacity = 0.65 + 0.3 * Math.sin(now * 6);
   }
-  if (holder && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
+  const mates = holder && S.team && holder.team === me.team;
+  if (mates && me.on && me.dashCd <= 0 && me.jumpT <= 0 && S.phase === 'play') { // 队友抱着：红圈标出冲撞会撞向的敌人
+    let foe = null, bd = 1e9;
+    for (const o of S.players) { if (!o.on || o.team === me.team) continue; const dd = Math.hypot(o.x - holder.x, o.z - holder.z) + Math.hypot(o.x - me.x, o.z - me.z) * 0.5; if (dd < bd) { bd = dd; foe = o; } }
+    if (foe && Math.hypot(foe.x - me.x, foe.z - me.z) < C.AIM_R * C.SCALE[me.lvl]) { tgtRing.visible = true; tgtRing.position.set(foe.x, 0.06, foe.z); tgtRing.scale.setScalar(C.SCALE[foe.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10))); }
+  }
+  if (holder && !mates && me.on && me.dashCd <= 0 && me.jumpT <= 0 && holder.guard <= 0 && holder.jumpT <= 0 && S.phase === 'play' && d < C.AIM_R * C.SCALE[me.lvl]) {
     tgtRing.visible = true; tgtRing.position.set(holder.x, 0.06, holder.z); tgtRing.scale.setScalar(C.SCALE[holder.lvl] * VIS * (1 + 0.08 * Math.sin(now * 10)));
   }
   // 饼干在屏幕外：屏幕边上放一个小饼干图标指方向
@@ -685,16 +696,28 @@ function updateHUD() {
   const left = Math.max(0, Math.ceil(C.MAX_T - (S.playT || 0)));
   // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
   const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
-  setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
+  if (S.team) { // 组队：左边显示两队比分，进度条是我们队的
+    const pc = t => Math.floor(S.teamEat[t] / C.TEAM_WIN * 100), mt = me.team;
+    setT($('timeP'), late ? '⏱ ' + left : (mt ? '🔴 ' : '🔵 ') + pc(mt) + '%  :  ' + pc(1 - mt) + '% ' + (mt ? '🔵' : '🔴'));
+    setTf($('progFill'), `scaleX(${(S.teamEat[mt] / C.TEAM_WIN).toFixed(3)})`);
+    setT($('progTxt'), '🍪 ' + tl('usTeam') + ' ' + pc(mt) + '%');
+  } else {
+    setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
+    // 我的进度条
+    setTf($('progFill'), `scaleX(${(me.eaten / C.WIN_T).toFixed(3)})`);
+    setT($('progTxt'), '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%');
+  }
   $('timeP').classList.toggle('hot', late);
-  // 我的进度条
-  setTf($('progFill'), `scaleX(${(me.eaten / C.WIN_T).toFixed(3)})`);
-  setT($('progTxt'), '🍪 ' + Math.floor(me.eaten / C.WIN_T * 100) + '%');
-  $('prog').classList.toggle('mine', holder === ME);
+  $('prog').classList.toggle('mine', holder === ME || (S.team && holder >= 0 && S.players[holder].team === me.team));
+  $('prog').classList.toggle('t0', S.team);
   // 排行：吃得最多的 4 个
   const top = S.players.slice().sort((a, b) => b.eaten - a.eaten).slice(0, 4);
-  const key = top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
-  if (key !== boardKey) {
+  const key = S.team ? 'T' + Math.floor(S.teamEat[0] / C.TEAM_WIN * 100) + ':' + Math.floor(S.teamEat[1] / C.TEAM_WIN * 100) + '|' + (holder >= 0 ? S.players[holder].team : -1) + LANG
+    : top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
+  if (key !== boardKey && S.team) { // 组队：两行，各队进度
+    boardKey = key; const ht = holder >= 0 ? S.players[holder].team : -1;
+    $('board').innerHTML = [me.team, 1 - me.team].map(t => `<div class="t${t}${ht === t ? ' has' : ''}"><i class="dot" style="background:${TEAM_CSS[t]}"></i><span>${esc(t === me.team ? tl('usTeam') : teamName(t))}</span><u><em style="width:${(S.teamEat[t] / C.TEAM_WIN * 100).toFixed(0)}%"></em></u>${ht === t ? '🍪' : ''}</div>`).join('');
+  } else if (key !== boardKey) {
     boardKey = key;
     $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${dotCol(p.look)}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
   }
@@ -712,6 +735,7 @@ function updateHUD() {
     const T = touchMode;
     if (!me.on) tip(tl('tipFell'));
     else if (holder === ME) tip(tl(T ? 'tipCarryT' : 'tipCarry'));
+    else if (S.team && holder >= 0 && S.players[holder].team === me.team) tip(tl(T ? 'tipGuardT' : 'tipGuard'));
     else if (holder < 0) tip(tl('tipLoose'));
     else tip(tl(T ? 'tipChaseT' : 'tipChase'));
   } else if (tipTxt) tip('');
@@ -756,7 +780,8 @@ function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1 });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' });
+  $('intro').children[1].lastChild.dataset.t = S.team ? 'intro2T' : 'intro2'; $('intro').children[2].lastChild.dataset.t = S.team ? 'intro3T' : 'intro3'; applyLang();
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = cfg ? cfg.you : 0;
   const me = S.players[ME];
@@ -798,7 +823,7 @@ function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((10
 let netOK = null;
 if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL || netOK === false) return cb(null);          // 服务器连不上：不让人干等，直接打机器人局
+  if (!NET_URL || netOK === false || mode === 'team') return cb(null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
   let done = false, ws = null, n = 1, max = C.N;
   const el = $('netWait'), t0 = performance.now();
   let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
@@ -935,18 +960,19 @@ function handleEvents(list, fromServer) {
   if (S.phase === 'play') {
     // 有人快吃完了：提醒去抢
     const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a);
-    if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
+    if (S.team) { const t = S.teamEat[0] > S.teamEat[1] ? 0 : 1; if (warned < 1 && S.teamEat[t] > C.TEAM_WIN * 0.8) { warned = 1; SFX.beep(true); banner(t === me.team ? tl('almostUs') : tl('almostThem', { t: teamName(t) }), false, 2); } }
+    else if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
     if (!last10 && S.playT > C.MAX_T - 20) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
   }
 }
 
 function showEnd() {
   PF.setPlaying(false);
-  const me = S.players[ME], won = S.winner === ME, wn = S.players[S.winner];
+  const me = S.players[ME], won = S.team ? S.winTeam === me.team : S.winner === ME, wn = S.players[S.winner];
   starBurst(wn.x, 1.5, wn.z, 24, 5); slowT = 0.9; flash('#ffffff', 0.6); confetti(wn.x, wn.z, 50, true); confRain = won ? 3.5 : 1.2; confX = wn.x; confZ = wn.z;
   setTimeout(() => {
     if (won) { SFX.win(); PF.happy(); } else SFX.lose();
-    banner(won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
+    banner(S.team ? (won ? tl('teamWin') : tl('teamLose', { t: teamName(S.winTeam) })) : won ? tl('win') : tl('winner', { a: wn.name }), true, 2.2);
   }, 200);
   const questPay = questProgress(me, won);
   const crumbsN = 10 + (S.players.length - me.place) * 5 + Math.round(me.eaten) + me.steals * 3 + questPay;
@@ -954,10 +980,11 @@ function showEnd() {
   store.set('played', store.get('played', 0) + 1);
   if (won) store.set('wins', store.get('wins', 0) + 1);
   setTimeout(() => {
-    $('resT').textContent = won ? tl('win') : tl('place', { n: me.place });
+    $('resT').textContent = S.team ? (won ? tl('teamWin') : tl('teamLose', { t: teamName(S.winTeam) })) : won ? tl('win') : tl('place', { n: me.place });
     $('reward').textContent = (questPay ? '✅ ' + tl('questDone', { n: questPay }) + '　' : '') + '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
     $('bSkins').textContent = '🎁 ' + tl('skins') + (store.get('crumbs', 0) >= BOX_COST && owned().size < LOOKS.length ? ' ❗' : '');
-    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / C.WIN_T * 100)}% · 💥${p.steals}</s></div>`);
+    const goal = S.team ? C.TEAM_WIN : C.WIN_T;
+    const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${S.team ? (p.team === S.winTeam ? '👑' : '') : p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${S.team ? TEAM_CSS[p.team] : dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / goal * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
     tip('');
@@ -1034,12 +1061,15 @@ function dailyState() { const d = store.get('daily', { day: 0, streak: 0 }); ret
 const dailyPay = k => 30 + 20 * Math.min(k, 5);
 function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
 function lobbyUI() {
+  modeUI();
   setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
   const stat = `<div class="st">🏆 ${store.get('wins', 0)}　🎮 ${store.get('played', 0)}</div>`;
   $('quests').innerHTML = stat + QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
 }
+function modeUI() { $('bSolo').classList.toggle('on', mode === 'solo'); $('bTeam').classList.toggle('on', mode === 'team'); }
+for (const [id, m] of [['bSolo', 'solo'], ['bTeam', 'team']]) $(id).addEventListener('click', () => { if (!inLobby || finding || mode === m) return; ensureAudio(); mode = m; store.set('mode', m); SFX.chip(); modeUI(); newMatch(); });
 $('bDaily').addEventListener('click', () => {
   const d = dailyState(); if (!d.can) return; ensureAudio();
   store.set('daily', { day: dayKey(), streak: d.next }); store.set('crumbs', store.get('crumbs', 0) + dailyPay(d.next));
@@ -1091,7 +1121,7 @@ function updateActors(dt, now) {
       sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
-      a.ice.visible = p.frozenT > 0;
+      a.ice.visible = p.frozenT > 0; if (a.tr) a.tr.visible = a.drop <= 0;
       const sh = p.lvl >= 3 && p.shieldCd <= 0 && i === holder; a.bub.visible = p.bubbleT > 0 || sh; if (a.bub.visible) { a.bub.material = p.bubbleT > 0 ? bubMat : shieldMat; a.bub.scale.setScalar(1 + 0.04 * Math.sin(now * 6 + i)); }
       if ((p.boostT > 0 || p.grabT > 0) && Math.random() < 0.6) emit(stars, p.x + (Math.random() - 0.5) * 0.5, 0.3, p.z + (Math.random() - 0.5) * 0.5, 0, 1.5, 0, 0.35, 0.8, 0.2);
       a.root.visible = !(p.inv > 0 && a.drop <= 0 && Math.sin(now * 30) > 0.3);
@@ -1113,9 +1143,10 @@ function updateActors(dt, now) {
   if (holder >= 0) {
     const p = S.players[holder], a = actors[holder];
     cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
-    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * p.eaten / C.WIN_T);
+    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * (S.team ? S.teamEat[p.team] / C.TEAM_WIN : p.eaten / C.WIN_T));
     beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
-    ckRing.material.color.set(p.guard > 0 && holder !== ME ? 0x7fd4ff : holder === ME ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
+    const ours = holder === ME || (S.team && p.team === S.players[ME].team);
+    ckRing.material.color.set(p.guard > 0 && !ours ? 0x7fd4ff : ours ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
   } else {
     cookieObj.position.set(ck.x, 0.75 + Math.sin(now * 3) * 0.15, ck.z); cookieObj.rotation.set(0.5, now * 2, 0); cookieObj.scale.setScalar(1.5);
     beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);
