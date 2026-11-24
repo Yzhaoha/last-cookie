@@ -431,15 +431,18 @@ const cookieObj = (() => {
 // 饼干没人抱时的光柱 + 地上的圈，老远就看得见
 const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.75, 9, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
 beam.position.y = 4.5; scene.add(beam);
-const ckRing = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.2, 40), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.9, depthWrite: false }));
-ckRing.geometry.rotateX(-Math.PI / 2); ckRing.position.y = 0.03; scene.add(ckRing);
+// 抱饼干的人：脚下一个大粗圈 + 半透明实心圆盘 + 头顶一道光柱（组队时是他队伍的颜色）
+const ckRing = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.38, 48), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.95, depthWrite: false }));
+ckRing.geometry.rotateX(-Math.PI / 2); ckRing.position.y = 0.035; ckRing.renderOrder = 2; scene.add(ckRing);
+const ckDisc = new THREE.Mesh(new THREE.CircleGeometry(1.38, 48), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.3, depthWrite: false }));
+ckDisc.geometry.rotateX(-Math.PI / 2); ckDisc.position.y = 0.03; ckDisc.renderOrder = 1; scene.add(ckDisc);
 
 let actors = [];
 const TEAM_COL = [0x3d9bff, 0xff4d4d, 0x35c759], TEAM_CSS = ['#3d9bff', '#ff4d4d', '#35c759'], TEAM_EMO = ['🔵', '🔴', '🟢'], teamName = t => tl(['blue', 'red', 'green'][t]);
 // 几队：网址加 ?teams=3 试三队（每队 3 人，一局 9 人）；默认两队 4 对 4
 const TEAMS = /[?&]teams=3/.test(location.search) ? 3 : 2;
 const teamOrder = me => [me.team, ...S.teamEat.map((_, t) => t).filter(t => t !== me.team)];   // 我们队排第一
-const teamRingGeo = new THREE.RingGeometry(0.5, 0.64, 32); teamRingGeo.rotateX(-Math.PI / 2);
+const teamRingGeo = new THREE.RingGeometry(0.5, 0.58, 32); teamRingGeo.rotateX(-Math.PI / 2);
 let mode = TEAMS === 3 || store.get('mode', 'solo') === 'team' ? 'team' : 'solo';
 function nameTxt(p) { return p.human ? tl('you') : p.name; }
 function buildActors() {
@@ -448,7 +451,7 @@ function buildActors() {
     const sn = buildSnack(p.look); scene.add(sn.g);
     const tag = document.createElement('div'); tag.textContent = nameTxt(p); tag.className = (p.human ? 'me' : '') + (S.team ? ' t' + p.team : ''); $('tags').appendChild(tag);
     let tr = null;
-    if (S.team) { tr = new THREE.Mesh(teamRingGeo, new THREE.MeshBasicMaterial({ color: TEAM_COL[p.team], transparent: true, opacity: 0.9, depthWrite: false })); tr.position.y = 0.025; sn.g.add(tr); }
+    if (S.team) { tr = new THREE.Mesh(teamRingGeo, new THREE.MeshBasicMaterial({ color: TEAM_COL[p.team], transparent: true, opacity: 0.6, depthWrite: false })); tr.position.y = 0.025; sn.g.add(tr); }
     const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
     return { root: sn.g, sn, tag, ice, bub, tr, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
@@ -993,6 +996,15 @@ function showEnd() {
     tip('');
   }, 2300);
 }
+// 回主界面：结算面板、暂停菜单里都有（中途回去这局就不算了）
+function goHome() {
+  if (net) { try { net.ws.close(); } catch (e) { } net = null; }
+  $('panel').hidden = true; $('menu').hidden = true; paused = false; $('banner').hidden = true; bannerT = 0; tip('');
+  inLobby = true; document.body.classList.add('lobby'); $('lobby').hidden = false; PF.setPlaying(false);
+  newMatch();
+}
+$('bHome').addEventListener('click', () => { ensureAudio(); PF.midgame(goHome); });
+$('bHome2').addEventListener('click', () => { ensureAudio(); goHome(); });
 $('bAgain').addEventListener('click', () => {
   ensureAudio();
   $('panel').hidden = true;
@@ -1093,7 +1105,7 @@ ls.addEventListener('change', () => { LANG = ls.value; store.set('lang_set', 1);
 $('optMusic').checked = musicOn; $('optMusic').addEventListener('change', e => { musicOn = e.target.checked; store.set('music', musicOn); });
 $('optSound').checked = soundOn; $('optSound').addEventListener('change', e => { soundOn = e.target.checked; store.set('sound', soundOn); });
 let paused = false;
-function toggleMenu(force, focusLost) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; paused = show; ls.value = LANG; PF.setPlaying(!show && !inLobby && S && S.phase !== 'end', focusLost); }
+function toggleMenu(force, focusLost) { const show = force ?? $('menu').hidden; $('menu').hidden = !show; $('bHome2').hidden = inLobby; paused = show; ls.value = LANG; PF.setPlaying(!show && !inLobby && S && S.phase !== 'end', focusLost); }
 $('gear').addEventListener('click', () => toggleMenu());
 $('bResume').addEventListener('click', () => toggleMenu(false));
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (S && S.phase === 'play' && !paused && !inLobby) toggleMenu(true, true); if (AC) AC.suspend(); } else if (AC && !PF.muted) AC.resume(); });
@@ -1138,7 +1150,8 @@ function updateActors(dt, now) {
     // 名字（抱饼干的人多显示一个饼干）
     const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
-    const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.75 : 1.05) * a.scale * VIS, a.root.position.z);
+    const hold = i === holder; if (a.hold !== hold) { a.hold = hold; tag.classList.toggle('hold', hold); tag.style.setProperty('--hc', S.team ? TEAM_CSS[p.team] : hold && i === ME ? '#4fc44f' : '#f0a020'); }
+    const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.95 : 1.05) * a.scale * VIS, a.root.position.z);
     const show = vis && p.on && !(inLobby && i !== ME); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
     if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
   }
@@ -1146,15 +1159,20 @@ function updateActors(dt, now) {
   const ck = S.cookie;
   if (holder >= 0) {
     const p = S.players[holder], a = actors[holder];
-    cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
-    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * (S.team ? S.teamEat[p.team] / S.tWin : p.eaten / C.WIN_T));
-    beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
-    const ours = holder === ME || (S.team && p.team === S.players[ME].team);
-    ckRing.material.color.set(p.guard > 0 && !ours ? 0x7fd4ff : ours ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
+    cookieObj.position.set(a.root.position.x, a.root.position.y + 1.3 * a.scale * VIS + Math.sin(now * 9) * 0.08, a.root.position.z);
+    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.6 - 0.5 * (S.team ? S.teamEat[p.team] / S.tWin : p.eaten / C.WIN_T));
+    const ours = holder === ME || (S.team && p.team === S.players[ME].team), on = p.on;
+    // 颜色：组队 = 他队伍的颜色；单挑 = 自己绿、别人金。刚抢到的保护期里圈一闪一闪（这时抢不走）
+    let col = S.team ? TEAM_COL[p.team] : holder === ME ? 0x6fe36f : 0xffc93c;
+    if (p.guard > 0 && !ours && Math.sin(now * 18) > 0) col = 0xffffff;
+    const rs = a.scale * VIS * (1 + 0.08 * Math.sin(now * 8));
+    ckRing.visible = ckDisc.visible = on; ckRing.position.set(p.x, 0.035, p.z); ckDisc.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(rs); ckDisc.scale.setScalar(rs);
+    ckRing.material.color.set(col); ckDisc.material.color.set(col); ckDisc.material.opacity = 0.28 + 0.08 * Math.sin(now * 8);
+    beam.visible = on; beam.position.set(p.x, 4.5 + a.root.position.y, p.z); beam.scale.set(0.75, 1, 0.75); beam.material.color.set(S.team ? TEAM_COL[p.team] : 0xffe08a); beam.material.opacity = 0.3 + 0.1 * Math.sin(now * 6);
   } else {
     cookieObj.position.set(ck.x, 0.75 + Math.sin(now * 3) * 0.15, ck.z); cookieObj.rotation.set(0.5, now * 2, 0); cookieObj.scale.setScalar(1.5);
-    beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);
-    ckRing.visible = true; ckRing.position.set(ck.x, 0.03, ck.z); ckRing.scale.setScalar(1 + 0.15 * Math.sin(now * 5)); ckRing.material.color.set(0xffc93c);
+    beam.visible = true; beam.position.set(ck.x, 4.5, ck.z); beam.scale.set(1, 1, 1); beam.material.color.set(0xffe08a); beam.material.opacity = 0.22 + 0.1 * Math.sin(now * 5);
+    ckRing.visible = true; ckDisc.visible = false; ckRing.position.set(ck.x, 0.035, ck.z); ckRing.scale.setScalar(0.9 + 0.12 * Math.sin(now * 5)); ckRing.material.color.set(0xffc93c);
   }
   // 巧克力豆
   let n = 0;
