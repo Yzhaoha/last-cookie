@@ -36,7 +36,7 @@ class RoomCore {
     const names = BOT_NAMES_.slice().sort(() => Math.random() - 0.5), used = new Set();
     let slot = 0;
     for (const c of this.clients.values()) { c.slot = slot; const p = S.players[slot++]; p.bot = false; p.name = c.name; p.look = c.look; used.add(c.look); }
-    S.players.forEach((p, i) => { if (!p.bot) return; p.name = names[i]; let l = (Math.random() * 19) | 0; while (used.has(l)) l = (l + 1) % 19; p.look = l; used.add(l); });
+    S.players.forEach((p, i) => { if (!p.bot) return; p.name = names[i]; let l = (Math.random() * 21) | 0; while (used.has(l)) l = (l + 1) % 21; p.look = l; used.add(l); });
     const base = { k: 'start', seed: S.seed, round: S.round, names: S.players.map(p => p.name), looks: S.players.map(p => p.look), humans: S.players.map(p => p.bot ? 0 : 1) };
     for (const c of this.clients.values()) c.send(JSON.stringify(Object.assign({ you: c.slot }, base)));
     this.state = 'play'; this.last = Date.now(); this.cv = this.iv = -1;

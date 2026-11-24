@@ -97,12 +97,25 @@ body.lefty #chipBox{left:auto;right:14px}
 #gear{position:fixed;top:max(10px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:50%;border:3px solid var(--ink);background:var(--cream);font-size:22px;display:grid;place-items:center;z-index:7;cursor:pointer;box-shadow:0 4px 0 rgba(74,38,18,.35)}
 #locker{position:fixed;inset:0;display:grid;place-items:center;background:rgba(74,38,18,.45);z-index:12}
 #locker .card2{background:var(--cream);border:4px solid var(--ink);border-radius:24px;padding:14px 18px;width:min(92vw,360px);text-align:center;display:flex;flex-direction:column;gap:9px;max-height:96vh;overflow:auto}
-#pvWrap{display:flex;align-items:center;justify-content:center;gap:4px}
-#pvWrap .btn{padding:8px 12px 10px;font-size:18px}
-#pvC{width:200px;height:200px;background:radial-gradient(circle at 50% 60%,#fff,#ffe2b8);border:3px solid var(--ink);border-radius:20px}
-#pvC.pop{animation:pvpop .5s cubic-bezier(.3,1.8,.5,1)}
-@keyframes pvpop{from{transform:scale(.5)}}
-#pvInfo{font-size:18px;color:#b0602a}#pvCr{font-size:20px}
+#locker .card2{width:min(94vw,440px)}
+.shopTop{display:flex;justify-content:space-between;align-items:center}.shopTop h2{margin:0;font-weight:normal}
+#pvCr{display:flex;align-items:center;gap:4px;font-size:22px;background:#fff3dc;border:3px solid var(--ink);border-radius:999px;padding:0 12px 2px 4px}
+.ico{height:1.5em;width:auto;vertical-align:-0.45em;margin-right:4px}#pvCr .ico{height:34px;margin:0}
+#shopBig{background:radial-gradient(circle at 50% 50%,#fff 30%,#ffe2b8);border:3px solid var(--ink);border-radius:20px;padding:2px 0 8px}
+#shopBig.r2{background:radial-gradient(circle at 50% 50%,#fff 30%,#bfe0ff)}#shopBig.r3{background:radial-gradient(circle at 50% 50%,#fff 30%,#ffd35a)}
+#shopImg{width:min(46vw,190px);height:min(46vw,190px);object-fit:contain;display:block;margin:0 auto}
+#shopImg.pop{animation:pvpop .5s cubic-bezier(.3,1.8,.5,1)}#shopImg.roll{animation:wob .18s linear infinite}
+@keyframes pvpop{from{transform:scale(.4) rotate(-12deg)}}@keyframes wob{50%{transform:rotate(6deg) scale(1.05)}}
+#shopName{font-size:26px;color:#fff;line-height:1.1}#shopStars{font-size:15px;color:#b0602a;min-height:18px}
+.shopBtns{display:flex;gap:8px;justify-content:center}.shopBtns .btn{font-size:21px;padding:8px 20px 10px}
+#bBuy{background:#7be07b}#bBuy:disabled,#bBox:disabled{opacity:.55;cursor:default}
+#bBox{font-size:19px;padding:6px 16px 8px}
+#shopGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+#shopGrid div{position:relative;border:2px solid rgba(74,38,18,.3);border-radius:10px;background:#fff8ec;aspect-ratio:1;cursor:pointer;overflow:hidden}
+#shopGrid div.r2{background:#e3f0ff}#shopGrid div.r3{background:#fff0c2}
+#shopGrid img{width:100%;height:100%;object-fit:contain;display:block}
+#shopGrid div.sel{border-color:var(--ink);box-shadow:0 0 0 2px #ffc93c}
+#shopGrid div.cur::after{content:'✓';position:absolute;right:2px;top:-3px;font-size:14px;color:#2e9e2e;text-shadow:0 0 2px #fff}
 .btn:disabled{filter:grayscale(.7);opacity:.6;cursor:default}
 #bAgain,#bSkins{margin:3px}
 #menu{position:fixed;inset:0;display:grid;place-items:center;background:rgba(74,38,18,.35);z-index:11}
@@ -160,10 +173,10 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="gear">⚙</div>
 <div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button> <button class="btn sec" id="bSkins"></button> <button class="btn sec" id="bHome">🏠 <span data-t="home"></span></button><div id="rank"></div></div></div>
 <div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><button class="btn sec" id="bHome2">🏠 <span data-t="home"></span></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
-<div id="locker" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="skins"></h2><div id="pvCr"></div><div id="pvWrap"><button class="btn sec" id="pvL">◀</button><canvas id="pvC" width="220" height="220"></canvas><button class="btn sec" id="pvR">▶</button></div><div id="pvInfo"></div><button class="btn sec" id="bUse"></button><button class="btn" id="bBox"></button><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
+<div id="locker" hidden><div class="card2"><div class="shopTop"><h2 class="out" data-t="skins"></h2><div id="pvCr"></div></div><div id="shopBig"><img id="shopImg" alt=""><div id="shopName" class="out"></div><div id="shopStars"></div></div><div class="shopBtns"><button class="btn" id="bUse"></button><button class="btn" id="bBuy"></button></div><button class="btn sec" id="bBox"><img class="ico" src="assets/ui/box.webp" alt=""><span id="bBoxT"></span></button><div id="shopGrid"></div><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
 <div id="netWait" hidden><div class="pill" id="netTxt"></div><button class="btn sec" id="netSkip" data-t="skip"></button></div>
-<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><span data-t="skins"></span> 🎁 <span id="lobbyCr"></span></button></div></div>
+<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><img class="ico" src="assets/ui/box.webp" alt=""><span data-t="skins"></span>　<img class="ico" src="assets/ui/coin.webp" alt=""><span id="lobbyCr"></span></button></div></div>
 <div id="adblock" hidden></div>
 <script type="module">
 /*GAME*/

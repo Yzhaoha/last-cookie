@@ -125,104 +125,285 @@ const aoMat = (() => { const cv = document.createElement('canvas'); cv.width = 4
 const foamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
 const chipMat = new THREE.MeshStandardMaterial({ color: 0x3a1c0c, roughness: 0.28, metalness: 0.05, envMapIntensity: 1.4 });
 
-// ---------- 角色：各种小点心 ----------
+// ---------- 角色：21 种小吃（照 art-ref/ 的图做的简化 3D） ----------
+// id = 商店卡片图名（assets/chars/<id>.webp）；rar：0 开局就有 / 1 普通 / 2 稀有 / 3 珍藏；col = 名字旁小圆点的颜色
+// ex = 表情：brow 眉毛（angry 凶 / worried 慌 / smug 得意 / flat 平 / calm 长老）、eye 眼睛（normal / shades 墨镜 / happy 眯眼笑 / sleepy 半睁 / closed 闭眼 / wink 眨眼 / side 斜眼）、mouth 嘴、blush 腮红
 const LOOKS = [
-  { snack: 'macaron', col: 0xff9cbc, col2: 0xfff1e0 },
-  { snack: 'donut', col: 0xff7fae, col2: 0xe3a35b },
-  { snack: 'pudding', col: 0xffd36a, col2: 0x8a3f12 },
-  { snack: 'cupcake', col: 0x8fd8ff, col2: 0xffb3d1 },
-  { snack: 'macaron', col: 0x9fe3c4, col2: 0xfff1e0 },
-  { snack: 'donut', col: 0x7a4126, col2: 0xe3a35b },
-  { snack: 'pudding', col: 0xffe39a, col2: 0x6e2f0e },
-  { snack: 'cupcake', col: 0xffe58a, col2: 0xc59bff },
-  { snack: 'macaron', col: 0xc6b0ff, col2: 0xfff1e0 },
-  // 以下靠盲盒开
-  { snack: 'donut', col: 0x9bd37a, col2: 0xe3a35b, rar: 1 },      // 抹茶甜甜圈
-  { snack: 'pudding', col: 0xffa8c0, col2: 0xd9455f, rar: 1 },    // 草莓布丁
-  { snack: 'cupcake', col: 0xbfe8c8, col2: 0xfff6ea, rar: 1 },    // 薄荷杯子蛋糕
-  { snack: 'macaron', col: 0xffb36b, col2: 0xfff1e0, rar: 1 },    // 橙子马卡龙
-  { snack: 'donut', col: 0x6fb7ff, col2: 0xf2c58a, rar: 2 },      // 蓝莓甜甜圈
-  { snack: 'cupcake', col: 0x7a4b2e, col2: 0xfff1e0, rar: 2 },    // 巧克力杯子蛋糕
-  { snack: 'pudding', col: 0x8fd6c2, col2: 0x2f6e5e, rar: 2 },    // 抹茶布丁
-  { snack: 'macaron', col: 0x3c2a6e, col2: 0xff8fd0, rar: 3 },    // 星空马卡龙
-  { snack: 'donut', col: 0xffd24a, col2: 0xfff1c4, rar: 3 },      // 黄金甜甜圈
-  { snack: 'cupcake', col: 0x2b2b3a, col2: 0x7dfcff, rar: 3 },    // 霓虹杯子蛋糕
+  { id: 'burger', rar: 0, col: 0xe9a04a, en: 'Burger', zh: '汉堡', ex: { brow: 'angry', mouth: 'smile', blush: 1 } },
+  { id: 'hotdog', rar: 0, col: 0xd8432f, en: 'Hot Dog', zh: '热狗', ex: { brow: 'angry', mouth: 'grin', blush: 1 } },
+  { id: 'donut', rar: 0, col: 0x6b3a1e, en: 'Donut', zh: '甜甜圈', ex: { brow: 'angry', eye: 'side', mouth: 'smirk' } },
+  { id: 'icecream', rar: 0, col: 0x5fd6c8, en: 'Ice Cream', zh: '冰淇淋', ex: { brow: 'flat', eye: 'happy', mouth: 'open', blush: 1 } },
+  { id: 'pizza', rar: 1, col: 0xffc23a, en: 'Pizza', zh: '披萨', ex: { brow: 'smug', eye: 'wink', mouth: 'open', blush: 1 } },
+  { id: 'fries', rar: 1, col: 0xe8342c, en: 'Fries', zh: '薯条', ex: { brow: 'angry', mouth: 'frown', blush: 1 } },
+  { id: 'popcorn', rar: 1, col: 0xfff1c9, en: 'Popcorn', zh: '爆米花', ex: { brow: 'smug', mouth: 'open', blush: 1 } },
+  { id: 'onigiri', rar: 1, col: 0xf4f1e8, en: 'Onigiri', zh: '饭团', ex: { brow: 'angry', mouth: 'smile', blush: 1 } },
+  { id: 'dumpling', rar: 1, col: 0xf3e6cc, en: 'Dumpling', zh: '饺子', ex: { brow: 'angry', eye: 'sleepy', mouth: 'smile', blush: 1 } },
+  { id: 'sushi', rar: 1, col: 0xff8a4c, en: 'Sushi', zh: '寿司', ex: { brow: 'angry', mouth: 'open', blush: 1 } },
+  { id: 'macaron', rar: 1, col: 0xa25bd6, en: 'Macaron', zh: '马卡龙', ex: { brow: 'angry', eye: 'side', mouth: 'grin' } },
+  { id: 'pudding', rar: 1, col: 0xffc23a, en: 'Pudding', zh: '布丁', ex: { brow: 'angry', mouth: 'open' } },
+  { id: 'noodlecup', rar: 1, col: 0xe8392c, en: 'Cup Noodles', zh: '杯面', ex: { brow: 'none', eye: 'sleepy', mouth: 'o' } },
+  { id: 'friedegg', rar: 1, col: 0xffc93a, en: 'Fried Egg', zh: '荷包蛋', ex: { brow: 'worried', mouth: 'frown', sweat: 1 } },
+  { id: 'cupcake', rar: 2, col: 0x2f86d6, en: 'Cupcake', zh: '杯子蛋糕', ex: { brow: 'flat', eye: 'shades', mouth: 'smile' } },
+  { id: 'croissant', rar: 2, col: 0xe58a35, en: 'Croissant', zh: '牛角包', ex: { brow: 'smug', eye: 'sleepy', mouth: 'o' } },
+  { id: 'bubbletea', rar: 2, col: 0xd9b48a, en: 'Bubble Tea', zh: '珍珠奶茶', ex: { brow: 'flat', eye: 'shades', mouth: 'smile' } },
+  { id: 'watermelon', rar: 2, col: 0xe8424a, en: 'Watermelon', zh: '西瓜', ex: { brow: 'angry', mouth: 'open', blush: 1 } },
+  { id: 'taco', rar: 3, col: 0xf2c14a, en: 'Taco', zh: '塔可', ex: { brow: 'smug', mouth: 'grin' } },
+  { id: 'drumstick', rar: 3, col: 0xd9772b, en: 'Drumstick', zh: '炸鸡腿', ex: { brow: 'angry', mouth: 'open' } },
+  { id: 'baozi', rar: 3, col: 0xf5ecd8, en: 'Bun Elder', zh: '包子长老', ex: { brow: 'calm', eye: 'closed', mouth: 'none' } },
 ];
-for (let i = 0; i < 9; i++) LOOKS[i].rar = i < 3 ? 0 : 1;        // 前 3 个一开始就有
 const dotCol = l => '#' + LOOKS[l % LOOKS.length].col.toString(16).padStart(6, '0');
+const lookName = l => { const L = LOOKS[l % LOOKS.length]; return LANG === 'zh' ? L.zh : L.en; };
 const M = (c, r = 0.5, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: r }, extra || {}));
-const eyeWhite = M(0xffffff, 0.25), eyeBlack = M(0x1d0f08, 0.2, { envMapIntensity: 1.5 }), blushM = new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.55 });
+const eyeWhite = M(0xffffff, 0.25), eyeBlack = M(0x1d0f08, 0.2, { envMapIntensity: 1.5 }), blushM = new THREE.MeshBasicMaterial({ color: 0xff8fa8, transparent: true, opacity: 0.6 });
+const browM = M(0x3a1a0c, 0.5), shadesM = M(0x15151c, 0.15, { envMapIntensity: 2 }), mouthM = M(0x5a1a12, 0.6), tongueM = M(0xff6b78, 0.5), teethM = M(0xffffff, 0.3);
 const sprCols = [0xff5a7a, 0x5ad1ff, 0xffe14d, 0x8cff7a, 0xffffff, 0xb67bff];
-function addFace(g, y, z, s = 1) {
+function capsule(r, len, mat) { return new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat); }
+function sph(r, mat, sx = 1, sy = 1, sz = 1) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), mat); m.scale.set(sx, sy, sz); return m; }
+function at(m, x, y, z, rx = 0, ry = 0, rz = 0) { m.position.set(x, y, z); m.rotation.set(rx, ry, rz); return m; }
+function sc(m, x, y, z) { m.scale.set(x, y, z); return m; }
+// 脸：眼睛 + 眉毛 + 嘴（+ 腮红、墨镜、汗珠）。返回的 mouth / mOpen 给“嚼”的动画切换
+function addFace(g, y, z, s = 1, ex = {}) {
   const face = new THREE.Group(); face.position.set(0, y, z);
+  const eye = ex.eye || 'normal', ES = 0.12 * s;
   for (const sx of [-1, 1]) {
-    const w = new THREE.Mesh(new THREE.SphereGeometry(0.085 * s, 16, 12), eyeWhite); w.scale.set(1, 1.15, 0.55); w.position.set(sx * 0.12 * s, 0, 0);
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.058 * s, 14, 10), eyeBlack); b.scale.set(1, 1.1, 0.6); b.position.set(sx * 0.12 * s, -0.005, 0.03 * s);
-    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.018 * s, 8, 6), eyeWhite); hl.position.set(sx * 0.12 * s + 0.02 * s, 0.025 * s, 0.065 * s);
-    const bl = new THREE.Mesh(new THREE.CircleGeometry(0.045 * s, 14), blushM); bl.position.set(sx * 0.21 * s, -0.07 * s, 0.01); bl.scale.y = 0.6;
-    face.add(w, b, hl, bl);
+    const kind = eye === 'wink' ? (sx > 0 ? 'happy' : 'normal') : eye;
+    if (kind === 'normal' || kind === 'side' || kind === 'sleepy') {
+      const k = kind === 'sleepy' ? 0.55 : 1;
+      const w = sph(0.085 * s, eyeWhite, 1, 1.15 * k, 0.55); w.position.set(sx * ES, 0, 0);
+      const b = sph(0.058 * s, eyeBlack, 1, 1.1 * k, 0.6); b.position.set(sx * ES + (kind === 'side' ? 0.03 * s : 0), -0.005 - (kind === 'sleepy' ? 0.01 * s : 0), 0.03 * s);
+      const hl = sph(0.018 * s, eyeWhite); hl.position.set(sx * ES + 0.02 * s + (kind === 'side' ? 0.03 * s : 0), 0.025 * s * k, 0.065 * s);
+      face.add(w, b, hl);
+      if (kind === 'sleepy') { const lid = capsule(0.014 * s, 0.13 * s, browM); at(lid, sx * ES, 0.045 * s, 0.04 * s, 0, 0, Math.PI / 2); face.add(lid); }
+    } else if (kind === 'happy' || kind === 'closed') {
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(0.055 * s, 0.016 * s, 6, 14, Math.PI), eyeBlack);
+      at(arc, sx * ES, kind === 'closed' ? 0.02 * s : -0.02 * s, 0.03 * s, 0, 0, kind === 'closed' ? Math.PI : 0); face.add(arc);
+    }
+    if (ex.blush) { const bl = new THREE.Mesh(new THREE.CircleGeometry(0.05 * s, 14), blushM); bl.position.set(sx * 0.215 * s, -0.075 * s, 0.012); bl.scale.y = 0.65; face.add(bl); }
+    // 眉毛：左边 sx=-1。angry = 里端往下压
+    const br = ex.brow || 'flat';
+    if (br !== 'none' && eye !== 'shades') {
+      const ang = { angry: -0.5, worried: 0.45, flat: 0, calm: -0.25 }[br] ?? 0;
+      let a = sx < 0 ? ang : -ang, yy = 0.12 * s;
+      if (br === 'smug') { a = sx < 0 ? 0.35 : 0.5; yy = sx < 0 ? 0.14 * s : 0.1 * s; }
+      if (br === 'worried') yy = 0.135 * s;
+      const b = capsule((br === 'calm' ? 0.028 : 0.02) * s, 0.09 * s, browM); at(b, sx * ES, yy, 0.035 * s, 0, 0, Math.PI / 2 + a); face.add(b);
+    }
   }
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.035 * s, 0.012 * s, 6, 12, Math.PI), eyeBlack); mouth.rotation.z = Math.PI; mouth.position.set(0, -0.07 * s, 0.03);
-  const mOpen = new THREE.Mesh(new THREE.SphereGeometry(0.05 * s, 12, 8), M(0x5a1a12, 0.6)); mOpen.scale.set(1.1, 0.8, 0.4); mOpen.position.set(0, -0.08 * s, 0.02); mOpen.visible = false;
+  if (eye === 'shades') {
+    for (const sx of [-1, 1]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.16 * s, 0.1 * s, 0.04 * s), shadesM); at(l, sx * ES, 0.005, 0.04 * s); face.add(l); }
+    const br = new THREE.Mesh(new THREE.BoxGeometry(0.3 * s, 0.022 * s, 0.03 * s), shadesM); at(br, 0, 0.04 * s, 0.045 * s); face.add(br);
+  }
+  // 嘴
+  const mouth = new THREE.Group(), my = -0.085 * s, mo = ex.mouth || 'smile';
+  if (mo === 'smile' || mo === 'frown' || mo === 'smirk') {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.04 * s, 0.013 * s, 6, 12, Math.PI), eyeBlack);
+    at(t, mo === 'smirk' ? 0.03 * s : 0, mo === 'frown' ? my - 0.02 * s : my, 0.03, 0, 0, mo === 'frown' ? 0 : mo === 'smirk' ? Math.PI + 0.35 : Math.PI); mouth.add(t);
+  } else if (mo === 'open') {
+    mouth.add(at(sph(0.06 * s, mouthM, 1.15, 0.85, 0.4), 0, my - 0.01 * s, 0.02));
+    mouth.add(at(sph(0.035 * s, tongueM, 1.2, 0.6, 0.4), 0, my - 0.035 * s, 0.035));
+  } else if (mo === 'grin') {
+    mouth.add(at(sph(0.06 * s, mouthM, 1.5, 0.6, 0.35), 0, my, 0.02));
+    mouth.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.15 * s, 0.035 * s, 0.03 * s), teethM), 0, my + 0.005 * s, 0.035));
+  } else if (mo === 'o') {
+    mouth.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.022 * s, 0.011 * s, 6, 12), eyeBlack), 0.01 * s, my, 0.03));
+  }
+  const mOpen = sph(0.05 * s, mouthM, 1.1, 0.8, 0.4); mOpen.position.set(0, my, 0.02); mOpen.visible = false;
+  if (ex.sweat) face.add(at(sph(0.035 * s, M(0x6fc8ff, 0.1, { transparent: true, opacity: 0.9 }), 1, 1.4, 0.6), -0.27 * s, 0.06 * s, 0.02));
   face.add(mouth, mOpen);
   g.add(face);
   return { face, mouth, mOpen };
 }
-function sprinkles(g, n, rad, y, spread, rnd) {
-  for (let i = 0; i < n; i++) {
-    const a = rnd() * 6.283, r = rad * (0.5 + rnd() * 0.5);
-    const s = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.045, 3, 6), M(sprCols[i % sprCols.length], 0.4));
-    s.position.set(Math.cos(a) * r, y + (rnd() - 0.5) * spread, Math.sin(a) * r); s.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); g.add(s);
-  }
+// 圆角三角 / 半圆等平面形状挤出成厚片（正面朝 +z，居中）
+function slab(shape, depth, bevel, mat) {
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 4, curveSegments: 18 });
+  geo.translate(0, 0, -depth / 2); return new THREE.Mesh(geo, mat);
 }
-function buildSnack(look) {
-  const L = LOOKS[look % LOOKS.length], g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const rnd = SIM.rng(look * 31 + 7);
-  let face;
-  if (L.snack === 'macaron') {
-    const shellM = M(L.col, 0.55);
-    const shellG = new THREE.SphereGeometry(0.42, 32, 16, 0, 6.283, 0, Math.PI / 2);
+function roundTri(w, h, r) { // 底边在 y=0，尖朝上
+  const s = new THREE.Shape(), A = [0, h], B = [-w, 0], C = [w, 0];
+  const lerp2 = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+  const pts = [A, B, C]; s.moveTo(...lerp2(A, B, r));
+  for (let i = 0; i < 3; i++) { const P = pts[(i + 1) % 3], N = pts[(i + 2) % 3], Q = pts[i]; s.lineTo(...lerp2(P, Q, r)); s.quadraticCurveTo(P[0], P[1], ...lerp2(P, N, r)); }
+  return s;
+}
+function bumpy(geo, amt, seed) { const r = SIM.rng(seed), p = geo.attributes.position; const k = []; for (let i = 0; i < 6; i++) k.push([r() * 6, r() * 6, r() * 6]); for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); let n = 0; for (const [a, b, c] of k) n += Math.sin(x * 9 + a) * Math.sin(y * 9 + b) * Math.sin(z * 9 + c); const f = 1 + amt * n / 3; p.setXYZ(i, x * f, y * f, z * f); } geo.computeVertexNormals(); return geo; }
+function stripeTex(c1, c2, n) { const cv = document.createElement('canvas'); cv.width = 128; cv.height = 8; const g = cv.getContext('2d'); for (let i = 0; i < n * 2; i++) { g.fillStyle = i % 2 ? c2 : c1; g.fillRect(i * 128 / (n * 2), 0, 128 / (n * 2) + 1, 8); } const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; }
+function waffleTex() { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.fillStyle = '#f0a24a'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#c47422'; g.lineWidth = 4; for (let i = -64; i < 128; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 64, 64); g.stroke(); g.beginPath(); g.moveTo(i + 64, 0); g.lineTo(i, 64); g.stroke(); } const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t; }
+const bunM = M(0xe9a04a, 0.7), riceM = M(0xf7f4ec, 0.95), noriM = M(0x1d2a20, 0.7), creamM = M(0xfffaf2, 0.6), doughM = M(0xf5ecd8, 0.85);
+function pleats(body, y, r, n, mat) { // 包子/饺子顶上的褶
+  for (let i = 0; i < n; i++) { const a = i / n * 6.283; const p = capsule(0.035, r * 0.9, mat); p.position.set(Math.cos(a) * r * 0.5, y, Math.sin(a) * r * 0.5); p.rotation.set(0, -a, 0); p.rotateZ(Math.PI / 2 - 0.75); body.add(p); }
+  body.add(at(sph(0.07, mat), 0, y + 0.1, 0));
+}
+const SNACK = {
+  burger(b, L) {
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.36, 0.17, 32), bunM), 0, 0.09, 0));
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.12, 32), M(0x5a2e17, 0.8)), 0, 0.23, 0));
+    b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.045, 8, 28), M(0x5fbf3a, 0.6)), 0, 0.3, 0, Math.PI / 2));
+    b.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.035, 0.66), M(0xffc531, 0.4)), 0, 0.31, 0, 0, Math.PI / 4));
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.43, 32, 16, 0, 6.283, 0, Math.PI / 2), bunM); top.scale.y = 0.85; top.position.y = 0.32; b.add(top);
+    const sd = M(0xfff4d8, 0.5); for (let i = 0; i < 12; i++) { const a = i * 2.4, r = 0.12 + (i % 3) * 0.08; const s = capsule(0.014, 0.03, sd); s.position.set(Math.cos(a) * r, 0.32 + 0.36 * Math.sqrt(1 - (r / 0.43) ** 2), Math.sin(a) * r); s.rotation.set(1.2, a, 0); b.add(s); }
+    b._face = addFace(b, 0.47, 0.37, 1.05, L.ex); b._face.face.rotation.x = -0.35;
+  },
+  hotdog(b, L) {
+    for (const sx of [-1, 1]) b.add(sc(at(capsule(0.17, 0.42, bunM), sx * 0.2, 0.4, -0.02), 1, 1, 0.85));
+    b.add(at(capsule(0.19, 0.5, M(0xd8432f, 0.3, { envMapIntensity: 1.3 })), 0, 0.42, 0.06));
+    const mus = M(0xffcf26, 0.4);
+    for (const y0 of [0.72, 0.16]) for (let i = 0; i < 3; i++) { const c = capsule(0.022, 0.08, mus); at(c, -0.06 + i * 0.06, y0, 0.2, 0, 0, i % 2 ? 0.8 : -0.8); b.add(c); }
+    b._face = addFace(b, 0.44, 0.23, 0.9, L.ex);
+  },
+  donut(b, L, rnd) {
+    const dough = at(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.17, 20, 40), M(0xe3a35b, 0.75)), 0, 0.48, 0);
+    const iceG = new THREE.TorusGeometry(0.3, 0.176, 20, 48); { const ip = iceG.attributes.position; for (let i = 0; i < ip.count; i++) { const x = ip.getX(i), y = ip.getY(i), z = ip.getZ(i), a = Math.atan2(y, x); if (z < 0.02 + 0.035 * Math.sin(a * 7)) ip.setZ(i, Math.max(z, 0.02 + 0.035 * Math.sin(a * 7)) * 0.3); } iceG.computeVertexNormals(); }
+    const ice = at(new THREE.Mesh(iceG, M(0x6b3a1e, 0.3, { envMapIntensity: 1.2 })), 0, 0.48, 0.012); ice.scale.setScalar(1.03);
+    const tilt = new THREE.Group(); tilt.add(dough, ice);
+    for (let i = 0; i < 22; i++) { const a = rnd() * 6.283, r = 0.3 + (rnd() - 0.5) * 0.12; tilt.add(at(capsule(0.013, 0.045, M(sprCols[i % 6], 0.4)), Math.cos(a) * r, 0.48 + Math.sin(a) * r, 0.16, 0, 0, rnd() * 3)); }
+    b._face = addFace(tilt, 0.66, 0.17, 0.95, L.ex);
+    tilt.rotation.x = -0.95; tilt.position.set(0, 0.12, -0.1); b.add(tilt);
+    for (const sx of [-1, 1]) b.add(at(sph(0.09, M(0xc98a45, 0.7), 1, 0.55, 1.3), sx * 0.14, 0.05, 0.03));
+  },
+  icecream(b, L, rnd) {
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.55, 24), M(0xffffff, 0.8, { map: waffleTex() })); cone.rotation.x = Math.PI; cone.position.y = 0.28; b.add(cone);
+    const mint = M(0x63d6c8, 0.55); b.add(at(sph(0.37, mint), 0, 0.72, 0)); b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.07, 10, 28), mint), 0, 0.55, 0, Math.PI / 2));
+    const ch = M(0x4a2412, 0.4); for (let i = 0; i < 10; i++) { const a = rnd() * 6.283, e = 0.3 + rnd() * 1.1; if (Math.cos(a) > 0.55 && e < 1.2) continue; b.add(at(sph(0.04, ch, 1.3, 0.8, 0.8), Math.sin(a) * Math.cos(e) * 0.36, 0.72 + Math.sin(e) * 0.36, Math.cos(a) * Math.cos(e) * 0.36, rnd(), rnd(), rnd())); }
+    b._face = addFace(b, 0.7, 0.34, 1.05, L.ex); b._face.face.rotation.x = -0.15;
+  },
+  pizza(b, L) {
+    const s = roundTri(0.44, 0.8, 0.12); const p = slab(s, 0.12, 0.04, M(0xffc23a, 0.45)); p.rotation.z = Math.PI; p.position.y = 0.84; b.add(p);
+    b.add(at(capsule(0.085, 0.74, M(0xe8963c, 0.7)), 0, 0.82, -0.01, 0, 0, Math.PI / 2));
+    const pep = M(0xd2402e, 0.5); for (const [x, y] of [[-0.25, 0.68], [0.25, 0.67], [0.02, 0.2]]) b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 18), pep), x, y, 0.105, Math.PI / 2));
+    const gr = M(0x7cb342, 0.5); for (const [x, y] of [[-0.1, 0.72], [0.12, 0.74], [-0.08, 0.28]]) b.add(at(sph(0.025, gr, 1.4, 1, 0.6), x, y, 0.105));
+    b._face = addFace(b, 0.47, 0.1, 0.9, L.ex);
+  },
+  fries(b, L, rnd) {
+    const box = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.27, 0.48, 4), M(0xe8342c, 0.5)); box.rotation.y = Math.PI / 4; box.scale.set(1.25, 1, 0.8); box.position.y = 0.24; b.add(box);
+    const fm = M(0xffcf3f, 0.6); for (let i = 0; i < 11; i++) { const x = -0.22 + (i % 6) * 0.088, z = i < 6 ? -0.04 : 0.06; b.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.42, 0.07), fm), x + (rnd() - 0.5) * 0.03, 0.58 + rnd() * 0.08, z, (rnd() - 0.5) * 0.3, 0, (rnd() - 0.5) * 0.4)); }
+    b._face = addFace(b, 0.26, 0.205, 0.95, L.ex);
+  },
+  popcorn(b, L, rnd) {
+    const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.27, 0.52, 28, 1, true), M(0xffffff, 0.6, { map: stripeTex('#e8342c', '#fff6ee', 8), side: THREE.DoubleSide })); bucket.position.y = 0.26; b.add(bucket);
+    b.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.27, 24), M(0xfff6ee)), 0, 0.01, 0, -Math.PI / 2));
+    b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.03, 8, 28), M(0xfff6ee, 0.5)), 0, 0.52, 0, Math.PI / 2));
+    const pm = [M(0xfff1c9, 0.8), M(0xffe39a, 0.8)]; for (let i = 0; i < 18; i++) { const a = rnd() * 6.283, r = rnd() * 0.28; b.add(at(new THREE.Mesh(bumpy(new THREE.SphereGeometry(0.09 + rnd() * 0.04, 10, 8), 0.25, i), pm[i % 2]), Math.cos(a) * r, 0.55 + rnd() * 0.16 + (0.28 - r) * 0.4, Math.sin(a) * r)); }
+    b._face = addFace(b, 0.27, 0.31, 1.0, L.ex); b._face.face.rotation.x = 0.15;
+  },
+  onigiri(b, L) {
+    const r = slab(roundTri(0.44, 0.82, 0.28), 0.3, 0.07, riceM); b.add(r);
+    b.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.24, 0.46), noriM), 0, 0.13, 0));
+    b._face = addFace(b, 0.4, 0.225, 0.95, L.ex);
+  },
+  dumpling(b, L) {
+    b.add(at(sph(0.42, doughM, 1, 0.8, 1), 0, 0.33, 0)); pleats(b, 0.6, 0.36, 9, doughM);
+    b._face = addFace(b, 0.34, 0.39, 1.0, L.ex);
+  },
+  sushi(b, L) {
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.52, 30), noriM), 0, 0.26, 0));
+    b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.085, 10, 28), riceM), 0, 0.52, 0, Math.PI / 2));
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.27, 0.1, 24), M(0xff8a4c, 0.35)), 0, 0.56, 0));
+    b.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), M(0x5fbf3a, 0.5)), 0.05, 0.64, 0, 0, 0.5));
+    b._face = addFace(b, 0.27, 0.37, 1.05, L.ex);
+  },
+  macaron(b, L) {
+    const shellM = M(0xa25bd6, 0.55), shellG = new THREE.SphereGeometry(0.42, 32, 16, 0, 6.283, 0, Math.PI / 2);
     const top = new THREE.Mesh(shellG, shellM); top.scale.set(1, 0.62, 1); top.position.y = 0.43;
     const bot = new THREE.Mesh(shellG, shellM); bot.scale.set(1, -0.5, 1); bot.position.y = 0.27;
-    const footM = M(new THREE.Color(L.col).multiplyScalar(0.92), 0.85);
-    const f1 = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.045, 8, 40), footM); f1.rotation.x = Math.PI / 2; f1.position.y = 0.415;
-    const f2 = f1.clone(); f2.position.y = 0.285;
-    const fill = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.13, 40), M(L.col2, 0.5)); fill.position.y = 0.35;
-    body.add(top, bot, f1, f2, fill);
-    face = addFace(body, 0.6, 0.33, 1.05); face.face.rotation.x = -0.45;
-  } else if (L.snack === 'donut') {
-    const dough = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.17, 20, 40), M(L.col2, 0.75)); dough.position.y = 0.48;
-    const iceG = new THREE.TorusGeometry(0.3, 0.176, 20, 48); { const ip = iceG.attributes.position; for (let i = 0; i < ip.count; i++) { const x = ip.getX(i), y = ip.getY(i), z = ip.getZ(i), a = Math.atan2(y, x); if (z < 0.02 + 0.035 * Math.sin(a * 7)) ip.setZ(i, Math.max(z, 0.02 + 0.035 * Math.sin(a * 7)) * 0.3); } iceG.computeVertexNormals(); }
-    const ice = new THREE.Mesh(iceG, M(L.col, 0.3, { envMapIntensity: 1.2 })); ice.position.y = 0.48; ice.position.z = 0.012; ice.scale.set(1.03, 1.03, 1.03);
-    body.add(dough, ice);
-    const sp = new THREE.Group(); sp.position.y = 0.48; body.add(sp);
-    for (let i = 0; i < 26; i++) { const a = rnd() * Math.PI * 2, r = 0.3 + (rnd() - 0.5) * 0.12; const s = new THREE.Mesh(new THREE.CapsuleGeometry(0.013, 0.045, 3, 6), M(sprCols[i % 6], 0.4)); s.position.set(Math.cos(a) * r, Math.sin(a) * r, 0.16); s.rotation.z = rnd() * 3; sp.add(s); }
-    for (const sx of [-1, 1]) { const ft = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), M(0xc98a45, 0.7)); ft.scale.set(1, 0.55, 1.3); ft.position.set(sx * 0.14, 0.05, 0.03); body.add(ft); }
-    face = addFace(body, 0.66, 0.17, 0.95);
-    const tilt = new THREE.Group(); while (body.children.length) tilt.add(body.children[0]); tilt.rotation.x = -0.95; tilt.position.set(0, 0.12, -0.1); body.add(tilt);
-  } else if (L.snack === 'pudding') {
-    const cus = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.52, 36, 3), M(L.col, 0.35, { envMapIntensity: 1.2 })); cus.position.y = 0.27;
-    const car = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.31, 0.08, 36), M(L.col2, 0.2, { envMapIntensity: 1.5 })); car.position.y = 0.54;
-    body.add(cus, car);
-    for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283 + 0.3; const d = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.06 + rnd() * 0.1, 4, 8), M(L.col2, 0.2)); d.position.set(Math.cos(a) * 0.315, 0.47 - rnd() * 0.05, Math.sin(a) * 0.315); body.add(d); }
-    const cream = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), M(0xfffaf2, 0.6)); cream.scale.y = 0.75; cream.position.y = 0.62;
-    const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 12), M(0xe0203a, 0.15, { envMapIntensity: 1.6 })); cherry.position.y = 0.76;
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.012, 0.14, 6), M(0x5d8a2a)); stem.position.set(0.03, 0.86, 0); stem.rotation.z = -0.4;
-    body.add(cream, cherry, stem);
-    face = addFace(body, 0.36, 0.345, 1.0); face.face.rotation.x = -0.25;
-  } else { // cupcake
+    const footM = M(0x8e48c2, 0.85); const f1 = at(new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.045, 8, 40), footM), 0, 0.415, 0, Math.PI / 2); const f2 = f1.clone(); f2.position.y = 0.285;
+    b.add(top, bot, f1, f2, at(new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.13, 40), M(0xfff1e0, 0.5)), 0, 0.35, 0));
+    b._face = addFace(b, 0.6, 0.33, 1.05, L.ex); b._face.face.rotation.x = -0.45;
+  },
+  pudding(b, L, rnd) {
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.52, 36, 3), M(0xffc23a, 0.35, { envMapIntensity: 1.2 })), 0, 0.27, 0));
+    const car = M(0x6b3a1e, 0.2, { envMapIntensity: 1.5 }); b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.31, 0.08, 36), car), 0, 0.54, 0));
+    for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283 + 0.3; b.add(at(capsule(0.035, 0.06 + rnd() * 0.1, car), Math.cos(a) * 0.315, 0.47 - rnd() * 0.05, Math.sin(a) * 0.315)); }
+    b.add(at(sph(0.13, creamM, 1, 0.75, 1), 0, 0.62, 0));
+    const leaf = M(0x4caf50, 0.5); b.add(at(sph(0.07, leaf, 1, 0.3, 0.6), -0.05, 0.75, 0, 0, 0, 0.6), at(sph(0.07, leaf, 1, 0.3, 0.6), 0.05, 0.75, 0, 0, 0, -0.6));
+    b._face = addFace(b, 0.33, 0.35, 1.0, L.ex); b._face.face.rotation.x = -0.25;
+  },
+  noodlecup(b, L, rnd) {
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.27, 0.56, 28), M(0xe8392c, 0.5)), 0, 0.28, 0));
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.285, 0.275, 0.05, 28), M(0xfff6ee, 0.5)), 0, 0.08, 0));
+    b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 8, 28), M(0xfff6ee, 0.5)), 0, 0.56, 0, Math.PI / 2));
+    const nm = M(0xffd35a, 0.55); for (let i = 0; i < 14; i++) { const a = rnd() * 6.283, r = rnd() * 0.24; b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 12, 4), nm), Math.cos(a) * r, 0.6 + rnd() * 0.06, Math.sin(a) * r, rnd() * 3, rnd() * 3, 0)); }
+    const pea = M(0x6cc04a, 0.5); for (let i = 0; i < 3; i++) b.add(at(sph(0.03, pea), -0.1 + i * 0.08, 0.66, 0.08 - i * 0.05));
+    const st = M(0x7a4126, 0.6); for (const dx of [0, 0.07]) b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.5, 8), st), 0.14 + dx, 0.8, -0.05, 0, 0, -0.45));
+    b._face = addFace(b, 0.32, 0.315, 1.0, L.ex); b._face.face.rotation.x = 0.12;
+  },
+  friedegg(b, L) {
+    const eg = new THREE.Group(); eg.position.set(0, 0.42, 0); eg.rotation.x = -0.45; b.add(eg);
+    const wg = bumpy(new THREE.SphereGeometry(0.46, 32, 16), 0.12, 3); eg.add(sc(new THREE.Mesh(wg, M(0xfffbf2, 0.4)), 1, 0.95, 0.22));
+    eg.add(at(sph(0.25, M(0xffc21f, 0.25, { envMapIntensity: 1.4 }), 1, 1, 0.55), 0, -0.02, 0.07));
+    b._face = addFace(eg, -0.02, 0.2, 1.05, L.ex);
+    b.add(at(sph(0.1, M(0xfffbf2, 0.4), 1, 0.6, 1), 0, 0.04, 0));
+  },
+  cupcake(b, L, rnd) {
     const wg = new THREE.CylinderGeometry(0.34, 0.26, 0.36, 24, 1, true);
     const p = wg.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x), k = 1 + 0.045 * Math.cos(a * 12); p.setX(i, x * k); p.setZ(i, z * k); } wg.computeVertexNormals();
-    const wrap = new THREE.Mesh(wg, M(L.col, 0.6, { side: THREE.DoubleSide })); wrap.position.y = 0.18;
-    const cake = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.06, 24), M(0xc98a45, 0.8)); cake.position.y = 0.37;
-    body.add(wrap, cake);
-    const fm = M(L.col2, 0.45);
-    [[0.34, 0.12, 0.43], [0.27, 0.11, 0.55], [0.18, 0.1, 0.66]].forEach(([r, t, y]) => { const tr = new THREE.Mesh(new THREE.TorusGeometry(r - t * 0.3, t, 14, 32), fm); tr.rotation.x = Math.PI / 2; tr.position.y = y; body.add(tr); });
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.18, 16), fm); tip.position.y = 0.78; body.add(tip);
-    sprinkles(body, 18, 0.3, 0.6, 0.18, rnd);
-    face = addFace(body, 0.24, 0.315, 0.95); face.face.rotation.x = -0.2;
-  }
-  body.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
+    b.add(at(new THREE.Mesh(wg, M(0x2f86d6, 0.55, { side: THREE.DoubleSide })), 0, 0.18, 0));
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.06, 24), M(0xe8a24a, 0.8)), 0, 0.37, 0));
+    const fm = creamM; [[0.34, 0.12, 0.43], [0.27, 0.11, 0.55], [0.18, 0.1, 0.66]].forEach(([r, t, y]) => b.add(at(new THREE.Mesh(new THREE.TorusGeometry(r - t * 0.3, t, 14, 32), fm), 0, y, 0, Math.PI / 2)));
+    b.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.12, 16), fm), 0, 0.74, 0));
+    b.add(at(sph(0.1, M(0xe0203a, 0.15, { envMapIntensity: 1.6 })), 0, 0.84, 0), at(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.012, 0.18, 6), M(0x5d3a1a)), 0.04, 0.98, 0, 0, 0, -0.4));
+    for (let i = 0; i < 16; i++) { const a = rnd() * 6.283, r = 0.3 * (0.5 + rnd() * 0.5); b.add(at(capsule(0.012, 0.045, M(sprCols[i % 6], 0.4)), Math.cos(a) * r, 0.6 + (rnd() - 0.5) * 0.18, Math.sin(a) * r, rnd() * 3, rnd() * 3, rnd() * 3)); }
+    b._face = addFace(b, 0.33, 0.33, 0.95, L.ex); b._face.face.rotation.x = -0.25;
+  },
+  croissant(b, L) {
+    const cm = M(0xe58a35, 0.6), dk = M(0xc96a22, 0.6);
+    b.add(at(sph(0.3, cm, 1.15, 1, 1), 0, 0.32, 0));
+    for (const sx of [-1, 1]) { b.add(at(sph(0.2, cm, 1.1, 0.95, 1), sx * 0.3, 0.22, 0.02)); b.add(at(capsule(0.1, 0.12, cm), sx * 0.47, 0.12, 0.08, 0, 0, sx * 0.9)); }
+    for (const dx of [-0.17, 0.17]) b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.025, 6, 24, Math.PI), dk), dx, 0.32, 0, 0, Math.PI / 2, 0));
+    const bow = M(0xa04fd8, 0.4); const bw = new THREE.Group(); bw.position.set(0.22, 0.6, 0); bw.rotation.z = -0.4; b.add(bw);
+    bw.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 12), bow), -0.08, 0, 0, 0, 0, -Math.PI / 2), at(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 12), bow), 0.08, 0, 0, 0, 0, Math.PI / 2), at(sph(0.045, bow), 0, 0, 0));
+    b._face = addFace(b, 0.33, 0.29, 0.95, L.ex);
+  },
+  bubbletea(b, L, rnd) {
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.24, 0.52, 28), M(0xd9b48a, 0.4)), 0, 0.28, 0));
+    const pm = M(0x2a160c, 0.2, { envMapIntensity: 1.5 }); for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283 + rnd() * 0.2; b.add(at(sph(0.05, pm), Math.cos(a) * 0.255, 0.07 + (i % 2) * 0.08, Math.sin(a) * 0.255)); }
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.26, 0.62, 28, 1, true), M(0xffffff, 0.05, { transparent: true, opacity: 0.25, depthWrite: false })), 0, 0.31, 0));
+    const lid = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 10, 0, 6.283, 0, Math.PI / 2), M(0xffffff, 0.05, { transparent: true, opacity: 0.35, depthWrite: false })); lid.scale.y = 0.35; lid.position.y = 0.62; b.add(lid);
+    b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.45, 10), M(0x9b59d0, 0.4)), 0.06, 0.82, 0, 0, 0, -0.15));
+    b._face = addFace(b, 0.38, 0.3, 0.95, L.ex);
+  },
+  watermelon(b, L, rnd) {
+    const s = new THREE.Shape(); s.moveTo(-0.45, 0.12); s.quadraticCurveTo(0, -0.02, 0.45, 0.12); s.lineTo(0.06, 0.86); s.quadraticCurveTo(0, 0.92, -0.06, 0.86); s.closePath();
+    b.add(slab(s, 0.14, 0.04, M(0xe8424a, 0.45)));
+    const rind = new THREE.Shape(); rind.moveTo(-0.5, 0.12); rind.quadraticCurveTo(0, -0.06, 0.5, 0.12); rind.quadraticCurveTo(0, 0.04, -0.5, 0.12);
+    b.add(at(slab(rind, 0.2, 0.05, M(0x3f9b3a, 0.5)), 0, -0.03, 0));
+    b.add(sc(at(capsule(0.03, 0.82, M(0xd8f0b0, 0.6)), 0, 0.12, 0.02, 0, 0, Math.PI / 2), 1, 1, 1.6));
+    const sd = M(0x2a160c, 0.3); for (const [x, y] of [[-0.18, 0.5], [0.17, 0.52], [0, 0.72], [-0.28, 0.24], [0.28, 0.25]]) b.add(at(sph(0.028, sd, 0.7, 1.2, 0.5), x, y, 0.095));
+    b._face = addFace(b, 0.38, 0.1, 0.9, L.ex);
+  },
+  taco(b, L, rnd) {
+    const s = new THREE.Shape(); s.absarc(0, 0.44, 0.44, Math.PI, 2 * Math.PI, false); s.closePath();
+    b.add(at(slab(s, 0.3, 0.06, M(0xf2c14a, 0.55)), 0, 0.02, 0));
+    const fill = [M(0x5fbf3a, 0.6), M(0xe8402e, 0.4), M(0x6b3a1e, 0.8)];
+    for (let i = 0; i < 14; i++) b.add(at(sph(0.07 + rnd() * 0.03, fill[i % 3], 1, 0.8, 1), -0.36 + (i % 7) * 0.12, 0.48 + rnd() * 0.05, (i < 7 ? -0.06 : 0.06)));
+    b._face = addFace(b, 0.26, 0.215, 0.95, L.ex);
+    const sh = new THREE.Group(); sh.position.set(0, 0.6, 0.2); sh.rotation.x = -0.25; sh.scale.setScalar(1.15); b.add(sh);
+    for (const sx of [-1, 1]) sh.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.04), shadesM), sx * 0.12, 0, 0));
+    sh.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.022, 0.03), shadesM));
+  },
+  drumstick(b, L) {
+    const bone = M(0xfff4e2, 0.5); b.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.22, 12), bone), 0, 0.13, 0));
+    for (const sx of [-1, 1]) b.add(at(sph(0.07, bone), sx * 0.06, 0.04, 0));
+    b.add(sc(at(new THREE.Mesh(bumpy(new THREE.SphereGeometry(0.38, 32, 20), 0.08, 7), M(0xd9772b, 0.95)), 0, 0.5, 0), 1, 1.05, 0.95));
+    const red = M(0xe02a2a, 0.5); b.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.355, 0.045, 8, 30), red), 0, 0.68, 0, Math.PI / 2 - 0.2));
+    b.add(at(capsule(0.04, 0.14, red), 0.34, 0.66, -0.15, 0.3, 0, -1.1), at(capsule(0.04, 0.12, red), 0.36, 0.6, -0.2, 0.3, 0, -1.6));
+    b._face = addFace(b, 0.48, 0.36, 1.05, L.ex);
+  },
+  baozi(b, L) {
+    b.add(at(sph(0.42, doughM, 1, 0.98, 1), 0, 0.4, 0)); pleats(b, 0.76, 0.3, 8, doughM);
+    const gold = M(0xf2b630, 0.25, { metalness: 0.5 }); const cr = new THREE.Group(); cr.position.y = 0.9; cr.scale.setScalar(1.3); b.add(cr);
+    cr.add(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.07, 18, 1, true), gold));
+    for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283; cr.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 8), gold), Math.cos(a) * 0.12, 0.07, Math.sin(a) * 0.12)); }
+    cr.add(at(sph(0.035, M(0xd0202a, 0.2)), 0, 0.02, 0.13));
+    b._face = addFace(b, 0.5, 0.37, 1.05, L.ex); b._face.face.rotation.x = -0.15;
+    const wh = M(0xffffff, 0.7); for (const sx of [-1, 1]) b.add(at(capsule(0.035, 0.12, wh), sx * 0.08, 0.4, 0.4, 0, 0, Math.PI / 2 + sx * 0.4));
+    b.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 12), wh), 0, 0.25, 0.39, Math.PI, 0, 0));
+  },
+};
+function buildSnack(look) {
+  const L = LOOKS[look % LOOKS.length], g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  SNACK[L.id](body, L, SIM.rng(look * 31 + 7));
+  const face = body._face;
+  body.traverse(o => { if (o.isMesh && !(o.material && o.material.transparent)) o.castShadow = true; });
   // 脚下接触阴影
   const blob = new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), new THREE.MeshBasicMaterial({ color: 0x3d1a06, transparent: true, opacity: 0.22, depthWrite: false }));
   blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; g.add(blob);
@@ -757,9 +938,10 @@ function updateCamera(dt) {
   const me = S.players[ME], ck = S.cookie;
   if (inLobby) { // 开始界面：镜头凑近看自己的角色，慢慢左右晃
     const a = Math.sin(performance.now() / 2600) * 0.45, up = VW / VH < 0.8 ? 1.5 : 0;
-    camera.position.set(me.x + Math.sin(a) * (9 + up * 2), 4.4 + up, me.z + Math.cos(a) * (9 + up * 2)); camera.lookAt(me.x, 1.0, me.z);
+    camera.position.set(me.x + Math.sin(a) * (9 + up * 2), 4.4 + up, me.z + Math.cos(a) * (9 + up * 2)); camera.lookAt(me.x, VW / VH < 0.8 ? -1.6 : -0.6, me.z);   // 看低一点：角色在画面偏上，不被下面的按钮挡住
     camPos.copy(camera.position); camT.set(me.x, 0, me.z + 1);
     sun.position.set(me.x + 9, 20, me.z + 7); sun.target.position.set(me.x, 0, me.z);
+    if (DEBUG && window.__camO) { const o = window.__camO; camera.position.set(...o.p); camera.lookAt(...o.l); sun.position.set(o.l[0] + 9, o.l[1] + 20, o.l[2] + 7); sun.target.position.set(...o.l); }
     return;
   }
   let fx = me.on ? me.x : clamp(me.fx, -HW, HW), fz = me.on ? me.z : clamp(me.fz, -HH, HH);
@@ -795,7 +977,7 @@ function newMatch(cfg) {
     S.net = true;
     S.players.forEach((p, i) => { p.bot = false; p.human = i === ME; p.name = cfg.names[i]; p.look = cfg.looks[i] % LOOKS.length; p.real = !!cfg.humans[i]; });
   } else {
-    me.bot = false; me.human = true; me.look = store.get('look', 0) % LOOKS.length;
+    me.bot = false; me.human = true; me.look = myLook();
     const used = new Set([me.look]);
     S.players.forEach((p, i) => { p.name = names[i]; if (p !== me) { let l = (Math.random() * LOOKS.length) | 0; while (used.has(l)) l = (l + 1) % LOOKS.length; p.look = l; used.add(l); } });
   }
@@ -840,7 +1022,7 @@ function findMatch(cb) {
   $('netSkip').onclick = () => finish(null);                  // 不想等：直接开始（机器人局）
   try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
-  ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: store.get('look', 0) % LOOKS.length }));
+  ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: myLook() }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
     if (m.k === 'wait') { n = m.n; max = m.max; dead = performance.now() + (m.ms || 5000) + 3000; show(); }   // 连上了：按服务器说的等人时间，再多留 3 秒
@@ -1012,57 +1194,52 @@ $('bAgain').addEventListener('click', () => {
   PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => newMatch(cfg)); });
 });
 
-// ---------- 皮肤柜 + 盲盒（饼干屑换） ----------
-const BOX_COST = 100;
+// ---------- 商店：21 个角色（饼干屑直接买，或 100 开一次盲盒） ----------
+// 存档换了新键（look2 / owned2）：旧的 19 个皮肤编号和新角色对不上
+const BOX_COST = 100, PRICE = [0, 200, 400, 800];
 if (store.get('crumbs', null) == null) store.set('crumbs', BOX_COST);   // 新玩家送一次盲盒
-const owned = () => { const o = new Set(store.get('owned', [])); LOOKS.forEach((L, i) => { if (!L.rar) o.add(i); }); return o; };
-let pv = null, lockerFrom = '';
-function pvInit() {
-  if (pv) return;
-  const r = new THREE.WebGLRenderer({ canvas: $('pvC'), antialias: true, alpha: true });
-  r.setPixelRatio(Math.min(2, devicePixelRatio || 1)); r.setSize(220, 220, false); r.outputColorSpace = THREE.SRGBColorSpace;
-  const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0xd0a070, 2.2)); const d = new THREE.DirectionalLight(0xffffff, 2.2); d.position.set(2, 4, 3); sc.add(d);
-  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 20); cam.position.set(0, 1.25, 3.3); cam.lookAt(0, 0.42, 0);
-  pv = { r, sc, cam, obj: null, idx: 0, roll: 0, rollT: 0, win: -1, black: new THREE.MeshBasicMaterial({ color: 0x3b2416 }) };
-}
-function pvShow(i) {
-  pv.idx = (i + LOOKS.length) % LOOKS.length;
-  if (pv.obj) pv.sc.remove(pv.obj);
-  const sn = buildSnack(pv.idx); sn.blob.visible = false; pv.obj = sn.g; pv.sc.add(sn.g);
-  lockerUI();
+const myLook = () => store.get('look2', 0) % LOOKS.length;
+const owned = () => { const o = new Set(store.get('owned2', [])); LOOKS.forEach((L, i) => { if (!L.rar) o.add(i); }); return o; };
+const charImg = (i, has) => 'assets/chars/' + LOOKS[i].id + (has ? '' : '-locked') + '.webp';
+let shop = { sel: 0, roll: null }, lockerFrom = '';
+function shopGrid() {
+  const gEl = $('shopGrid'); if (gEl.children.length) return;
+  LOOKS.forEach((L, i) => { const d = document.createElement('div'); d.className = 'r' + L.rar; d.innerHTML = '<img alt="" loading="lazy">'; d.onclick = () => { if (shop.roll) return; shop.sel = i; SFX.chip(); lockerUI(); }; gEl.appendChild(d); });
 }
 function lockerUI() {
-  const own = owned(), has = own.has(pv.idx), cur = store.get('look', 0) % LOOKS.length, crumbs = store.get('crumbs', 0), rolling = pv.roll > 0;
-  pv.sc.overrideMaterial = has && !rolling ? null : pv.black;
-  $('pvInfo').textContent = (rolling ? '？？？' : has ? '★'.repeat(Math.max(1, LOOKS[pv.idx].rar)) : '🔒 ' + tl('locked')) + '   ' + (pv.idx + 1) + ' / ' + LOOKS.length;
-  $('pvCr').textContent = '🍪 ' + crumbs;
-  const u = $('bUse'); u.hidden = !has || rolling; u.textContent = pv.idx === cur ? '✓ ' + tl('using') : tl('use'); u.disabled = pv.idx === cur;
+  const own = owned(), i = shop.sel, L = LOOKS[i], has = own.has(i), cur = myLook(), crumbs = store.get('crumbs', 0), rolling = !!shop.roll;
+  $('pvCr').innerHTML = '<img class="ico" src="assets/ui/coin.webp" alt="">' + crumbs;
+  if (!rolling) { const src = charImg(i, has); if ($('shopImg').getAttribute('src') !== src) $('shopImg').src = src; }
+  $('shopBig').className = 'r' + L.rar;
+  $('shopName').textContent = rolling ? '？？？' : lookName(i);
+  $('shopStars').textContent = rolling ? '' : L.rar ? '★'.repeat(L.rar) + ' ' + tl('rar' + L.rar) : tl('rar0');
+  const u = $('bUse'); u.hidden = !has || rolling; u.textContent = i === cur ? '✓ ' + tl('using') : tl('use'); u.disabled = i === cur;
+  const bu = $('bBuy'); bu.hidden = has || rolling; bu.innerHTML = '<img class="ico" src="assets/ui/coin.webp" alt="">' + PRICE[L.rar]; bu.disabled = crumbs < PRICE[L.rar];
   const b = $('bBox'), all = own.size >= LOOKS.length; b.disabled = rolling || all || crumbs < BOX_COST;
-  b.textContent = all ? tl('allOwned') : crumbs < BOX_COST ? tl('needMore', { n: BOX_COST - crumbs }) : '🎁 ' + tl('openBox', { n: BOX_COST });
+  $('bBoxT').textContent = all ? tl('allOwned') : crumbs < BOX_COST ? tl('needMore', { n: BOX_COST - crumbs }) : tl('openBox', { n: BOX_COST });
+  [...$('shopGrid').children].forEach((d, k) => { const h = own.has(k), src = charImg(k, h); const im = d.firstChild; if (im.getAttribute('src') !== src) im.src = src; d.classList.toggle('sel', k === i); d.classList.toggle('cur', k === cur); });
 }
-function openLocker(from) { lockerFrom = from; pvInit(); $('locker').hidden = false; $('menu').hidden = true; pvShow(store.get('look', 0)); }
-function closeLocker() { $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; if (inLobby) newMatch(); }
+function openLocker(from) { lockerFrom = from; shopGrid(); shop.sel = myLook(); $('locker').hidden = false; $('menu').hidden = true; lockerUI(); }
+function closeLocker() { if (shop.roll) return; $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; if (inLobby) newMatch(); }
+function gotChar(i) { // 买到 / 开到：直接换上，亮一下
+  const own = owned(); own.add(i); store.set('owned2', [...own]); store.set('look2', i); shop.sel = i;
+  const im = $('shopImg'); im.classList.remove('roll', 'pop'); im.src = charImg(i, true); void im.offsetWidth; im.classList.add('pop');
+  SFX.win(); PF.happy(); flash('#fff7c2', 0.4); lockerUI();
+}
 function openBox() {
   const own = owned(), pool = []; LOOKS.forEach((L, i) => { if (!own.has(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
-  if (!pool.length || store.get('crumbs', 0) < BOX_COST || pv.roll > 0) return;
+  if (!pool.length || store.get('crumbs', 0) < BOX_COST || shop.roll) return;
   store.set('crumbs', store.get('crumbs', 0) - BOX_COST);
-  pv.win = pool[(Math.random() * pool.length) | 0]; pv.roll = 1.4; pv.rollT = 0;
-  own.add(pv.win); store.set('owned', [...own]); store.set('look', pv.win);
+  const win = pool[(Math.random() * pool.length) | 0], t0 = performance.now();
+  const im = $('shopImg'); im.classList.remove('pop'); im.classList.add('roll');
+  shop.roll = setInterval(() => { // 开盒：各种角色乱跳一阵，然后亮出来
+    if (performance.now() - t0 > 1400) { clearInterval(shop.roll); shop.roll = null; gotChar(win); return; }
+    im.src = charImg((Math.random() * LOOKS.length) | 0, true); SFX.beep(false);
+  }, 90);
   lockerUI();
 }
-function pvFrame(dt, now) {
-  if (!pv || $('locker').hidden) return;
-  if (pv.roll > 0) { // 开盒：黑影乱跳一阵，然后亮出来
-    pv.roll -= dt; pv.rollT -= dt;
-    if (pv.roll <= 0) { pvShow(pv.win); $('pvC').classList.remove('pop'); void $('pvC').offsetWidth; $('pvC').classList.add('pop'); SFX.win(); PF.happy(); }
-    else if (pv.rollT <= 0) { pv.rollT = 0.09; SFX.beep(false); pv.roll += 0; const k = pv.roll; pvShow((Math.random() * LOOKS.length) | 0); pv.roll = k; lockerUI(); }
-  }
-  if (pv.obj) { pv.obj.rotation.y = now * (pv.roll > 0 ? 9 : 1.2); pv.obj.position.y = pv.roll > 0 ? Math.abs(Math.sin(now * 20)) * 0.12 : 0; }
-  pv.r.render(pv.sc, pv.cam);
-}
-$('pvL').addEventListener('click', () => { if (pv.roll <= 0) pvShow(pv.idx - 1); });
-$('pvR').addEventListener('click', () => { if (pv.roll <= 0) pvShow(pv.idx + 1); });
-$('bUse').addEventListener('click', () => { store.set('look', pv.idx); lockerUI(); });
+$('bUse').addEventListener('click', () => { store.set('look2', shop.sel); SFX.chip(); lockerUI(); });
+$('bBuy').addEventListener('click', () => { ensureAudio(); const p = PRICE[LOOKS[shop.sel].rar], c = store.get('crumbs', 0); if (shop.roll || owned().has(shop.sel) || c < p) return; store.set('crumbs', c - p); gotChar(shop.sel); });
 $('bBox').addEventListener('click', () => { ensureAudio(); openBox(); });
 $('bLockerX').addEventListener('click', closeLocker);
 $('bSkins').addEventListener('click', () => openLocker('panel'));
@@ -1077,7 +1254,7 @@ const dailyPay = k => 30 + 20 * Math.min(k, 5);
 function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
 function lobbyUI() {
   modeUI();
-  setT($('lobbyCr'), '🍪 ' + store.get('crumbs', 0));
+  setT($('lobbyCr'), String(store.get('crumbs', 0)));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
   const stat = `<div class="st">🏆 ${store.get('wins', 0)}　🎮 ${store.get('played', 0)}</div>`;
@@ -1230,7 +1407,6 @@ function frame(now) {
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
   updateHUD();
   renderer.render(scene, camera);
-  pvFrame(rawDt, tsec);
 }
 
 // ---------- 启动 ----------
@@ -1242,7 +1418,7 @@ function frame(now) {
   PF.loadingDone();
   requestAnimationFrame(t => { last = t; frame(t); });
   if (DEBUG) Object.assign(window, { __S: () => S, __SIM: SIM, __setLang: l => { LANG = l; applyLang(); }, __newMatch: newMatch, __cam: camera, __ME: () => ME, __renderer: renderer, __fast: sec => { for (let i = 0; i < sec * 60; i++) { readInput(S.players[ME]); SIM.thinkBots(S, STEP); SIM.step(S, STEP); handleEvents(); } }, __auto: () => { S.players[ME].bot = true; },
-    __netKill: () => { if (net) { net.ws.onmessage = null; net.lastMsg = -1e9; } }, __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
+    __netKill: () => { if (net) { net.ws.onmessage = null; net.lastMsg = -1e9; } }, __gallery: (row = -1) => { if (window.__galGrp) scene.remove(window.__galGrp); const grp = window.__galGrp = new THREE.Group(); grp.position.y = 40; scene.add(grp); const list = LOOKS.map((L, i) => i).filter(i => row < 0 || Math.floor(i / 7) === row); list.forEach((i, k) => { const sn = buildSnack(i); const n = row < 0 ? 7 : list.length; sn.g.position.set((k % n - (n - 1) / 2) * 1.25, 0, Math.floor(k / n) * 1.7); grp.add(sn.g); }); const rows = Math.ceil(list.length / 7); window.__camO = { p: [0, 41.6 + rows * 0.5, 4.2 + rows * 1.6], l: [0, 40.4, (rows - 1) * 0.85] }; }, __cookie: cookieObj, __render: () => renderer.render(scene, camera), __newLooks: () => { $('tags').innerHTML = ''; buildActors(); buildMap(); },
     // 录像用：停掉自动刷新，由外面一帧一帧推进（每帧固定毫秒数），画面就不受机器快慢影响
     __manual: () => { manualFrames = true; vNow = performance.now(); }, __step: ms => { vNow += ms; frame(vNow); } });
 })();

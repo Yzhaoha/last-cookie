@@ -34,8 +34,10 @@ for site, tag in SDK.items():
     out = 'release/last-cookie-' + site; os.makedirs(out)
     open(out + '/index.html', 'w').write(tpl.replace('/*GAME*/', pgame).replace('<!--PLATFORM_HEAD-->', tag))
     shutil.copy('three.module.min.js', out + '/three.module.min.js')
+    shutil.copytree('assets', out + '/assets')   # 商店角色卡片、图标（tools/assets.py 生成）
     with zipfile.ZipFile(out + '.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
-        for f in sorted(os.listdir(out)): zf.write(out + '/' + f, f)
+        for root, _, fs in os.walk(out):
+            for f in sorted(fs): full = os.path.join(root, f); zf.write(full, os.path.relpath(full, out))
     print(site, 'zip', os.path.getsize(out + '.zip') // 1024, 'KB')
 
 # ---- 联机服务器：把 sim.js + room.js + worker.src.js 拼成 server/worker.js（部署用） ----

@@ -1,6 +1,7 @@
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
+    skins: "Boutique", rar0: "Départ", rar1: "Commun", rar2: "Rare", rar3: "Légendaire",
     home: "Menu",
     green: "Verts", modeTeamD3: "3 équipes de 3",
     modeSolo: "Solo", modeSoloD: "Chacun pour soi", modeTeam: "Équipes", modeTeamD: "4 contre 4 — on mange ensemble", blue: "Bleus", red: "Rouges", usTeam: "Ton équipe", intro2T: "Si un coéquipier le tient, ton équipe mange. Première équipe à 100 % gagne", intro3T: "Charge les ennemis : protège ton porteur, vole le leur", tipGuard: "Ton coéquipier l’a — charge les ennemis près de lui (Espace) !", tipGuardT: "Ton coéquipier l’a — touche CHARGE sur les ennemis près de lui !", teamWin: "TON ÉQUIPE GAGNE !", teamLose: "Les {t} gagnent !", almostUs: "Ton équipe a presque fini — tiens bon !", almostThem: "Les {t} ont presque fini — arrête-les !",
@@ -14,9 +15,10 @@ const TLX = {
     gotIt: 'Tu l’as ! Accélération — COURS !', lostIt: '{b} a volé ton cookie !', stole: '{b} l’a volé à {a}', fell: '{a} est tombé de la table', shoved: '{b} t’a éjecté !', fellSelf: 'Tu es tombé !',
     almost: '{a} a presque fini — arrête-le !', almostMe: 'Presque fini — tiens bon !', last10: '20 dernières secondes — qui a le plus mangé gagne !', pow: 'BAM !', win: 'VICTOIRE !', winner: '{a} gagne !', again: 'Rejouer', crumbs: 'Miettes +{n}',
     sound: 'Son', music: 'Musique', lang: 'Langue', daily: 'Cadeau du jour +{n} (jour {d})', qSteal: 'Vole le cookie {n} fois', qChips: 'Mange {n} pépites de chocolat', qWin: 'Gagne {n} partie', questDone: 'Mission réussie +{n}',
-    play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
+    play: 'JOUER', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
+    skins: "Negozio", rar0: "Iniziale", rar1: "Comune", rar2: "Raro", rar3: "Leggendario",
     home: "Menu",
     green: "Verdi", modeTeamD3: "3 squadre da 3",
     modeSolo: "Solo", modeSoloD: "Ognuno per sé", modeTeam: "Squadre", modeTeamD: "4 contro 4 — si mangia insieme", blue: "Blu", red: "Rossi", usTeam: "La tua squadra", intro2T: "Se lo tiene un compagno, mangia la tua squadra. Vince la prima squadra al 100%", intro3T: "Colpisci i nemici: proteggi il tuo portatore, ruba il loro", tipGuard: "Ce l’ha un compagno — colpisci i nemici vicino a lui (Spazio)!", tipGuardT: "Ce l’ha un compagno — tocca SPINTA sui nemici vicino a lui!", teamWin: "LA TUA SQUADRA VINCE!", teamLose: "Vincono i {t}!", almostUs: "La tua squadra ha quasi finito — resisti!", almostThem: "I {t} hanno quasi finito — fermali!",
@@ -30,9 +32,10 @@ const TLX = {
     gotIt: 'Preso! Scatto — CORRI!', lostIt: '{b} ti ha rubato il biscotto!', stole: '{b} l’ha rubato a {a}', fell: '{a} è caduto dal tavolo', shoved: '{b} ti ha buttato giù!', fellSelf: 'Sei caduto!',
     almost: '{a} ha quasi finito — fermalo!', almostMe: 'Quasi finito — resisti!', last10: 'Ultimi 20 secondi — vince chi ha mangiato di più!', pow: 'BAM!', win: 'HAI VINTO!', winner: 'Vince {a}!', again: 'Gioca ancora', crumbs: 'Briciole +{n}',
     sound: 'Suoni', music: 'Musica', lang: 'Lingua', daily: 'Regalo del giorno +{n} (giorno {d})', qSteal: 'Ruba il biscotto {n} volte', qChips: 'Mangia {n} gocce di cioccolato', qWin: 'Vinci {n} partita', questDone: 'Missione completata +{n}',
-    play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
+    play: 'GIOCA', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
+    skins: "Shop", rar0: "Start", rar1: "Gewöhnlich", rar2: "Selten", rar3: "Legendär",
     home: "Menü",
     green: "Grün", modeTeamD3: "3 Teams à 3",
     modeSolo: "Solo", modeSoloD: "Jeder für sich", modeTeam: "Teams", modeTeamD: "4 gegen 4 — zusammen futtern", blue: "Blau", red: "Rot", usTeam: "Dein Team", intro2T: "Hält ein Mitspieler ihn, isst dein Team. Erstes Team bei 100 % gewinnt", intro3T: "Rempel Gegner: schütze deinen Träger, klau ihren", tipGuard: "Dein Mitspieler hat ihn — rempel Gegner in seiner Nähe (Leertaste)!", tipGuardT: "Dein Mitspieler hat ihn — tippe RAMMEN bei Gegnern in seiner Nähe!", teamWin: "DEIN TEAM GEWINNT!", teamLose: "Team {t} gewinnt!", almostUs: "Dein Team ist fast fertig — halte durch!", almostThem: "Team {t} ist fast fertig — stoppt sie!",
@@ -46,9 +49,10 @@ const TLX = {
     gotIt: 'Geschnappt! Turbo — LAUF!', lostIt: '{b} hat deinen Keks geklaut!', stole: '{b} hat ihn {a} geklaut', fell: '{a} ist vom Tisch gefallen', shoved: '{b} hat dich runtergestoßen!', fellSelf: 'Du bist runtergefallen!',
     almost: '{a} ist fast fertig — halte ihn auf!', almostMe: 'Fast fertig — halte durch!', last10: 'Letzte 20 Sekunden — wer am meisten gegessen hat, gewinnt!', pow: 'BÄM!', win: 'GEWONNEN!', winner: '{a} gewinnt!', again: 'Nochmal', crumbs: 'Krümel +{n}',
     sound: 'Ton', music: 'Musik', lang: 'Sprache', daily: 'Tagesgeschenk +{n} (Tag {d})', qSteal: 'Klaue den Keks {n}-mal', qChips: 'Iss {n} Schokotropfen', qWin: 'Gewinne {n} Runde', questDone: 'Aufgabe erledigt +{n}',
-    play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
+    play: 'SPIELEN', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
+    skins: "Tienda", rar0: "Inicial", rar1: "Común", rar2: "Raro", rar3: "Legendario",
     home: "Menú",
     green: "Verdes", modeTeamD3: "3 equipos de 3",
     modeSolo: "Solo", modeSoloD: "Cada uno a lo suyo", modeTeam: "Equipos", modeTeamD: "4 contra 4 — a comer juntos", blue: "Azules", red: "Rojos", usTeam: "Tu equipo", intro2T: "Si lo tiene un compañero, come tu equipo. Gana el primer equipo en llegar al 100 %", intro3T: "Empuja a los rivales: protege a tu portador, roba el suyo", tipGuard: "Lo tiene tu compañero: ¡empuja a los rivales cerca de él (Espacio)!", tipGuardT: "Lo tiene tu compañero: ¡toca EMPUJAR sobre los rivales cerca de él!", teamWin: "¡GANA TU EQUIPO!", teamLose: "¡Ganan los {t}!", almostUs: "Tu equipo casi termina: ¡aguanta!", almostThem: "Los {t} casi terminan: ¡detenlos!",
@@ -62,9 +66,10 @@ const TLX = {
     gotIt: '¡La tienes! Acelerón — ¡CORRE!', lostIt: '¡{b} te robó la galleta!', stole: '{b} se la robó a {a}', fell: '{a} se cayó de la mesa', shoved: '¡{b} te tiró de la mesa!', fellSelf: '¡Te caíste!',
     almost: '{a} casi la termina — ¡detenlo!', almostMe: 'Casi terminas — ¡aguanta!', last10: 'Últimos 20 segundos — ¡gana quien más haya comido!', pow: '¡PUM!', win: '¡GANASTE!', winner: '¡Gana {a}!', again: 'Jugar otra vez', crumbs: 'Migas +{n}',
     sound: 'Sonido', music: 'Música', lang: 'Idioma', daily: 'Regalo diario +{n} (día {d})', qSteal: 'Roba la galleta {n} veces', qChips: 'Come {n} chispas de chocolate', qWin: 'Gana {n} partida', questDone: 'Misión cumplida +{n}',
-    play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
+    play: 'JUGAR', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
+    skins: "Mağaza", rar0: "Başlangıç", rar1: "Sıradan", rar2: "Nadir", rar3: "Efsanevi",
     home: "Ana menü",
     green: "Yeşil", modeTeamD3: "3’er kişilik 3 takım",
     modeSolo: "Tekli", modeSoloD: "Herkes kendi için", modeTeam: "Takım", modeTeamD: "4’e 4 — birlikte ye", blue: "Mavi", red: "Kırmızı", usTeam: "Takımın", intro2T: "Takım arkadaşın tutuyorsa takımın yiyor. %100’e ilk ulaşan takım kazanır", intro3T: "Rakiplere çarp: taşıyıcını koru, onlarınkini çal", tipGuard: "Kurabiye takım arkadaşında — yakınındaki rakiplere çarp (Boşluk)!", tipGuardT: "Kurabiye takım arkadaşında — yakınındaki rakiplere ÇARP’a dokun!", teamWin: "TAKIMIN KAZANDI!", teamLose: "{t} takım kazandı!", almostUs: "Takımın neredeyse bitirdi — dayan!", almostThem: "{t} takım neredeyse bitirdi — durdur onları!",
@@ -78,9 +83,10 @@ const TLX = {
     gotIt: 'Kaptın! Hızlandın — KOŞ!', lostIt: '{b} kurabiyeni çaldı!', stole: '{b}, {a} oyuncusundan çaldı', fell: '{a} masadan düştü', shoved: '{b} seni düşürdü!', fellSelf: 'Düştün!',
     almost: '{a} bitirmek üzere — durdur onu!', almostMe: 'Bitmek üzere — dayan!', last10: 'Son 20 saniye — en çok yiyen kazanır!', pow: 'BAM!', win: 'KAZANDIN!', winner: '{a} kazandı!', again: 'Tekrar oyna', crumbs: 'Kırıntı +{n}',
     sound: 'Ses', music: 'Müzik', lang: 'Dil', daily: 'Günlük hediye +{n} ({d}. gün)', qSteal: 'Kurabiyeyi {n} kez çal', qChips: '{n} çikolata parçası ye', qWin: '{n} maç kazan', questDone: 'Görev tamam +{n}',
-    play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
+    play: 'OYNA', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
+    skins: "ショップ", rar0: "はじめから", rar1: "ノーマル", rar2: "レア", rar3: "レジェンド",
     home: "メニュー",
     green: "緑チーム", modeTeamD3: "3人ずつ3チーム",
     modeSolo: "ソロ", modeSoloD: "みんなライバル", modeTeam: "チーム", modeTeamD: "4対4 — みんなで食べよう", blue: "青チーム", red: "赤チーム", usTeam: "自分のチーム", intro2T: "仲間が持っていてもチームの得点。先に100%になったチームの勝ち", intro3T: "敵に体当たり：仲間を守って、相手のを奪おう", tipGuard: "仲間がクッキーを持っている — 近くの敵に体当たり（スペース）！", tipGuardT: "仲間がクッキーを持っている — 近くの敵に「体当たり」！", teamWin: "チームの勝ち！", teamLose: "{t}の勝ち！", almostUs: "チームはもう少し — 耐えて！", almostThem: "{t}がもう少しで食べ終わる — 止めよう！",
@@ -94,9 +100,10 @@ const TLX = {
     gotIt: 'ゲット！加速中 — にげろ！', lostIt: '{b}にクッキーをうばわれた！', stole: '{b}が{a}からうばった', fell: '{a}がテーブルから落ちた', shoved: '{b}に落とされた！', fellSelf: '落ちちゃった！',
     almost: '{a}がもうすぐ食べ終わる — 止めろ！', almostMe: 'あと少し — がんばれ！', last10: 'のこり20秒 — いちばん食べた人の勝ち！', pow: 'ドン！', win: 'あなたの勝ち！', winner: '{a}の勝ち！', again: 'もう一回', crumbs: 'クッキーくず +{n}',
     sound: 'サウンド', music: 'ミュージック', lang: 'ことば', daily: 'デイリーギフト +{n}（{d}日目）', qSteal: 'クッキーを{n}回うばう', qChips: 'チョコチップを{n}こ食べる', qWin: '{n}回勝つ', questDone: 'ミッション達成 +{n}',
-    play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
+    play: 'プレイ', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
+    skins: "상점", rar0: "기본", rar1: "일반", rar2: "희귀", rar3: "전설",
     home: "메뉴",
     green: "초록 팀", modeTeamD3: "3명씩 3팀",
     modeSolo: "개인전", modeSoloD: "각자 알아서", modeTeam: "팀전", modeTeamD: "4 대 4 — 같이 먹자", blue: "파랑 팀", red: "빨강 팀", usTeam: "우리 팀", intro2T: "팀원이 들고 있어도 우리 팀이 먹는 거예요. 먼저 100%가 된 팀이 승리", intro3T: "적에게 몸통 박치기: 우리 팀 쿠키는 지키고, 상대 것은 빼앗기", tipGuard: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기(스페이스)!", tipGuardT: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기를 누르세요!", teamWin: "우리 팀 승리!", teamLose: "{t} 승리!", almostUs: "우리 팀이 거의 다 먹었어요 — 버텨요!", almostThem: "{t}이 거의 다 먹었어요 — 막아요!",
@@ -110,9 +117,10 @@ const TLX = {
     gotIt: '잡았다! 가속 — 도망쳐!', lostIt: '{b}에게 쿠키를 빼앗겼다!', stole: '{b}이(가) {a}의 쿠키를 빼앗았다', fell: '{a}이(가) 테이블에서 떨어졌다', shoved: '{b}이(가) 나를 떨어뜨렸다!', fellSelf: '떨어졌다!',
     almost: '{a}이(가) 거의 다 먹었다 — 막아라!', almostMe: '거의 다 먹었다 — 버텨!', last10: '마지막 20초 — 가장 많이 먹은 사람이 승리!', pow: '쾅!', win: '승리!', winner: '{a} 승리!', again: '다시 하기', crumbs: '부스러기 +{n}',
     sound: '효과음', music: '음악', lang: '언어', daily: '일일 선물 +{n} ({d}일째)', qSteal: '쿠키 {n}번 빼앗기', qChips: '초코칩 {n}개 먹기', qWin: '{n}판 이기기', questDone: '미션 완료 +{n}',
-    play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
+    play: '시작', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
+    skins: "Loja", rar0: "Inicial", rar1: "Comum", rar2: "Raro", rar3: "Lendário",
     home: "Menu",
     green: "Verde", modeTeamD3: "3 equipes de 3",
     modeSolo: "Solo", modeSoloD: "Cada um por si", modeTeam: "Equipes", modeTeamD: "4 contra 4 — comam juntos", blue: "Azul", red: "Vermelho", usTeam: "Sua equipe", intro2T: "Se um colega segura, sua equipe come. A primeira equipe a 100% vence", intro3T: "Empurre os inimigos: proteja seu carregador, roube o deles", tipGuard: "Seu colega está com ele — empurre os inimigos perto dele (Espaço)!", tipGuardT: "Seu colega está com ele — toque EMPURRAR nos inimigos perto dele!", teamWin: "SUA EQUIPE VENCEU!", teamLose: "{t} venceu!", almostUs: "Sua equipe quase terminou — aguente!", almostThem: "{t} quase terminou — pare-os!",
@@ -126,9 +134,10 @@ const TLX = {
     gotIt: 'Pegou! Arrancada — CORRA!', lostIt: '{b} roubou seu biscoito!', stole: '{b} roubou de {a}', fell: '{a} caiu da mesa', shoved: '{b} derrubou você!', fellSelf: 'Você caiu!',
     almost: '{a} está quase terminando — impeça!', almostMe: 'Quase lá — aguente!', last10: 'Últimos 20 segundos — quem comeu mais vence!', pow: 'POW!', win: 'VOCÊ VENCEU!', winner: '{a} venceu!', again: 'Jogar de novo', crumbs: 'Migalhas +{n}',
     sound: 'Som', music: 'Música', lang: 'Idioma', daily: 'Presente diário +{n} (dia {d})', qSteal: 'Roube o biscoito {n} vezes', qChips: 'Coma {n} gotas de chocolate', qWin: 'Vença {n} partida', questDone: 'Missão cumprida +{n}',
-    play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
+    play: 'JOGAR', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
+    skins: "Магазин", rar0: "Стартовый", rar1: "Обычный", rar2: "Редкий", rar3: "Легендарный",
     home: "Меню",
     green: "Зелёные", modeTeamD3: "3 команды по 3",
     modeSolo: "Соло", modeSoloD: "Каждый сам за себя", modeTeam: "Команды", modeTeamD: "4 на 4 — едим вместе", blue: "Синие", red: "Красные", usTeam: "Твоя команда", intro2T: "Если печенье у союзника — ест твоя команда. Первая команда до 100% побеждает", intro3T: "Толкай врагов: защищай своего, отнимай у чужих", tipGuard: "Печенье у союзника — толкай врагов рядом с ним (Пробел)!", tipGuardT: "Печенье у союзника — жми ТОЛЧОК на врагов рядом с ним!", teamWin: "ТВОЯ КОМАНДА ПОБЕДИЛА!", teamLose: "Победили {t}!", almostUs: "Твоя команда почти доела — держись!", almostThem: "{t} почти доели — останови их!",
@@ -142,7 +151,7 @@ const TLX = {
     gotIt: 'Схватил! Ускорение — БЕГИ!', lostIt: '{b} отобрал твоё печенье!', stole: '{b} отобрал у {a}', fell: '{a} упал со стола', shoved: '{b} столкнул тебя!', fellSelf: 'Ты упал!',
     almost: '{a} почти доел — останови его!', almostMe: 'Почти готово — держись!', last10: 'Последние 20 секунд — побеждает тот, кто съел больше!', pow: 'БАМ!', win: 'ПОБЕДА!', winner: 'Побеждает {a}!', again: 'Ещё раз', crumbs: 'Крошки +{n}',
     sound: 'Звук', music: 'Музыка', lang: 'Язык', daily: 'Ежедневный подарок +{n} (день {d})', qSteal: 'Отбери печенье {n} раз', qChips: 'Съешь {n} шоколадных капель', qWin: 'Выиграй {n} матч', questDone: 'Задание выполнено +{n}',
-    play: 'ИГРАТЬ', skins: 'Скины', use: 'Выбрать', using: 'Выбрано', locked: 'Закрыто — открывай коробки', openBox: 'Открыть сюрприз-коробку  🍪{n}', needMore: 'Нужно ещё {n} крошек', allOwned: 'Всё собрано!', close: 'Закрыть', paused: 'Пауза', resume: 'Продолжить',
+    play: 'ИГРАТЬ', use: 'Выбрать', using: 'Выбрано', locked: 'Закрыто — открывай коробки', openBox: 'Открыть сюрприз-коробку  🍪{n}', needMore: 'Нужно ещё {n} крошек', allOwned: 'Всё собрано!', close: 'Закрыть', paused: 'Пауза', resume: 'Продолжить',
   },
 };
 for (const l in TLX) for (const k in TLX[l]) if (TL[k]) TL[k][l] = TLX[l][k];
