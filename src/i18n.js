@@ -76,6 +76,8 @@ const TL = {
   modeTeamD: { en: "4 vs 4 — eat together", zh: "4 对 4，一起吃" },
   blue: { en: "Blue", zh: "蓝队" },
   red: { en: "Red", zh: "红队" },
+  green: { en: "Green", zh: "绿队" },
+  modeTeamD3: { en: "3 teams of 3", zh: "三队混战，每队 3 人" },
   usTeam: { en: "Your team", zh: "我们队" },
   intro2T: { en: "Teammate holding = your team eating. First team to 100% wins", zh: "队友抱着也算你们队在吃，先吃到 100% 的队赢" },
   intro3T: { en: "Bump enemies: guard your carrier, steal theirs", zh: "撞敌人：护住自家的，抢走他们的" },

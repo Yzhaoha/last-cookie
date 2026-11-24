@@ -71,13 +71,13 @@ body.lefty #chipBox{left:auto;right:14px}
 #tags{position:fixed;inset:0;pointer-events:none;z-index:3}
 #tags div{position:absolute;left:0;top:0;will-change:transform;font-size:13px;white-space:nowrap;color:#fff;text-shadow:0 1px 0 var(--ink),1px 0 0 var(--ink),-1px 0 0 var(--ink),0 -1px 0 var(--ink)}
 #tags div.me{font-size:17px;color:#ffe08a}
-#tags div.t0:not(.me){color:#bfe3ff}#tags div.t1:not(.me){color:#ffc4c0}
-#tags div.t0::before,#tags div.t1::before{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink);margin-right:3px;vertical-align:-1px;background:#3d9bff}#tags div.t1::before{background:#ff4d4d}
+#tags div.t0:not(.me){color:#bfe3ff}#tags div.t1:not(.me){color:#ffc4c0}#tags div.t2:not(.me){color:#c4f5cf}
+#tags div.t0::before,#tags div.t1::before,#tags div.t2::before{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink);margin-right:3px;vertical-align:-1px;background:#3d9bff}#tags div.t1::before{background:#ff4d4d}#tags div.t2::before{background:#35c759}
 #modeSel{display:flex;gap:10px}
 #modeSel .btn{font-size:19px;padding:6px 14px 8px;width:168px;line-height:1.1;opacity:.75}
 #modeSel .btn b{display:block;font-weight:normal;font-size:24px}#modeSel .btn i{display:block;font-style:normal;font-size:12px;opacity:.75;margin-top:2px}
 #modeSel .btn.on{opacity:1;background:#ffd76a;box-shadow:0 5px 0 var(--ink),0 0 0 4px #fff}
-#board div.t0{background:#d8ecff}#board div.t1{background:#ffe0dc}#board div.t0 em{background:#3d9bff}#board div.t1 em{background:#ff4d4d}
+#board div.t0{background:#d8ecff}#board div.t1{background:#ffe0dc}#board div.t0 em{background:#3d9bff}#board div.t1 em{background:#ff4d4d}#board div.t2{background:#dcf7e2}#board div.t2 em{background:#35c759}
 #prog.t0:not(.mine) #progFill{background:#5aa9ff}
 #tags div.me::after{content:'';display:block;margin:2px auto 0;width:0;height:0;border:7px solid transparent;border-top:9px solid #ffe08a;filter:drop-shadow(0 1px 0 var(--ink))}
 #floats{position:fixed;inset:0;pointer-events:none;z-index:4}

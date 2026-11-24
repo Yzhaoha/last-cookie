@@ -1,6 +1,7 @@
 // ===== 其余 9 种语言（en、zh 在 i18n.js 里）。缺的条目自动退回英语 =====
 const TLX = {
   fr: {
+    green: "Verts", modeTeamD3: "3 équipes de 3",
     modeSolo: "Solo", modeSoloD: "Chacun pour soi", modeTeam: "Équipes", modeTeamD: "4 contre 4 — on mange ensemble", blue: "Bleus", red: "Rouges", usTeam: "Ton équipe", intro2T: "Si un coéquipier le tient, ton équipe mange. Première équipe à 100 % gagne", intro3T: "Charge les ennemis : protège ton porteur, vole le leur", tipGuard: "Ton coéquipier l’a — charge les ennemis près de lui (Espace) !", tipGuardT: "Ton coéquipier l’a — touche CHARGE sur les ennemis près de lui !", teamWin: "TON ÉQUIPE GAGNE !", teamLose: "Les {t} gagnent !", almostUs: "Ton équipe a presque fini — tiens bon !", almostThem: "Les {t} ont presque fini — arrête-les !",
     skip: 'Jouer tout de suite (bots)', finding: 'Recherche de joueurs… {n}/{m}', title: 'Le Dernier Cookie', go: 'GO !', you: 'TOI', next: 'Encore {n} : {s}', skill1: 'Longue charge', skill2: 'Onde de choc (saut)', skill3: 'Bouclier auto',
     newSkill: 'Tu grandis ! Nouveau coup — {s}', how1: 'Longue charge : ta charge va plus loin (automatique)', how2: 'Onde de choc : appuie sur J pour sauter — l’atterrissage repousse tout le monde', how2T: 'Onde de choc : touche SAUT — l’atterrissage repousse tout le monde', how3: 'Bouclier : quand tu tiens le cookie, il bloque un coup (automatique, se recharge en 12 s)',
@@ -15,6 +16,7 @@ const TLX = {
     play: 'JOUER', skins: 'Skins', use: 'Utiliser', using: 'Utilisé', locked: 'Verrouillé — ouvre des boîtes', openBox: 'Ouvrir une boîte mystère  🍪{n}', needMore: 'Il manque {n} miettes', allOwned: 'Tout est collecté !', close: 'Fermer', paused: 'Pause', resume: 'Reprendre',
   },
   it: {
+    green: "Verdi", modeTeamD3: "3 squadre da 3",
     modeSolo: "Solo", modeSoloD: "Ognuno per sé", modeTeam: "Squadre", modeTeamD: "4 contro 4 — si mangia insieme", blue: "Blu", red: "Rossi", usTeam: "La tua squadra", intro2T: "Se lo tiene un compagno, mangia la tua squadra. Vince la prima squadra al 100%", intro3T: "Colpisci i nemici: proteggi il tuo portatore, ruba il loro", tipGuard: "Ce l’ha un compagno — colpisci i nemici vicino a lui (Spazio)!", tipGuardT: "Ce l’ha un compagno — tocca SPINTA sui nemici vicino a lui!", teamWin: "LA TUA SQUADRA VINCE!", teamLose: "Vincono i {t}!", almostUs: "La tua squadra ha quasi finito — resisti!", almostThem: "I {t} hanno quasi finito — fermali!",
     skip: 'Gioca subito (bot)', finding: 'Ricerca giocatori… {n}/{m}', title: 'L’Ultimo Biscotto', go: 'VIA!', you: 'TU', next: 'Ancora {n}: {s}', skill1: 'Scatto lungo', skill2: 'Schianto (salto)', skill3: 'Scudo automatico',
     newSkill: 'Più grande! Nuova mossa — {s}', how1: 'Scatto lungo: la tua carica arriva più lontano (automatico)', how2: 'Schianto: premi J per saltare — l’atterraggio respinge tutti', how2T: 'Schianto: tocca SALTA — l’atterraggio respinge tutti', how3: 'Scudo: mentre tieni il biscotto blocca un colpo (automatico, si ricarica in 12 s)',
@@ -29,6 +31,7 @@ const TLX = {
     play: 'GIOCA', skins: 'Skin', use: 'Usa', using: 'In uso', locked: 'Bloccata — apri le scatole', openBox: 'Apri scatola misteriosa  🍪{n}', needMore: 'Servono altre {n} briciole', allOwned: 'Tutto collezionato!', close: 'Chiudi', paused: 'Pausa', resume: 'Riprendi',
   },
   de: {
+    green: "Grün", modeTeamD3: "3 Teams à 3",
     modeSolo: "Solo", modeSoloD: "Jeder für sich", modeTeam: "Teams", modeTeamD: "4 gegen 4 — zusammen futtern", blue: "Blau", red: "Rot", usTeam: "Dein Team", intro2T: "Hält ein Mitspieler ihn, isst dein Team. Erstes Team bei 100 % gewinnt", intro3T: "Rempel Gegner: schütze deinen Träger, klau ihren", tipGuard: "Dein Mitspieler hat ihn — rempel Gegner in seiner Nähe (Leertaste)!", tipGuardT: "Dein Mitspieler hat ihn — tippe RAMMEN bei Gegnern in seiner Nähe!", teamWin: "DEIN TEAM GEWINNT!", teamLose: "Team {t} gewinnt!", almostUs: "Dein Team ist fast fertig — halte durch!", almostThem: "Team {t} ist fast fertig — stoppt sie!",
     skip: 'Sofort spielen (Bots)', finding: 'Suche Spieler… {n}/{m}', title: 'Der letzte Keks', go: 'LOS!', you: 'DU', next: 'Noch {n}: {s}', skill1: 'Weiter Sprint', skill2: 'Stampfer (Sprung)', skill3: 'Auto-Schild',
     newSkill: 'Größer! Neuer Trick — {s}', how1: 'Weiter Sprint: dein Rempler reicht weiter (automatisch)', how2: 'Stampfer: drücke J zum Springen — die Landung stößt alle weg', how2T: 'Stampfer: tippe SPRUNG — die Landung stößt alle weg', how3: 'Schild: solange du den Keks hältst, blockt er einen Treffer (automatisch, lädt in 12 s)',
@@ -43,6 +46,7 @@ const TLX = {
     play: 'SPIELEN', skins: 'Skins', use: 'Benutzen', using: 'In Benutzung', locked: 'Gesperrt — öffne Boxen', openBox: 'Überraschungsbox öffnen  🍪{n}', needMore: 'Noch {n} Krümel nötig', allOwned: 'Alles gesammelt!', close: 'Schließen', paused: 'Pause', resume: 'Weiter',
   },
   es: {
+    green: "Verdes", modeTeamD3: "3 equipos de 3",
     modeSolo: "Solo", modeSoloD: "Cada uno a lo suyo", modeTeam: "Equipos", modeTeamD: "4 contra 4 — a comer juntos", blue: "Azules", red: "Rojos", usTeam: "Tu equipo", intro2T: "Si lo tiene un compañero, come tu equipo. Gana el primer equipo en llegar al 100 %", intro3T: "Empuja a los rivales: protege a tu portador, roba el suyo", tipGuard: "Lo tiene tu compañero: ¡empuja a los rivales cerca de él (Espacio)!", tipGuardT: "Lo tiene tu compañero: ¡toca EMPUJAR sobre los rivales cerca de él!", teamWin: "¡GANA TU EQUIPO!", teamLose: "¡Ganan los {t}!", almostUs: "Tu equipo casi termina: ¡aguanta!", almostThem: "Los {t} casi terminan: ¡detenlos!",
     skip: 'Jugar ya (bots)', finding: 'Buscando jugadores… {n}/{m}', title: 'La Última Galleta', go: '¡YA!', you: 'TÚ', next: 'Faltan {n}: {s}', skill1: 'Embestida larga', skill2: 'Pisotón (salto)', skill3: 'Escudo automático',
     newSkill: '¡Más grande! Nuevo truco — {s}', how1: 'Embestida larga: tu empujón llega más lejos (automático)', how2: 'Pisotón: pulsa J para saltar — al caer apartas a todos', how2T: 'Pisotón: toca SALTAR — al caer apartas a todos', how3: 'Escudo: mientras llevas la galleta bloquea un golpe (automático, se recarga en 12 s)',
@@ -57,6 +61,7 @@ const TLX = {
     play: 'JUGAR', skins: 'Aspectos', use: 'Usar', using: 'En uso', locked: 'Bloqueado — abre cajas', openBox: 'Abrir caja misteriosa  🍪{n}', needMore: 'Faltan {n} migas', allOwned: '¡Todo coleccionado!', close: 'Cerrar', paused: 'Pausa', resume: 'Continuar',
   },
   tr: {
+    green: "Yeşil", modeTeamD3: "3’er kişilik 3 takım",
     modeSolo: "Tekli", modeSoloD: "Herkes kendi için", modeTeam: "Takım", modeTeamD: "4’e 4 — birlikte ye", blue: "Mavi", red: "Kırmızı", usTeam: "Takımın", intro2T: "Takım arkadaşın tutuyorsa takımın yiyor. %100’e ilk ulaşan takım kazanır", intro3T: "Rakiplere çarp: taşıyıcını koru, onlarınkini çal", tipGuard: "Kurabiye takım arkadaşında — yakınındaki rakiplere çarp (Boşluk)!", tipGuardT: "Kurabiye takım arkadaşında — yakınındaki rakiplere ÇARP’a dokun!", teamWin: "TAKIMIN KAZANDI!", teamLose: "{t} takım kazandı!", almostUs: "Takımın neredeyse bitirdi — dayan!", almostThem: "{t} takım neredeyse bitirdi — durdur onları!",
     skip: 'Hemen oyna (botlar)', finding: 'Oyuncu aranıyor… {n}/{m}', title: 'Son Kurabiye', go: 'BAŞLA!', you: 'SEN', next: '{n} tane daha: {s}', skill1: 'Uzun atılış', skill2: 'Yer sarsma (zıpla)', skill3: 'Otomatik kalkan',
     newSkill: 'Büyüdün! Yeni hamle — {s}', how1: 'Uzun atılış: çarpman daha uzağa gider (otomatik)', how2: 'Yer sarsma: zıplamak için J’ye bas — yere inince herkesi savurursun', how2T: 'Yer sarsma: ZIPLA’ya dokun — yere inince herkesi savurursun', how3: 'Kalkan: kurabiye sendeyken bir darbeyi engeller (otomatik, 12 sn’de dolar)',
@@ -71,6 +76,7 @@ const TLX = {
     play: 'OYNA', skins: 'Kostümler', use: 'Kullan', using: 'Kullanılıyor', locked: 'Kilitli — kutu aç', openBox: 'Sürpriz kutu aç  🍪{n}', needMore: '{n} kırıntı daha gerek', allOwned: 'Hepsi toplandı!', close: 'Kapat', paused: 'Duraklatıldı', resume: 'Devam',
   },
   ja: {
+    green: "緑チーム", modeTeamD3: "3人ずつ3チーム",
     modeSolo: "ソロ", modeSoloD: "みんなライバル", modeTeam: "チーム", modeTeamD: "4対4 — みんなで食べよう", blue: "青チーム", red: "赤チーム", usTeam: "自分のチーム", intro2T: "仲間が持っていてもチームの得点。先に100%になったチームの勝ち", intro3T: "敵に体当たり：仲間を守って、相手のを奪おう", tipGuard: "仲間がクッキーを持っている — 近くの敵に体当たり（スペース）！", tipGuardT: "仲間がクッキーを持っている — 近くの敵に「体当たり」！", teamWin: "チームの勝ち！", teamLose: "{t}の勝ち！", almostUs: "チームはもう少し — 耐えて！", almostThem: "{t}がもう少しで食べ終わる — 止めよう！",
     skip: '待たずに始める（ボット戦）', finding: '対戦相手をさがしています… {n}/{m}', title: 'さいごのクッキー', go: 'スタート！', you: 'あなた', next: 'あと{n}こ：{s}', skill1: 'ロングダッシュ', skill2: 'ジャンプで地ひびき', skill3: 'オートシールド',
     newSkill: '大きくなった！新ワザ — {s}', how1: 'ロングダッシュ：たいあたりが遠くまでとどく（自動）', how2: '地ひびき：Jでジャンプ — 着地でまわりをふきとばす', how2T: '地ひびき：「ジャンプ」をタップ — 着地でまわりをふきとばす', how3: 'シールド：クッキーを持っている間、1回だけ攻撃をふせぐ（自動・12秒で回復）',
@@ -85,6 +91,7 @@ const TLX = {
     play: 'プレイ', skins: 'スキン', use: 'つかう', using: '使用中', locked: 'ロック中 — ボックスを開けよう', openBox: 'ミステリーボックスを開ける  🍪{n}', needMore: 'クッキーくずがあと{n}こ必要', allOwned: 'コンプリート！', close: 'とじる', paused: 'ポーズ', resume: 'つづける',
   },
   ko: {
+    green: "초록 팀", modeTeamD3: "3명씩 3팀",
     modeSolo: "개인전", modeSoloD: "각자 알아서", modeTeam: "팀전", modeTeamD: "4 대 4 — 같이 먹자", blue: "파랑 팀", red: "빨강 팀", usTeam: "우리 팀", intro2T: "팀원이 들고 있어도 우리 팀이 먹는 거예요. 먼저 100%가 된 팀이 승리", intro3T: "적에게 몸통 박치기: 우리 팀 쿠키는 지키고, 상대 것은 빼앗기", tipGuard: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기(스페이스)!", tipGuardT: "팀원이 쿠키를 들고 있어요 — 근처 적에게 박치기를 누르세요!", teamWin: "우리 팀 승리!", teamLose: "{t} 승리!", almostUs: "우리 팀이 거의 다 먹었어요 — 버텨요!", almostThem: "{t}이 거의 다 먹었어요 — 막아요!",
     skip: '바로 시작 (봇전)', finding: '상대를 찾는 중… {n}/{m}', title: '마지막 쿠키', go: '시작!', you: '나', next: '{n}개 더: {s}', skill1: '긴 돌진', skill2: '점프 내려찍기', skill3: '자동 방패',
     newSkill: '커졌다! 새 기술 — {s}', how1: '긴 돌진: 박치기가 더 멀리 나간다 (자동)', how2: '내려찍기: J를 눌러 점프 — 착지하면 주변을 날려 버린다', how2T: '내려찍기: 점프 버튼을 누르면 — 착지할 때 주변을 날려 버린다', how3: '방패: 쿠키를 들고 있으면 한 번 막아 준다 (자동, 12초 후 회복)',
@@ -99,6 +106,7 @@ const TLX = {
     play: '시작', skins: '스킨', use: '사용', using: '사용 중', locked: '잠김 — 상자를 열어 보세요', openBox: '미스터리 상자 열기  🍪{n}', needMore: '부스러기 {n}개 더 필요', allOwned: '모두 모았다!', close: '닫기', paused: '일시정지', resume: '계속',
   },
   pt: {
+    green: "Verde", modeTeamD3: "3 equipes de 3",
     modeSolo: "Solo", modeSoloD: "Cada um por si", modeTeam: "Equipes", modeTeamD: "4 contra 4 — comam juntos", blue: "Azul", red: "Vermelho", usTeam: "Sua equipe", intro2T: "Se um colega segura, sua equipe come. A primeira equipe a 100% vence", intro3T: "Empurre os inimigos: proteja seu carregador, roube o deles", tipGuard: "Seu colega está com ele — empurre os inimigos perto dele (Espaço)!", tipGuardT: "Seu colega está com ele — toque EMPURRAR nos inimigos perto dele!", teamWin: "SUA EQUIPE VENCEU!", teamLose: "{t} venceu!", almostUs: "Sua equipe quase terminou — aguente!", almostThem: "{t} quase terminou — pare-os!",
     skip: 'Jogar agora (bots)', finding: 'Procurando jogadores… {n}/{m}', title: 'O Último Biscoito', go: 'JÁ!', you: 'VOCÊ', next: 'Faltam {n}: {s}', skill1: 'Investida longa', skill2: 'Pisão (pulo)', skill3: 'Escudo automático',
     newSkill: 'Cresceu! Novo golpe — {s}', how1: 'Investida longa: seu empurrão vai mais longe (automático)', how2: 'Pisão: aperte J para pular — ao cair, afasta todo mundo', how2T: 'Pisão: toque em PULAR — ao cair, afasta todo mundo', how3: 'Escudo: enquanto segura o biscoito, bloqueia um golpe (automático, recarrega em 12 s)',
@@ -113,6 +121,7 @@ const TLX = {
     play: 'JOGAR', skins: 'Visuais', use: 'Usar', using: 'Em uso', locked: 'Bloqueado — abra caixas', openBox: 'Abrir caixa misteriosa  🍪{n}', needMore: 'Faltam {n} migalhas', allOwned: 'Tudo coletado!', close: 'Fechar', paused: 'Pausado', resume: 'Continuar',
   },
   ru: {
+    green: "Зелёные", modeTeamD3: "3 команды по 3",
     modeSolo: "Соло", modeSoloD: "Каждый сам за себя", modeTeam: "Команды", modeTeamD: "4 на 4 — едим вместе", blue: "Синие", red: "Красные", usTeam: "Твоя команда", intro2T: "Если печенье у союзника — ест твоя команда. Первая команда до 100% побеждает", intro3T: "Толкай врагов: защищай своего, отнимай у чужих", tipGuard: "Печенье у союзника — толкай врагов рядом с ним (Пробел)!", tipGuardT: "Печенье у союзника — жми ТОЛЧОК на врагов рядом с ним!", teamWin: "ТВОЯ КОМАНДА ПОБЕДИЛА!", teamLose: "Победили {t}!", almostUs: "Твоя команда почти доела — держись!", almostThem: "{t} почти доели — останови их!",
     skip: 'Играть сразу (боты)', finding: 'Ищем игроков… {n}/{m}', title: 'Последнее печенье', go: 'ВПЕРЁД!', you: 'ТЫ', next: 'Ещё {n}: {s}', skill1: 'Длинный рывок', skill2: 'Удар о стол (прыжок)', skill3: 'Автощит',
     newSkill: 'Ты вырос! Новый приём — {s}', how1: 'Длинный рывок: толчок бьёт дальше (автоматически)', how2: 'Удар о стол: нажми J, чтобы прыгнуть — приземление отбрасывает всех вокруг', how2T: 'Удар о стол: нажми ПРЫЖОК — приземление отбрасывает всех вокруг', how3: 'Щит: пока держишь печенье, он блокирует один удар (автоматически, восстановление 12 с)',

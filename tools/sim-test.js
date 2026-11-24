@@ -6,7 +6,7 @@ if (process.env.CHASERS) SIM.CFG.CHASERS = +process.env.CHASERS; // 模拟“全
 let teamWin = 0, len = [], place = [], meEat = [], holds = 0, holdT = 0, falls = 0, meHolds = 0, meHoldT = 0, timeouts = 0;
 for (let g = 0; g < N; g++) {
   const S = SIM.create({ seed: g * 7919 + 1, round: process.argv.includes('round'), team: process.argv.includes('team') ? (+process.env.TEAMS || 2) : 0, players: +process.env.N || undefined });
-  if (process.env.WIN) SIM.CFG.TEAM_WIN = +process.env.WIN; const me = S.players[0]; me.human = true;
+  if (process.env.WIN) S.tWin = +process.env.WIN; const me = S.players[0]; me.human = true;
   let h0 = -1, hs = 0;
   while (S.phase !== 'end' && S.t < 200) {
     SIM.thinkBots(S, 1 / 60); SIM.step(S, 1 / 60);

@@ -47,10 +47,11 @@ const SIM = (() => {
     TEAM_WIN: 45,         // 一队累计抱满这么多秒就赢
     TEAM_CHASE: 3,        // 敌人抱着时，本队同时去追的机器人数
     TEAM_GUARD: 2,        // 队友抱着时，本队去护驾的机器人数
+    // 三队（每队 3 人、一局 9 人）：每队分到的时间少，门槛低一些、追/护的人少一些
+    TEAM3_WIN: 34, TEAM3_CHASE: 2, TEAM3_GUARD: 1,
   };
   // 同一队吗（单挑模式永远不是）
   const ally = (S, a, b) => S.team && a.team === b.team;
-  const winT = S => S.team ? CFG.TEAM_WIN : CFG.WIN_T;
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -130,6 +131,7 @@ const SIM = (() => {
     const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let t = 0; t < S.team; t++) S.teamEat.push(0);
+    const t3 = S.team === 3; S.tWin = t3 ? CFG.TEAM3_WIN : CFG.TEAM_WIN; S.tChase = t3 ? CFG.TEAM3_CHASE : CFG.TEAM_CHASE; S.tGuard = t3 ? CFG.TEAM3_GUARD : CFG.TEAM_GUARD;
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
       let x = Math.cos(a) * 11, z = Math.sin(a) * 8.5;
@@ -323,7 +325,7 @@ const SIM = (() => {
       if (playing) {
         h.eaten += dt; ck.munch -= dt;
         if (ck.munch <= 0) { ck.munch = 0.42; ev(S, { k: 'munch', p: h.id }); }
-        if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= C.TEAM_WIN) { S.teamEat[h.team] = C.TEAM_WIN; finish(S); } }
+        if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= S.tWin) { S.teamEat[h.team] = S.tWin; finish(S); } }
         else if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
       }
     } else if (playing && ck.cd <= 0) {
@@ -401,7 +403,7 @@ const SIM = (() => {
     const dck = Math.hypot(ck.x - p.x, ck.z - p.z);
     let rank = 0; for (const o of P) if (o !== p && o.on && o !== holder && (!S.team || o.team === p.team) && Math.hypot(ck.x - o.x, ck.z - o.z) < dck) rank++;
     const mates = holder && ally(S, p, holder);
-    if (mates && rank < C.TEAM_GUARD) { // 组队：队友抱着饼干 → 去挡住离他最近的敌人
+    if (mates && rank < S.tGuard) { // 组队：队友抱着饼干 → 去挡住离他最近的敌人
       let foe = null, bd = 1e9;
       for (const o of P) { if (!o.on || o.team === p.team) continue; const d = Math.hypot(o.x - holder.x, o.z - holder.z); if (d < bd) { bd = d; foe = o; } }
       if (foe) {
@@ -417,7 +419,7 @@ const SIM = (() => {
         return;
       }
     }
-    const chase = !mates && (rank < (S.team ? (holder ? C.TEAM_CHASE : 2) : holder ? C.CHASERS : C.CHASERS + 1) || dck < 3);
+    const chase = !mates && (rank < (S.team ? (holder ? S.tChase : 2) : holder ? C.CHASERS : C.CHASERS + 1) || dck < 3);
     let tx, tz;
     if (chase) {
       tx = ck.x; tz = ck.z;

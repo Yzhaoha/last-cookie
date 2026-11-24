@@ -435,9 +435,12 @@ const ckRing = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.2, 40), new THREE.M
 ckRing.geometry.rotateX(-Math.PI / 2); ckRing.position.y = 0.03; scene.add(ckRing);
 
 let actors = [];
-const TEAM_COL = [0x3d9bff, 0xff4d4d], TEAM_CSS = ['#3d9bff', '#ff4d4d'], teamName = t => tl(t ? 'red' : 'blue');
+const TEAM_COL = [0x3d9bff, 0xff4d4d, 0x35c759], TEAM_CSS = ['#3d9bff', '#ff4d4d', '#35c759'], TEAM_EMO = ['🔵', '🔴', '🟢'], teamName = t => tl(['blue', 'red', 'green'][t]);
+// 几队：网址加 ?teams=3 试三队（每队 3 人，一局 9 人）；默认两队 4 对 4
+const TEAMS = /[?&]teams=3/.test(location.search) ? 3 : 2;
+const teamOrder = me => [me.team, ...S.teamEat.map((_, t) => t).filter(t => t !== me.team)];   // 我们队排第一
 const teamRingGeo = new THREE.RingGeometry(0.5, 0.64, 32); teamRingGeo.rotateX(-Math.PI / 2);
-let mode = store.get('mode', 'solo') === 'team' ? 'team' : 'solo';
+let mode = TEAMS === 3 || store.get('mode', 'solo') === 'team' ? 'team' : 'solo';
 function nameTxt(p) { return p.human ? tl('you') : p.name; }
 function buildActors() {
   for (const a of actors) scene.remove(a.root);
@@ -697,9 +700,9 @@ function updateHUD() {
   // 左边：现在谁领先（没有倒计时——先吃完的赢；只有拖到最后 20 秒才显示时间）
   const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a), late = left <= 20 && S.phase === 'play';
   if (S.team) { // 组队：左边显示两队比分，进度条是我们队的
-    const pc = t => Math.floor(S.teamEat[t] / C.TEAM_WIN * 100), mt = me.team;
-    setT($('timeP'), late ? '⏱ ' + left : (mt ? '🔴 ' : '🔵 ') + pc(mt) + '%  :  ' + pc(1 - mt) + '% ' + (mt ? '🔵' : '🔴'));
-    setTf($('progFill'), `scaleX(${(S.teamEat[mt] / C.TEAM_WIN).toFixed(3)})`);
+    const pc = t => Math.floor(S.teamEat[t] / S.tWin * 100), mt = me.team;
+    setT($('timeP'), late ? '⏱ ' + left : teamOrder(me).map(t => TEAM_EMO[t] + ' ' + pc(t) + '%').join('  '));
+    setTf($('progFill'), `scaleX(${(S.teamEat[mt] / S.tWin).toFixed(3)})`);
     setT($('progTxt'), '🍪 ' + tl('usTeam') + ' ' + pc(mt) + '%');
   } else {
     setT($('timeP'), late ? '⏱ ' + left : '👑 ' + (lead.eaten > 0 ? nameTxt(lead) + ' ' + Math.floor(lead.eaten / C.WIN_T * 100) + '%' : '—'));
@@ -712,11 +715,11 @@ function updateHUD() {
   $('prog').classList.toggle('t0', S.team);
   // 排行：吃得最多的 4 个
   const top = S.players.slice().sort((a, b) => b.eaten - a.eaten).slice(0, 4);
-  const key = S.team ? 'T' + Math.floor(S.teamEat[0] / C.TEAM_WIN * 100) + ':' + Math.floor(S.teamEat[1] / C.TEAM_WIN * 100) + '|' + (holder >= 0 ? S.players[holder].team : -1) + LANG
+  const key = S.team ? 'T' + S.teamEat.map(e => Math.floor(e / S.tWin * 100)).join(':') + '|' + (holder >= 0 ? S.players[holder].team : -1) + LANG
     : top.map(p => p.id + ':' + Math.floor(p.eaten / C.WIN_T * 100)).join() + '|' + holder + LANG;
   if (key !== boardKey && S.team) { // 组队：两行，各队进度
     boardKey = key; const ht = holder >= 0 ? S.players[holder].team : -1;
-    $('board').innerHTML = [me.team, 1 - me.team].map(t => `<div class="t${t}${ht === t ? ' has' : ''}"><i class="dot" style="background:${TEAM_CSS[t]}"></i><span>${esc(t === me.team ? tl('usTeam') : teamName(t))}</span><u><em style="width:${(S.teamEat[t] / C.TEAM_WIN * 100).toFixed(0)}%"></em></u>${ht === t ? '🍪' : ''}</div>`).join('');
+    $('board').innerHTML = teamOrder(me).map(t => `<div class="t${t}${ht === t ? ' has' : ''}"><i class="dot" style="background:${TEAM_CSS[t]}"></i><span>${esc(t === me.team ? tl('usTeam') : teamName(t))}</span><u><em style="width:${(S.teamEat[t] / S.tWin * 100).toFixed(0)}%"></em></u>${ht === t ? '🍪' : ''}</div>`).join('');
   } else if (key !== boardKey) {
     boardKey = key;
     $('board').innerHTML = top.map(p => `<div class="${p.id === ME ? 'me' : ''}${p.id === holder ? ' has' : ''}"><i class="dot" style="background:${dotCol(p.look)}"></i><span>${esc(nameTxt(p))}</span><u><em style="width:${(p.eaten / C.WIN_T * 100).toFixed(0)}%"></em></u>${p.id === holder ? '🍪' : ''}</div>`).join('');
@@ -780,7 +783,7 @@ function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' ? TEAMS : 0, players: mode === 'team' && TEAMS === 3 ? 9 : undefined });
   $('intro').children[1].lastChild.dataset.t = S.team ? 'intro2T' : 'intro2'; $('intro').children[2].lastChild.dataset.t = S.team ? 'intro3T' : 'intro3'; applyLang();
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = cfg ? cfg.you : 0;
@@ -960,7 +963,7 @@ function handleEvents(list, fromServer) {
   if (S.phase === 'play') {
     // 有人快吃完了：提醒去抢
     const lead = S.players.reduce((a, b) => b.eaten > a.eaten ? b : a);
-    if (S.team) { const t = S.teamEat[0] > S.teamEat[1] ? 0 : 1; if (warned < 1 && S.teamEat[t] > C.TEAM_WIN * 0.8) { warned = 1; SFX.beep(true); banner(t === me.team ? tl('almostUs') : tl('almostThem', { t: teamName(t) }), false, 2); } }
+    if (S.team) { const t = S.teamEat.indexOf(Math.max(...S.teamEat)); if (warned < 1 && S.teamEat[t] > S.tWin * 0.8) { warned = 1; SFX.beep(true); banner(t === me.team ? tl('almostUs') : tl('almostThem', { t: teamName(t) }), false, 2); } }
     else if (warned < 1 && lead.eaten > C.WIN_T * 0.8) { warned = 1; SFX.beep(true); banner(lead.id === ME ? tl('almostMe') : tl('almost', { a: lead.name }), false, 2); }
     if (!last10 && S.playT > C.MAX_T - 20) { last10 = true; SFX.beep(true); banner(tl('last10'), false, 2); }
   }
@@ -983,7 +986,7 @@ function showEnd() {
     $('resT').textContent = S.team ? (won ? tl('teamWin') : tl('teamLose', { t: teamName(S.winTeam) })) : won ? tl('win') : tl('place', { n: me.place });
     $('reward').textContent = (questPay ? '✅ ' + tl('questDone', { n: questPay }) + '　' : '') + '🍪 ' + tl('crumbs', { n: crumbsN }) + '（' + store.get('crumbs', 0) + '）';
     $('bSkins').textContent = '🎁 ' + tl('skins') + (store.get('crumbs', 0) >= BOX_COST && owned().size < LOOKS.length ? ' ❗' : '');
-    const goal = S.team ? C.TEAM_WIN : C.WIN_T;
+    const goal = S.team ? S.tWin : C.WIN_T;
     const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${S.team ? (p.team === S.winTeam ? '👑' : '') : p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${S.team ? TEAM_CSS[p.team] : dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / goal * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
@@ -1068,7 +1071,8 @@ function lobbyUI() {
   const stat = `<div class="st">🏆 ${store.get('wins', 0)}　🎮 ${store.get('played', 0)}</div>`;
   $('quests').innerHTML = stat + QUESTS.map((Q, i) => { const v = Math.min(q.p[i], Q.n), ok = v >= Q.n; return `<div class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${esc(tl(Q.k, { n: Q.n }))} <b>${v}/${Q.n}</b> <i>+${QUEST_PAY}🍪</i></div>`; }).join('');
 }
-function modeUI() { $('bSolo').classList.toggle('on', mode === 'solo'); $('bTeam').classList.toggle('on', mode === 'team'); }
+function modeUI() {
+  if (TEAMS === 3) { $('bTeam').firstChild.textContent = '🔵🔴🟢'; $('bTeam').lastChild.dataset.t = 'modeTeamD3'; $('bTeam').lastChild.textContent = tl('modeTeamD3'); } $('bSolo').classList.toggle('on', mode === 'solo'); $('bTeam').classList.toggle('on', mode === 'team'); }
 for (const [id, m] of [['bSolo', 'solo'], ['bTeam', 'team']]) $(id).addEventListener('click', () => { if (!inLobby || finding || mode === m) return; ensureAudio(); mode = m; store.set('mode', m); SFX.chip(); modeUI(); newMatch(); });
 $('bDaily').addEventListener('click', () => {
   const d = dailyState(); if (!d.can) return; ensureAudio();
@@ -1143,7 +1147,7 @@ function updateActors(dt, now) {
   if (holder >= 0) {
     const p = S.players[holder], a = actors[holder];
     cookieObj.position.set(a.root.position.x, a.root.position.y + 1.22 * a.scale * VIS + Math.sin(now * 9) * 0.05, a.root.position.z);
-    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * (S.team ? S.teamEat[p.team] / C.TEAM_WIN : p.eaten / C.WIN_T));
+    cookieObj.rotation.set(0.35, now * 2.5, 0); cookieObj.scale.setScalar(1.25 - 0.45 * (S.team ? S.teamEat[p.team] / S.tWin : p.eaten / C.WIN_T));
     beam.visible = false; ckRing.visible = true; ckRing.position.set(p.x, 0.03, p.z); ckRing.scale.setScalar(a.scale * (0.95 + 0.06 * Math.sin(now * 8)));
     const ours = holder === ME || (S.team && p.team === S.players[ME].team);
     ckRing.material.color.set(p.guard > 0 && !ours ? 0x7fd4ff : ours ? 0x6fe36f : 0xffc93c); // 蓝圈 = 刚抢到，保护中，抢不走
