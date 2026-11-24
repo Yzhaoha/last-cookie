@@ -1,5 +1,35 @@
 # 最后一块饼干 Last Cookie v3「抢饼干」— 交接（2026-11-21，云端会话 → 本地会话）
 
+## ★★★ 11-24：交给本地会话——用 ChatGPT 画角色参考图（先看这一节）
+用户要在**本地会话**里用他电脑上的 Chrome（已登录 ChatGPT）画角色参考图。云端会话没有 ChatGPT。**不替用户登录、不输密码。**
+
+**为什么要画**：用户问 CrazyGames 的男性玩家会不会喜欢甜点形象。结论：外表可爱、玩法凶的游戏（糖豆人、Shell Shockers）男女都爱玩；我们的问题是现有 19 个皮肤只有 4 种外形（马卡龙、甜甜圈、布丁、杯子蛋糕，见 `src/client.js` 的 `LOOKS` 和 `buildSnack`），大多是淡粉淡蓝，每个都是同一张乖脸加粉腮红，第一眼偏“甜美女生向”。
+
+**设计方向（已跟用户讲过）**：
+1. 身子保留圆滚滚，脸要有性格：加眉毛，表情要多（坏笑、不服、得意、生气）；撞人时凶脸，被撞飞时惨叫脸。
+2. 甜咸混搭：新加汉堡、披萨、热狗、薯条、爆米花、饭团、饺子、寿司；甜点留着，再加冰淇淋。每个角色有一句话设定（如“汉堡老大”）。
+3. 颜色鲜艳、对比强，少用淡粉；每个角色一个主色，远看认得出。
+4. 配件自由搭（不按男女分）：墨镜、头盔、拳击手套、耳机、披风 / 蝴蝶结、小花、厨师帽、皇冠、兔耳。
+5. 腮红只给少数走萌路线的角色。
+
+**⚠️ AI 的规矩，动手前先跟用户确认一遍**：用户的规矩是「提交表单永远不选任何 AI 相关选项」。所以云端会话建议：**ChatGPT 的图只当参考，不放进游戏、不当封面、不当宣传图**；之后照着参考用代码做 3D（游戏角色本来就是代码搭的 3D 模型，平面图本来也放不进去），封面照旧从游戏画面截（`tools/cover.js`）。这样交上去的东西里没有 AI 内容，表单照实填也没问题。用户还没明确回复同不同意这条，**开画前问一句**；如果用户想把 AI 图直接用上，要提醒他那表单的 AI 选项就得如实勾。
+- 参考图放 `art-ref/`（新建，和游戏打包无关，`tools/build.py` 不会带上），每张图配一行说明。别放进 `src/`、`submission/`、`release/`。
+
+**建议的画图顺序和提示词**（英文给 ChatGPT 效果好；每次生成后截图/下载给用户看，用户说好再下一张）：
+1. 风格定调（先拿现有游戏截图上传给 ChatGPT 当参考，比如开 https://yzhaoha.github.io/last-cookie/ 截一张开始界面）：
+   `Character design sheet for a cartoon party brawler game. Round, chunky, soft 3D clay-toy style snack characters with big expressive eyes and small arms-free bodies, like the attached screenshot. Make them appeal to both boys and girls: cute shapes but cheeky, confident attitude. 8 characters in a row, front view, plain light background, each with a strong saturated main color: burger, pizza slice, hot dog, french fries box, popcorn bucket, onigiri rice ball, dumpling, sushi roll. Give each a different personality face with eyebrows (smirk, grumpy, proud, determined, mischievous). No text.`
+2. 甜点重做：同上风格，`donut, cupcake, macaron, pudding, ice cream cone` —— 要求同样有眉毛和性格，不要都是粉色，不要都带腮红。
+3. 表情表（挑一个角色，比如汉堡）：`Expression sheet for the burger character: idle, smug grin, angry charging, shocked flying through the air, happy eating, dizzy. Same style, no text.`
+4. 配件表：`Accessory sheet for these round snack characters: sunglasses, sports headband, small helmet, boxing gloves, headphones, little cape, bow, flower, chef hat, crown, bunny ears. Show each worn by the same donut character. Same style, no text.`
+5. 桌面配色（可选）：一张颜色更鲜明、不全是粉色的桌子，比如木纹桌面配深色格子桌布。
+
+**画完之后**：把选中的参考图提交到 `art-ref/`（推 main），在这节下面写清楚用户选了哪些、不要哪些。之后哪个会话都可以照着做 3D：在 `buildSnack` 里加新外形（汉堡、披萨、热狗、饺子先做），给脸加眉毛和表情状态，再加配件（`LOOKS` 里加字段 + 皮肤柜里能选）。
+
+**这段时间云端会话里还在等用户回答的事**（别丢）：
+- 组队人数：云端建议改成 **2 对 2**（凑真人最容易、分工最清楚：一个抱一个护），配小一号桌子，加「传饼干给队友」按钮。用户还没拍板。现在线上组队默认 4 对 4，网址加 `?teams=3` 是三队各 3 人。
+- 单挑和真人对打早就做好了（11-24 云端用两个测试连接验证过能配进同一局）；用户总碰到机器人是因为没别人在玩 + 他那边首次连接慢。建议后续加「真人/机器人标记」「好友房间」，以及把服务器换到用户自己的域名（本地才能做，先问用哪个域名）。
+- 仍然**不提交**任何平台，等 Poki 回信、等用户说。
+
 ## ★ 给本地会话：从这里接着做
 
 **11-22 本地会话：联机已上线 ✅**
