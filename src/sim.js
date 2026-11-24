@@ -126,14 +126,15 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, team: !!opts.team, teamEat: [0, 0], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
+    for (let t = 0; t < S.team; t++) S.teamEat.push(0);
     for (let i = 0; i < n; i++) {
       const a = Math.PI / 2 + i / n * Math.PI * 2;
       let x = Math.cos(a) * 11, z = Math.sin(a) * 8.5;
       [x, z] = pushOut(S.obs, x, z, 0.9);
       S.players.push({
-        id: i, team: i % 2, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
+        id: i, team: S.team ? i % S.team : 0, bot: true, human: false, name: '', look: i, x, z, face: Math.atan2(-x, -z),
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
@@ -175,7 +176,7 @@ const SIM = (() => {
   function finish(S) {
     if (S.phase === 'end' || S.net) return;
     S.phase = 'end'; S.phaseT = 0;
-    if (S.team) S.winTeam = S.teamEat[1] > S.teamEat[0] ? 1 : 0;
+    if (S.team) S.winTeam = S.teamEat.indexOf(Math.max(...S.teamEat));
     const tw = p => S.team && p.team === S.winTeam ? 1 : 0;
     const order = S.players.slice().sort((a, b) => tw(b) - tw(a) || b.eaten - a.eaten || b.steals - a.steals || a.id - b.id);
     order.forEach((p, i) => p.place = i + 1);
