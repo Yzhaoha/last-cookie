@@ -83,10 +83,27 @@ const SIM = (() => {
     }
     return obs;
   }
+  // Versioned breakfast arenas: a clear centre, two loop routes and jumpable shortcuts.
+  function makeArena(seed, round) {
+    const variant = Math.abs(seed) % 3, out = [];
+    const layouts = [
+      [['bowl',-5,-3],['bowl',5,-3],['books',-10,4],['books',10,4],['toast',0,4.5],['mug',-15,-8],['mug',15,-8],['jar',-16,8],['jar',16,8]],
+      [['books',-5,-4],['books',5,4],['mug',-10,6],['mug',10,-6],['toast',0,-5],['toast',0,5],['jar',-15,-7],['jar',15,7]],
+      [['bowl',0,-6],['bowl',0,6],['carton',-8,-3],['carton',8,3],['toast',-7,3],['toast',7,-3],['mug',-13,7],['mug',13,-7]],
+    ];
+    for (const [kind,x,z] of layouts[variant]) {
+      const K = kind === 'toast' ? { w: 5.4, d: 0.9 } : KINDS[kind];
+      const w = K.w || 0, d = K.d || 0, br = K.r || Math.hypot(w,d)/2;
+      if (round && Math.hypot(x,z)+br > CFG.ROUND_R-1.8) continue;
+      out.push({ id: out.length, kind, x, z, r: K.r || 0, hw: w/2, hd: d/2, br, rot: 0, tint: out.length % 3, low: kind === 'toast' });
+    }
+    return out;
+  }
   // 把圆 (x,z,rad) 推出障碍；返回 [x, z, 碰到了吗]
-  function pushOut(obs, x, z, rad) {
+  function pushOut(obs, x, z, rad, airborne = false) {
     let hit = false;
     for (const o of obs) {
+      if (airborne && o.low) continue;
       const dx = x - o.x, dz = z - o.z;
       if (o.r) {
         const d = Math.hypot(dx, dz), m = o.r + rad;
@@ -128,7 +145,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, arena: opts.arena !== false, variant: Math.abs(seed) % 3, obs: opts.arena === false ? makeObstacles(rng(seed), !!opts.round) : makeArena(seed, !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let t = 0; t < S.team; t++) S.teamEat.push(0);
     const t3 = S.team === 3; S.tWin = t3 ? CFG.TEAM3_WIN : CFG.TEAM_WIN; S.tChase = t3 ? CFG.TEAM3_CHASE : CFG.TEAM_CHASE; S.tGuard = t3 ? CFG.TEAM3_GUARD : CFG.TEAM_GUARD;
@@ -141,7 +158,7 @@ const SIM = (() => {
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
-        home: -1, grabT: 0, actT: -9, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
+        bestHold: 0, holdRun: 0, lastSteal: -1, home: -1, grabT: 0, actT: -9, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
     for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && edgeGap(S, x, z) > 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
@@ -208,7 +225,7 @@ const SIM = (() => {
   function trySteal(S, a, b) {
     const ck = S.cookie;
     if (ck.holder !== b.id || S.phase !== 'play' || S.net || ally(S, a, b)) return;
-    ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
+    ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.lastSteal = S.playT; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
   // 2 级：冲撞落地震开一圈人（抱饼干的人被震到也会丢饼干）
@@ -299,7 +316,7 @@ const SIM = (() => {
       if (kv < 2) [p.x, p.z] = pullIn(S, p.x, p.z, 0.35);
       p.x += p.kvx * dt; p.z += p.kvz * dt;
       const fr = Math.exp(-C.KFRIC * dt); p.kvx *= fr; p.kvz *= fr;
-      const res = pushOut(S.obs, p.x, p.z, C.BODY_R * C.SCALE[p.lvl]);
+      const res = pushOut(S.obs, p.x, p.z, C.BODY_R * C.SCALE[p.lvl], p.jumpT > 0);
       if (res[2]) { p.x = res[0]; p.z = res[1]; p.kvx *= 0.8; p.kvz *= 0.8; }
       if (edgeGap(S, p.x, p.z) < 0) fall(S, p);
     }
@@ -318,12 +335,13 @@ const SIM = (() => {
         else if (b.dashT > 0 && !b.dashHit) bonk(S, b, a);
       }
     }
+    for (const p of P) if (p.id !== ck.holder) p.holdRun = 0;
     // 饼干
     ck.cd -= dt; ck.noT -= dt;
     if (ck.holder >= 0) {
       const h = P[ck.holder]; ck.x = h.x; ck.z = h.z;
       if (playing) {
-        h.eaten += dt; ck.munch -= dt;
+        h.eaten += dt; h.holdRun += dt; h.bestHold = Math.max(h.bestHold, h.holdRun); ck.munch -= dt;
         if (ck.munch <= 0) { ck.munch = 0.42; ev(S, { k: 'munch', p: h.id }); }
         if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= S.tWin) { S.teamEat[h.team] = S.tWin; finish(S); } }
         else if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
@@ -436,6 +454,7 @@ const SIM = (() => {
     let dx = tx - p.x, dz = tz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
     inp.mx = dx; inp.mz = dz;
+    if (p.jumpCd <= 0 && S.obs.some(o => o.low && Math.abs(p.x + dx * 1.8 - o.x) < o.hw + 0.3 && Math.abs(p.z + dz * 1.8 - o.z) < o.hd + 0.3)) { inp.jump = true; inp.mx = (tx-p.x)/d; inp.mz = (tz-p.z)/d; }
     if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 1.5) inp.jump = true;
     // 冲撞抱饼干的人
     if (holder && chase && p.dashCd <= 0 && holder.guard <= 0.15 && holder.inv <= 0) {
@@ -452,7 +471,7 @@ const SIM = (() => {
   function thinkBots(S, dt) { for (const p of S.players) if (p.bot) botThink(S, p, dt); }
 
   // ---------------- 联机快照：服务器 snap() 打包，客户端 applySnap() 套到自己的 S 上 ----------------
-  const PF_ = ['x', 'z', 'face', 'mvx', 'mvz', 'kvx', 'kvz', 'chips', 'lvl', 'on', 'fallT', 'fx', 'fz', 'fvx', 'fvz', 'inv', 'guard', 'dashCd', 'dashT', 'dashX', 'dashZ', 'dashHit', 'hitT', 'eaten', 'steals', 'shieldCd', 'boostT', 'frozenT', 'bubbleT', 'jumpT', 'jumpCd', 'grabT', 'home', 'place', 'lastHit', 'lastHitT'];
+  const PF_ = ['x', 'z', 'face', 'mvx', 'mvz', 'kvx', 'kvz', 'chips', 'lvl', 'on', 'fallT', 'fx', 'fz', 'fvx', 'fvz', 'inv', 'guard', 'dashCd', 'dashT', 'dashX', 'dashZ', 'dashHit', 'hitT', 'eaten', 'steals', 'shieldCd', 'boostT', 'frozenT', 'bubbleT', 'jumpT', 'jumpCd', 'grabT', 'home', 'place', 'lastHit', 'lastHitT', 'bestHold', 'holdRun', 'lastSteal'];
   const BOOL_ = { on: 1, dashHit: 1 }, MINE_ = { face: 1, mvx: 1, mvz: 1 }, ACT_ = { dashCd: 1, dashT: 1, dashX: 1, dashZ: 1, dashHit: 1, jumpT: 1, jumpCd: 1, home: 1 };
   const r3 = v => typeof v === 'number' ? Math.round(v * 1000) / 1000 : (v ? 1 : 0);
   function snap(S, withLists) {
@@ -468,7 +487,7 @@ const SIM = (() => {
     const ck = S.cookie; [ck.x, ck.z, ck.holder, ck.cd, ck.no, ck.noT] = m.c;
     if (m.te) { S.teamEat = m.te.slice(); S.winTeam = m.wt; }
     m.p.forEach((a, i) => {
-      const p = S.players[i], mine = i === me, n = PF_.length;
+      const p = S.players[i], mine = i === me, n = Math.min(PF_.length, a.length - 2), wireN = a.length - 2;
       const sx = a[0], sz = a[1], err = Math.hypot(sx - p.x, sz - p.z), wasOn = p.on;
       const acting = mine && S.lt - p.actT < 0.4;       // 我刚按了冲撞/跳，服务器还没收到：先信自己的
       for (let k = 2; k < n; k++) {
@@ -482,7 +501,7 @@ const SIM = (() => {
         if (forced || err > 3) { p.x = sx; p.z = sz; } else if (err > 1.3) { p.x += (sx - p.x) * 0.25; p.z += (sz - p.z) * 0.25; }
       } else {
         if (err > 2.5 || !p.on) { p.x = sx; p.z = sz; } else { p.x += (sx - p.x) * 0.35; p.z += (sz - p.z) * 0.35; }
-        p.inp.mx = a[n]; p.inp.mz = a[n + 1];
+        p.inp.mx = a[wireN]; p.inp.mz = a[wireN + 1];
       }
     });
     if (m.ch) S.chips = m.ch.map(c => ({ id: c[0], x: c[1], z: c[2] }));
@@ -500,7 +519,7 @@ const SERVER_EVENTS = { go: 1, steal: 1, pick: 1, drop: 1, chip: 1, grow: 1, fal
 const BOT_NAMES_ = ['Muffin', 'Biscotti', 'Toffee', 'Mochi', 'Scone', 'Churro', 'Waffle', 'Praline', 'Brownie', 'Eclair', 'Crumble', 'Fudge', 'Sprinkle', 'Nougat', 'Truffle', 'Pretzel'];
 class RoomCore {
   constructor(SIM) { this.SIM = SIM; this.reset(); }
-  reset() { this.clients = new Map(); this.state = 'idle'; this.S = null; this.gatherEnd = 0; this.seq = 0; this.newEv = []; this.tickN = 0; this.endAt = 0; this.last = 0; this.cv = -1; this.iv = -1; }
+  reset() { this.clients = new Map(); this.state = 'idle'; this.S = null; this.gatherEnd = 0; this.seq = 0; this.newEv = []; this.tickN = 0; this.endAt = 0; this.last = 0; this.cv = -1; this.iv = -1; this.roomCode = ''; }
   all(obj) { const s = JSON.stringify(obj); for (const c of this.clients.values()) c.send(s); }
   // 返回 false = 这个房间已经开打或满了，进不来
   join(id, send, close) {
@@ -513,13 +532,13 @@ class RoomCore {
   leave(id) {
     const c = this.clients.get(id); if (!c) return;
     this.clients.delete(id);
-    if (this.S && c.slot >= 0) { const p = this.S.players[c.slot]; p.bot = true; }   // 机器人接手
+    if (this.S && c.slot >= 0) { const p = this.S.players[c.slot]; p.bot = true; this.all({ k: 'roster', humans: this.S.players.map(p => p.bot ? 0 : 1) }); }   // 机器人接手
     if (this.state === 'gather') this.tellWait();
     if (!this.clients.size) this.reset();
   }
   msg(id, m) {
     const c = this.clients.get(id); if (!c || !m) return;
-    if (m.k === 'hi') { c.name = String(m.name || 'Guest').replace(/[<>&"']/g, '').slice(0, 14) || 'Guest'; c.look = (m.look | 0) >>> 0; }
+    if (m.k === 'hi') { c.name = String(m.name || 'Guest').replace(/[<>&"']/g, '').slice(0, 14) || 'Guest'; c.look = Math.max(0, Math.min(20, m.look | 0)); }
     else if (m.k === 'in') {
       const x = +m.mx || 0, z = +m.mz || 0, l = Math.hypot(x, z);
       c.mx = l > 1 ? x / l : x; c.mz = l > 1 ? z / l : z; if (m.d) c.d = true; if (m.j) c.j = true;
@@ -531,7 +550,7 @@ class RoomCore {
     let slot = 0;
     for (const c of this.clients.values()) { c.slot = slot; const p = S.players[slot++]; p.bot = false; p.name = c.name; p.look = c.look; used.add(c.look); }
     S.players.forEach((p, i) => { if (!p.bot) return; p.name = names[i]; let l = (Math.random() * 21) | 0; while (used.has(l)) l = (l + 1) % 21; p.look = l; used.add(l); });
-    const base = { k: 'start', seed: S.seed, round: S.round, names: S.players.map(p => p.name), looks: S.players.map(p => p.look), humans: S.players.map(p => p.bot ? 0 : 1) };
+    const base = { k: 'start', seed: S.seed, round: S.round, names: S.players.map(p => p.name), arena: 1, protocol: 2, room: this.roomCode, looks: S.players.map(p => p.look), humans: S.players.map(p => p.bot ? 0 : 1) };
     for (const c of this.clients.values()) c.send(JSON.stringify(Object.assign({ you: c.slot }, base)));
     this.state = 'play'; this.last = Date.now(); this.cv = this.iv = -1;
   }
@@ -571,6 +590,7 @@ export class Room {
   constructor() { this.core = new RoomCore(SIM); this.timer = null; this.n = 0; }
   async fetch(req) {
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });
+    this.core.roomCode = new URL(req.url).searchParams.get('room') || '';
     const pair = new WebSocketPair(), client = pair[0], server = pair[1];
     server.accept();
     const id = ++this.n, send = s => { try { server.send(s); } catch (e) { } }, close = () => { try { server.close(1000, 'done'); } catch (e) { } };
@@ -585,9 +605,16 @@ export class Room {
 export default {
   async fetch(req, env) {
     const u = new URL(req.url);
+    if (u.pathname === '/info') return Response.json({ protocol: 2, friendRooms: true }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     if (u.pathname === '/join') {
+      if (u.searchParams.get('v') !== '2') return new Response('client update required', { status: 426 });
+      const code = u.searchParams.get('room');
+      if (code !== null) {
+        if (!/^[A-Z0-9]{4,8}$/.test(code)) return new Response('invalid room code', { status: 400 });
+        return env.ROOM.get(env.ROOM.idFromName('friend-v2-' + code)).fetch(req);
+      }
       const name = await (await env.MM.get(env.MM.idFromName('mm')).fetch('https://mm/')).text();
-      return env.ROOM.get(env.ROOM.idFromName(name)).fetch(req);
+      return env.ROOM.get(env.ROOM.idFromName('v2-' + name)).fetch(req);
     }
     return new Response('last-cookie server ok');
   },

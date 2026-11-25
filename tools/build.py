@@ -8,7 +8,7 @@ tpl = tpl.replace("url('fonts/LilitaOne.woff2') format('woff2')", "url(data:font
 # three.js 只从同目录加载（Poki 不允许外部请求，不再回退到 CDN）
 game = ("const THREE = await import('./three.module.min.js');\n"
         + open('src/sim.js').read().replace("if (typeof module !== 'undefined') module.exports = SIM;\n", "")
-        + open('src/i18n.js').read() + open('src/i18n-x.js').read() + open('src/client.js').read())
+        + open('src/economy.js').read() + open('src/i18n.js').read() + open('src/i18n-x.js').read() + open('src/client.js').read())
 # 联机服务器地址：写在 server/url.txt 里（一行，https://…）。没有这个文件 = 纯单机
 # 平台包先不带联机（CrazyGames 对联机游戏另有要求，还没做），只有 GitHub 测试版带
 game_solo = game

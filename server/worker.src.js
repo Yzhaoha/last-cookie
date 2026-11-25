@@ -13,6 +13,7 @@ export class Room {
   constructor() { this.core = new RoomCore(SIM); this.timer = null; this.n = 0; }
   async fetch(req) {
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });
+    this.core.roomCode = new URL(req.url).searchParams.get('room') || '';
     const pair = new WebSocketPair(), client = pair[0], server = pair[1];
     server.accept();
     const id = ++this.n, send = s => { try { server.send(s); } catch (e) { } }, close = () => { try { server.close(1000, 'done'); } catch (e) { } };
@@ -27,9 +28,16 @@ export class Room {
 export default {
   async fetch(req, env) {
     const u = new URL(req.url);
+    if (u.pathname === '/info') return Response.json({ protocol: 2, friendRooms: true }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     if (u.pathname === '/join') {
+      if (u.searchParams.get('v') !== '2') return new Response('client update required', { status: 426 });
+      const code = u.searchParams.get('room');
+      if (code !== null) {
+        if (!/^[A-Z0-9]{4,8}$/.test(code)) return new Response('invalid room code', { status: 400 });
+        return env.ROOM.get(env.ROOM.idFromName('friend-v2-' + code)).fetch(req);
+      }
       const name = await (await env.MM.get(env.MM.idFromName('mm')).fetch('https://mm/')).text();
-      return env.ROOM.get(env.ROOM.idFromName(name)).fetch(req);
+      return env.ROOM.get(env.ROOM.idFromName('v2-' + name)).fetch(req);
     }
     return new Response('last-cookie server ok');
   },

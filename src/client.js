@@ -1,11 +1,14 @@
 // ===== CLIENT =====
 const C = SIM.CFG, VIS = 1.38;
 const $ = id => document.getElementById(id);
+const assetUrl = p => window.__LC_ASSETS && window.__LC_ASSETS[p] || p;
 const DEBUG = /[?&]debug/.test(location.search);
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+const economy = CookieEconomy({ getItem: k => localStorage.getItem(k), setItem: (k,v) => localStorage.setItem(k,v) });
+const walletKey = { crumbs: 'crumbs', owned2: 'owned', look2: 'look' };
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('lc_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('lc_' + k, JSON.stringify(v)); } catch (e) { } },
+  get(k, d) { if (walletKey[k]) return economy.load()[walletKey[k]]; try { const v = localStorage.getItem('lc_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { if (walletKey[k]) return economy.set(walletKey[k], v); try { localStorage.setItem('lc_' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
 // ---------- 平台包装（GitHub 版是空实现；CG / Poki 版替换这一段） ----------
@@ -30,7 +33,9 @@ function vnoise(x, z) {
 
 // ---------- three 基础 ----------
 const canvas = $('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+catch (error) { $('runtimeError').hidden = false; $('lobbyB').hidden = true; throw error; }
 renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -163,7 +168,7 @@ function at(m, x, y, z, rx = 0, ry = 0, rz = 0) { m.position.set(x, y, z); m.rot
 function sc(m, x, y, z) { m.scale.set(x, y, z); return m; }
 // 脸：眼睛 + 眉毛 + 嘴（+ 腮红、墨镜、汗珠）。返回的 mouth / mOpen 给“嚼”的动画切换
 function addFace(g, y, z, s = 1, ex = {}) {
-  const face = new THREE.Group(); face.position.set(0, y, z);
+  const face = new THREE.Group(); face.position.set(0, y, z); const brows = [], eyes = [];
   const eye = ex.eye || 'normal', ES = 0.12 * s;
   for (const sx of [-1, 1]) {
     const kind = eye === 'wink' ? (sx > 0 ? 'happy' : 'normal') : eye;
@@ -172,7 +177,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
       const w = sph(0.085 * s, eyeWhite, 1, 1.15 * k, 0.55); w.position.set(sx * ES, 0, 0);
       const b = sph(0.058 * s, eyeBlack, 1, 1.1 * k, 0.6); b.position.set(sx * ES + (kind === 'side' ? 0.03 * s : 0), -0.005 - (kind === 'sleepy' ? 0.01 * s : 0), 0.03 * s);
       const hl = sph(0.018 * s, eyeWhite); hl.position.set(sx * ES + 0.02 * s + (kind === 'side' ? 0.03 * s : 0), 0.025 * s * k, 0.065 * s);
-      face.add(w, b, hl);
+      face.add(w, b, hl); eyes.push({ w, b, hl, sy: w.scale.y, by: b.scale.y });
       if (kind === 'sleepy') { const lid = capsule(0.014 * s, 0.13 * s, browM); at(lid, sx * ES, 0.045 * s, 0.04 * s, 0, 0, Math.PI / 2); face.add(lid); }
     } else if (kind === 'happy' || kind === 'closed') {
       const arc = new THREE.Mesh(new THREE.TorusGeometry(0.055 * s, 0.016 * s, 6, 14, Math.PI), eyeBlack);
@@ -186,7 +191,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
       let a = sx < 0 ? ang : -ang, yy = 0.12 * s;
       if (br === 'smug') { a = sx < 0 ? 0.35 : 0.5; yy = sx < 0 ? 0.14 * s : 0.1 * s; }
       if (br === 'worried') yy = 0.135 * s;
-      const b = capsule((br === 'calm' ? 0.028 : 0.02) * s, 0.09 * s, browM); at(b, sx * ES, yy, 0.035 * s, 0, 0, Math.PI / 2 + a); face.add(b);
+      const b = capsule((br === 'calm' ? 0.028 : 0.02) * s, 0.09 * s, browM); at(b, sx * ES, yy, 0.035 * s, 0, 0, Math.PI / 2 + a); face.add(b); brows.push({ mesh: b, base: b.rotation.z, side: sx });
     }
   }
   if (eye === 'shades') {
@@ -211,7 +216,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
   if (ex.sweat) face.add(at(sph(0.035 * s, M(0x6fc8ff, 0.1, { transparent: true, opacity: 0.9 }), 1, 1.4, 0.6), -0.27 * s, 0.06 * s, 0.02));
   face.add(mouth, mOpen);
   g.add(face);
-  return { face, mouth, mOpen };
+  return { face, mouth, mOpen, brows, eyes };
 }
 // 圆角三角 / 半圆等平面形状挤出成厚片（正面朝 +z，居中）
 function slab(shape, depth, bevel, mat) {
@@ -428,11 +433,12 @@ function buildSnack(look) {
 let S = null;            // 当前对局
 const HW = C.HW, HH = C.HH, RR = C.ROUND_R;
 function clothTex(col, rx, rz) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, 128, 128);
-  g.fillStyle = col; g.fillRect(0, 0, 64, 128); g.fillRect(0, 0, 128, 64);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); t.anisotropy = 8; return t;
+  const t = new THREE.TextureLoader().load('assets/art/cloth.webp');
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  // The texture itself contains six checks per side; keep checks readable at game scale.
+  t.repeat.set(rx/6, rz/6); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t;
 }
+
 const tableRoot = new THREE.Group(); scene.add(tableRoot);
 let tableKind = null;
 function buildTable(round) {
@@ -440,7 +446,7 @@ function buildTable(round) {
   tableRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(x => { x.map && x.map.dispose(); x.dispose(); }); } });
   tableRoot.clear();
   const add = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; tableRoot.add(m); return m; };
-  const hemCol = round ? 0xfdeff0 : 0xe8f4f2, hemMat = new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9 }), woodMat = new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
+  const hemCol = round ? 0xef9a7f : 0x5aafab, hemMat = new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9 }), woodMat = new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
   const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
   const sc = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14, Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9, side: THREE.DoubleSide }), 200); let n = 0;
   if (round) {
@@ -459,7 +465,7 @@ function buildTable(round) {
   }
   sc.count = n; tableRoot.add(sc);
   // 撒在桌上的彩色糖粒
-  const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 260;
+  const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 100;
   const sp = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.035, 0.14, 3, 6), new THREE.MeshStandardMaterial({ roughness: 0.45 }), N), c3 = new THREE.Color();
   for (let i = 0; i < N; i++) {
     let x, z; if (round) { const a = rnd() * 6.2832, d = Math.sqrt(rnd()) * (RR - 0.5); x = Math.cos(a) * d; z = Math.sin(a) * d; } else { x = (rnd() * 2 - 1) * (HW - 0.5); z = (rnd() * 2 - 1) * (HH - 0.5); }
@@ -476,7 +482,7 @@ function buildTable(round) {
 }
 // ---------- 桌上的东西（障碍） ----------
 const obsRoot = new THREE.Group(); scene.add(obsRoot);
-const OB_COL = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffa66b];
+const OB_COL = [0x269c9b, 0xef7657, 0xeab94c, 0x54bfa7, 0x7786bd, 0xffa66b];
 function lathe(pts, seg = 36) { return new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg); }
 const cerealTex = (() => {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192; const g = cv.getContext('2d');
@@ -535,12 +541,18 @@ function buildObstacle(o) {
       add(new THREE.BoxGeometry(0.08, 0.5, d), cm, y + 0.25, -w / 2 + 0.04);                         // 书脊
     }
     add(new THREE.BoxGeometry(0.22, 0.02, 1.1), M(0xe24a4a, 0.6), 0.76, o.hw * 0.3, o.hd * 0.55);    // 书签
+  } else if (o.kind === 'toast') {
+    add(new THREE.BoxGeometry(o.hw * 2, 0.55, o.hd * 2), M(0xbf692e, 0.8), 0.28);
+    add(new THREE.BoxGeometry(o.hw * 2 - 0.18, 0.12, o.hd * 2 - 0.12), M(0xffdc92, 0.8), 0.59);
+    for (let x = -o.hw + 0.35; x < o.hw; x += 0.7) { const m = add(new THREE.BoxGeometry(0.05,0.015,o.hd * 1.6), M(0xd99444,0.8),0.66,x); m.rotation.y = 0.3; }
+    // Two bright stepping marks distinguish a shortcut from tall impassable props.
+    for (const z of [-1.1,1.1]) { const m = add(new THREE.RingGeometry(0.25,0.35,16), M(0x28a6a0,0.6),0.025,0,z); m.rotation.x = -Math.PI/2; }
   } else { // 麦片盒（躺着）
     add(new THREE.BoxGeometry(o.hw * 2, 1.2, o.hd * 2), M(0xffb347, 0.5), 0.6);
     const wide = o.hw >= o.hd, lab = add(new THREE.PlaneGeometry((wide ? o.hw : o.hd) * 1.96, (wide ? o.hd : o.hw) * 1.96), new THREE.MeshStandardMaterial({ map: cerealTex, roughness: 0.5 }), 1.205);
     lab.rotation.set(-Math.PI / 2, 0, wide ? 0 : Math.PI / 2); lab.castShadow = false;
   }
-  g.userData = { o, h: { mug: 2.2, bowl: 1.4, jar: 2.1, carton: 3.5, books: 1.6, cereal: 1.3 }[o.kind], a: 1 };
+  g.userData = { o, h: { mug: 2.2, bowl: 1.4, jar: 2.1, carton: 3.5, books: 1.6, cereal: 1.3, toast: 0.7 }[o.kind], a: 1 };
   g.traverse(m => { if (m.isMesh) m.material.transparent = true; });
   obsRoot.add(g);
 }
@@ -932,17 +944,24 @@ function updateHUD() {
   $('tbDash').classList.toggle('cd', cd > 0);
   $('tbJump').classList.toggle('cd', me.jumpCd > 0);
   if (S.phase === 'play' && S.playT > 1.5 && !$('intro').hidden) { $('intro').style.opacity = 0; if (S.playT > 2) $('intro').hidden = true; }
+  const guardTarget = holder >= 0 ? S.players[holder] : null;
+  if (S.phase === 'play' && holder !== ME && guardTarget && guardTarget.guard > 0 && Math.hypot(guardTarget.x-me.x,guardTarget.z-me.z)<7) { tip(tl('guardHint', { n: Math.ceil(guardTarget.guard) })); return; }
   // 前两局：根据情况提示该干什么
   if (tipsOn && S.phase === 'play') {
     const T = touchMode;
-    if (!me.on) tip(tl('tipFell'));
+    if (guide) { guide.moved ||= Math.hypot(me.x-guide.x,me.z-guide.z)>2; guide.picked ||= holder===ME; guide.dashed ||= me.steals>0; guide.jumped ||= me.jumpT>0; }
+    if (guide && !guide.moved) tip(tl(touchMode ? 'learnMoveT' : 'learnMove'));
+    else if (guide && !guide.picked && holder < 0) tip(tl('learnPick'));
+    else if (guide && !guide.dashed && holder >= 0 && holder !== ME) tip(tl(touchMode ? 'learnDashT' : 'learnDash'));
+    else if (guide && guide.picked && !guide.jumped) tip(tl(touchMode ? 'learnJumpT' : 'learnJump'));
+    else if (!me.on) tip(tl('tipFell'));
     else if (holder === ME) tip(tl(T ? 'tipCarryT' : 'tipCarry'));
     else if (S.team && holder >= 0 && S.players[holder].team === me.team) tip(tl(T ? 'tipGuardT' : 'tipGuard'));
     else if (holder < 0) tip(tl('tipLoose'));
     else tip(tl(T ? 'tipChaseT' : 'tipChase'));
   } else if (tipTxt) tip('');
 }
-let tipsOn = false;
+let tipsOn = false, guide = null;
 
 // ---------- 镜头：跟着我，稍微偏向饼干 ----------
 const camT = new THREE.Vector3(0, 0, 2), camPos = new THREE.Vector3(0, 30, 20);
@@ -983,7 +1002,7 @@ function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' ? TEAMS : 0, players: mode === 'team' && TEAMS === 3 ? 9 : undefined });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round, arena: cfg.arena === 1 } : { seed: Math.floor(Math.random() * 3e8) * 3 + played % 3, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' ? TEAMS : 0, players: mode === 'team' && TEAMS === 3 ? 9 : undefined });
   $('intro').children[1].lastChild.dataset.t = S.team ? 'intro2T' : 'intro2'; $('intro').children[2].lastChild.dataset.t = S.team ? 'intro3T' : 'intro3'; applyLang();
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = cfg ? cfg.you : 0;
@@ -1001,11 +1020,14 @@ function newMatch(cfg) {
   for (const pool of [crumbs, stars, chipsFly]) for (const p of pool.arr) p.life = 0;
   warned = 0; last10 = false; boardKey = '';
   tipsOn = store.get('played', 0) < 2;
-  $('intro').hidden = store.get('played', 0) >= 2; $('intro').style.opacity = 1;
+  $('intro').hidden = true; $('intro').style.opacity = 1;
   $('panel').hidden = true; feed.innerHTML = ''; tip('');
   camT.set(me.x, 0, me.z + 1); camPos.set(me.x, Math.sin(0.95) * camDist(), me.z + 1 + Math.cos(0.95) * camDist());
   lastBeep = 4;
   myChipsEaten = 0;
+  guide = { x: me.x, z: me.z, moved: false, picked: false, dashed: false, jumped: false };
+  setT($('arenaLabel'), S.arena ? tl('arena'+S.variant) : '');
+  setT($('sessionStatus'), cfg ? tl('sessionOnline', { n: cfg.humans.filter(Boolean).length }) : tl('sessionSolo'));
   if (inLobby) { me.face = 0; lobbyUI(); } else PF.setPlaying(true);
 }
 function startFromLobby() {
@@ -1015,6 +1037,8 @@ function startFromLobby() {
   const me = S.players[ME]; me.face = Math.atan2(-me.x, -me.z); PF.setPlaying(true);
 }
 $('bPlay').addEventListener('click', playPressed);
+$('bOffline').addEventListener('click', () => { if (finding || !inLobby) return; newMatch(); startFromLobby(); });
+$('bHelp').addEventListener('click', () => { tipsOn = true; $('menu').hidden = true; paused = false; PF.setPlaying(true); });
 
 // ---------- 联机 ----------
 // 服务器地址：打包时写进来；测试时也可以在网址后面加 ?net=地址。没有地址 = 纯单机
@@ -1026,23 +1050,26 @@ function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((10
 let netOK = null;
 if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL || netOK === false || mode === 'team') return cb(null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
+  const roomCode = (mode === 'solo' ? $('roomInput').value.trim().toUpperCase() : '');
+  if (roomCode && (!NET_URL || mode === 'team')) return cb({ error: 'roomUnavailable' });
+  if (!NET_URL || netOK === false || mode === 'team') return cb(roomCode ? { error: 'roomUnavailable' } : null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
   let done = false, ws = null, n = 1, max = C.N;
   const el = $('netWait'), t0 = performance.now();
   let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
   const show = () => setT($('netTxt'), tl('finding', { n, m: max }) + '  ' + Math.max(0, Math.ceil((dead - performance.now()) / 1000)));
-  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg || cfg.error) { try { ws && ws.close(); } catch (e) { } net = null; } cb(!cfg && roomCode ? { error: 'roomUnavailable' } : cfg); };
   const iv = setInterval(() => { if (performance.now() >= dead) finish(null); else show(); }, 250);
   el.hidden = false; show();
   $('netSkip').onclick = () => finish(null);                  // 不想等：直接开始（机器人局）
-  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
+  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join?v=2' + (roomCode ? '&room=' + encodeURIComponent(roomCode) : '')); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: myLook() }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
     if (m.k === 'wait') { n = m.n; max = m.max; dead = performance.now() + (m.ms || 5000) + 3000; show(); }   // 连上了：按服务器说的等人时间，再多留 3 秒
-    else if (m.k === 'full') finish(null);
-    else if (m.k === 'start') finish(m);
+    else if (m.k === 'full') finish(roomCode ? { error: 'roomFull' } : null);
+    else if (m.k === 'roster' && S && S.net) { S.players.forEach((p,i) => p.real = !!m.humans[i]); setT($('sessionStatus'), tl('sessionOnline', { n: m.humans.filter(Boolean).length })); }
+    else if (m.k === 'start') finish(roomCode && m.room !== roomCode ? { error: 'roomUnavailable' } : m);
     else if (m.k === 's' && net === mine) {
       mine.lastMsg = performance.now();
       if (m.e) mine.evq.push(...m.e);
@@ -1054,7 +1081,8 @@ function findMatch(cb) {
 }
 function netLost() { // 打到一半断线：其他人交给本机的机器人，接着打完这局
   net = null; if (!S || !S.net) return;
-  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; });
+  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; p.real = false; });
+  setT($('sessionStatus'), tl('sessionLost')); banner(tl('sessionLost'), false, 3);
 }
 function netFrame() { // 每帧：先套上服务器最新的局面，再处理服务器通报的事
   if (!net || !S.net) return;
@@ -1082,8 +1110,10 @@ function netSend(me) { // 把我的操作发给服务器：方向变了才发（
 }
 function playPressed() {
   if (!inLobby || finding) return;
+  const roomCode = mode === 'solo' ? $('roomInput').value.trim().toUpperCase() : '';
+  if (roomCode && !/^[A-Z0-9]{4,8}$/.test(roomCode)) { alert(tl('roomInvalid')); return; }
   ensureAudio(); finding = true; $('lobbyB').style.visibility = 'hidden';
-  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg) newMatch(cfg); startFromLobby(); });
+  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg && cfg.error) { alert(tl(cfg.error)); return; } newMatch(cfg); startFromLobby(); });
 }
 let lastBeep = 4;
 function flash(col, a = 0.5) { const f = $('flash'); f.style.transition = 'none'; f.style.background = col; f.style.opacity = a; void f.offsetWidth; f.style.transition = 'opacity .45s ease-out'; f.style.opacity = 0; }
@@ -1198,6 +1228,9 @@ function showEnd() {
     const goal = S.team ? S.tWin : C.WIN_T;
     const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${S.team ? (p.team === S.winTeam ? '👑' : '') : p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${S.team ? TEAM_CSS[p.team] : dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / goal * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
+    $('highlights').textContent = (won && me.lastSteal >= 0 && S.playT-me.lastSteal < 10 ? tl('lateSteal')+' ' : '') + tl('matchHighlights', { s: me.steals, h: (me.bestHold || 0).toFixed(1), n: Math.max(0, goal - (S.team ? S.teamEat[me.team] : me.eaten)).toFixed(1) });
+    const nextChar = LOOKS.map((L,i) => ({L,i})).filter(v => !owned().has(v.i)).sort((a,b) => a.L.rar-b.L.rar)[0];
+    $('nextGoal').textContent = nextChar ? store.get('crumbs',0) >= PRICE[nextChar.L.rar] ? tl('readyUnlock') : tl('nextUnlock', { a: lookName(nextChar.i), n: PRICE[nextChar.L.rar]-store.get('crumbs',0) }) : tl('allOwned');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
     tip('');
   }, 2300);
@@ -1215,7 +1248,7 @@ $('bAgain').addEventListener('click', () => {
   ensureAudio();
   $('panel').hidden = true;
   // 广告只在两局之间
-  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => newMatch(cfg)); });
+  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => { if (cfg && cfg.error) { goHome(); alert(tl(cfg.error)); } else newMatch(cfg); }); });
 });
 
 // ---------- 商店：21 个角色（饼干屑直接买，或 100 开一次盲盒） ----------
@@ -1224,14 +1257,14 @@ const BOX_COST = 100, PRICE = [0, 200, 400, 800];
 if (store.get('crumbs', null) == null) store.set('crumbs', BOX_COST);   // 新玩家送一次盲盒
 const myLook = () => store.get('look2', 0) % LOOKS.length;
 const owned = () => { const o = new Set(store.get('owned2', [])); LOOKS.forEach((L, i) => { if (!L.rar) o.add(i); }); return o; };
-const charImg = (i, has) => 'assets/chars/' + LOOKS[i].id + (has ? '' : '-locked') + '.webp';
+const charImg = (i, has) => assetUrl('assets/chars/' + LOOKS[i].id + (has ? '' : '-locked') + '.webp');
 let shop = { sel: 0, roll: null }, lockerFrom = '';
 function shopGrid() {
   const gEl = $('shopGrid'); if (gEl.children.length) return;
   LOOKS.forEach((L, i) => { const d = document.createElement('div'); d.className = 'r' + L.rar; d.innerHTML = '<img alt="" loading="lazy">'; d.onclick = () => { if (shop.roll) return; shop.sel = i; SFX.chip(); lockerUI(); }; gEl.appendChild(d); });
 }
 function lockerUI() {
-  const own = owned(), i = shop.sel, L = LOOKS[i], has = own.has(i), cur = myLook(), crumbs = store.get('crumbs', 0), rolling = !!shop.roll;
+  const own = shop.roll ? shop.beforeOwned : owned(), i = shop.sel, L = LOOKS[i], has = own.has(i), cur = shop.roll ? shop.beforeLook : myLook(), crumbs = store.get('crumbs', 0), rolling = !!shop.roll;
   $('pvCr').innerHTML = '<img class="ico" src="assets/ui/coin.webp" alt="">' + crumbs;
   if (!rolling) { const src = charImg(i, has); if ($('shopImg').getAttribute('src') !== src) $('shopImg').src = src; }
   $('shopBig').className = 'r' + L.rar;
@@ -1246,15 +1279,16 @@ function lockerUI() {
 function openLocker(from) { lockerFrom = from; shopGrid(); shop.sel = myLook(); $('locker').hidden = false; $('menu').hidden = true; lockerUI(); }
 function closeLocker() { if (shop.roll) return; $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; if (inLobby) newMatch(); }
 function gotChar(i) { // 买到 / 开到：直接换上，亮一下
-  const own = owned(); own.add(i); store.set('owned2', [...own]); store.set('look2', i); shop.sel = i;
+  shop.sel = i;
   const im = $('shopImg'); im.classList.remove('roll', 'pop'); im.src = charImg(i, true); void im.offsetWidth; im.classList.add('pop');
   SFX.win(); PF.happy(); flash('#fff7c2', 0.4); lockerUI();
 }
 function openBox() {
-  const own = owned(), pool = []; LOOKS.forEach((L, i) => { if (!own.has(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
-  if (!pool.length || store.get('crumbs', 0) < BOX_COST || shop.roll) return;
-  store.set('crumbs', store.get('crumbs', 0) - BOX_COST);
-  const win = pool[(Math.random() * pool.length) | 0], t0 = performance.now();
+  if (shop.roll) return;
+  shop.beforeOwned = owned(); shop.beforeLook = myLook();
+  const win = economy.box(LOOKS);
+  if (win < 0) { tip(tl('saveFailed')); return; }
+  const t0 = performance.now();
   const im = $('shopImg'); im.classList.remove('pop'); im.classList.add('roll');
   shop.roll = setInterval(() => { // 开盒：各种角色乱跳一阵，然后亮出来
     if (performance.now() - t0 > 1400) { clearInterval(shop.roll); shop.roll = null; gotChar(win); return; }
@@ -1262,8 +1296,8 @@ function openBox() {
   }, 90);
   lockerUI();
 }
-$('bUse').addEventListener('click', () => { store.set('look2', shop.sel); SFX.chip(); lockerUI(); });
-$('bBuy').addEventListener('click', () => { ensureAudio(); const p = PRICE[LOOKS[shop.sel].rar], c = store.get('crumbs', 0); if (shop.roll || owned().has(shop.sel) || c < p) return; store.set('crumbs', c - p); gotChar(shop.sel); });
+$('bUse').addEventListener('click', () => { if (!economy.use(shop.sel)) return; SFX.chip(); lockerUI(); });
+$('bBuy').addEventListener('click', () => { ensureAudio(); if (shop.roll || owned().has(shop.sel)) return; if (economy.buy(shop.sel, LOOKS)) gotChar(shop.sel); else tip(tl('saveFailed')); });
 $('bBox').addEventListener('click', () => { ensureAudio(); openBox(); });
 $('bLockerX').addEventListener('click', closeLocker);
 $('bSkins').addEventListener('click', () => openLocker('panel'));
@@ -1278,6 +1312,8 @@ const dailyPay = k => 30 + 20 * Math.min(k, 5);
 function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
 function lobbyUI() {
   modeUI();
+  $('roomInput').placeholder = tl('roomCode');
+  $('friendPanel').hidden = !NET_URL || mode === 'team';
   setT($('lobbyCr'), String(store.get('crumbs', 0)));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
@@ -1335,9 +1371,17 @@ function updateActors(dt, now) {
       a.root.scale.set(s * (1 - sq * 0.5), s * (1 + sq), s * (1 - sq * 0.5));
       sn.body.position.y = hopY;
       const chewing = a.chew > 0.12;
-      sn.body.rotation.x = (p.dashT > 0 ? 0.3 : 0) + (p.hitT > 0 ? -0.35 : 0);
+      sn.body.rotation.x = (p.dashT > 0 ? 0.48 : 0) + (p.hitT > 0 ? -0.5 : 0) + (i === holder ? -0.06 : 0);
       sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
-      sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
+      const shocked = p.hitT > 0 || p.frozenT > 0, charging = p.dashT > 0, victory = S.phase === 'end' && (S.team ? p.team === S.winTeam : p.id === S.winner);
+      sn.face.mouth.visible = !(chewing || shocked); sn.face.mOpen.visible = chewing || shocked;
+      sn.face.mOpen.scale.y = shocked ? 1.45 : 0.8;
+      for (const br of sn.face.brows) br.mesh.rotation.z = charging ? Math.PI/2 - br.side * 0.6 : shocked ? Math.PI/2 + br.side * 0.45 : br.base;
+      for (const eye of sn.face.eyes) { const blink = !shocked && Math.sin(now * 1.8 + i * 2) > 0.997; const k = blink ? 0.12 : charging ? 0.68 : victory ? 0.55 : 1; eye.w.scale.y = eye.sy*k; eye.b.scale.y = eye.by*k; eye.hl.visible = !blink; }
+      const impact = p.hitT > 0 ? Math.sin(clamp(p.hitT / C.STUN_T,0,1)*Math.PI)*0.22 : 0;
+      const stretch = charging ? 0.15 : 0;
+      sn.body.scale.set(1+impact-stretch*0.4, 1-impact-stretch, 1+stretch);
+      if (victory) { sn.body.position.y += Math.abs(Math.sin(now*8))*0.3; sn.body.rotation.z = Math.sin(now*5)*0.1; }
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
       a.ice.visible = p.frozenT > 0; if (a.tr) a.tr.visible = a.drop <= 0;
@@ -1348,17 +1392,18 @@ function updateActors(dt, now) {
       const t = p.fallT;
       a.root.visible = t < 1.3;
       a.root.position.set(p.fx + p.fvx * 0.25 * Math.min(t, 0.8), -t * t * 9, p.fz + p.fvz * 0.25 * Math.min(t, 0.8));
-      a.root.rotation.x = t * 4; sn.blob.material.opacity = 0;
+      a.root.rotation.set(t * 5, p.face + t * 2, t * 2); sn.face.mouth.visible = false; sn.face.mOpen.visible = true; sn.blob.material.opacity = 0;
     }
     // 名字（抱饼干的人多显示一个饼干）
-    const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
+    const tag = a.tag, txt = (p.real ? '● ' : i !== ME ? '◇ ' : '') + nameTxt(p) + (i === holder ? (p.guard > 0 ? ' 🍪 🛡' : ' 🍪') : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const hold = i === holder; if (a.hold !== hold) { a.hold = hold; tag.classList.toggle('hold', hold); tag.style.setProperty('--hc', S.team ? TEAM_CSS[p.team] : hold && i === ME ? '#4fc44f' : '#f0a020'); }
     sn.portrait.visible = !!sn.portrait.material.map.userData.ready;
     sn.body.visible = !sn.portrait.visible;
     sn.portrait.position.y = sn.body.position.y;
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.95 : 1.05) * a.scale * VIS, a.root.position.z);
-    const show = vis && p.on && !(inLobby && i !== ME); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
+    const nearMe = Math.hypot(p.x-S.players[ME].x,p.z-S.players[ME].z) < 6;
+    const show = vis && p.on && !(inLobby && i !== ME) && (i === ME || hold || nearMe); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
     if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
   }
   // 饼干
@@ -1411,6 +1456,8 @@ const STEP = 1 / 60;
 let manualFrames = false, vNow = 0;
 function frame(now) {
   if (!manualFrames) requestAnimationFrame(frame);
+  // The illustrated title screen needs no continuous 3D rendering.
+  if (inLobby) { last = now; return; }
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
   const rawDt = dt;
   const tsec = now / 1000;

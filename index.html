@@ -152,8 +152,27 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
   #modeSel .btn{width:142px;font-size:16px}#modeSel .btn i{font-size:11px}
   #quests{left:50%;transform:translateX(-50%);bottom:auto;top:max(92px,calc(env(safe-area-inset-top) + 84px));font-size:12px;white-space:nowrap}
 }
-#lobby{background:#174f50 url('assets/art/keyart.webp') center 45% / cover no-repeat}
-@media(max-aspect-ratio:4/5){#lobby{background-image:url('assets/art/keyart-portrait.webp');background-size:auto 68%;background-position:center top}}
+
+#runtimeError{position:fixed;inset:25% 8%;height:fit-content;padding:24px;border-radius:20px;background:#fff7e8;border:3px solid #4a2612;z-index:30;text-align:center;font:16px/1.6 system-ui}
+/* Breakfast brawler presentation. Keep the play field visually quiet. */
+#sessionStatus{position:fixed;left:14px;top:max(58px,calc(env(safe-area-inset-top) + 52px));font:600 14px system-ui;color:#fff;background:#164c4bd9;padding:6px 10px;border-radius:9px;z-index:5;pointer-events:none;max-width:46vw}
+#arenaLabel{position:fixed;left:14px;top:92px;font:600 12px system-ui;color:#335d59;pointer-events:none;z-index:5}
+#nextGoal{font:14px/1.5 system-ui;margin:0 0 14px;color:#39796f}
+#highlights{font:600 15px/1.6 system-ui;padding:10px;background:#d8efdf;border-radius:12px;margin-bottom:14px}
+#lobbyPicture{position:absolute;inset:0;z-index:-2}
+#lobbyArt{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 45%;z-index:-2}
+#lobby::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 25%,#143b3c55 48%,#143b3ce8 100%)}
+#lobby h1{align-self:flex-end;font-size:clamp(22px,3vw,40px);max-width:40%;color:#fff;animation:none;transform:none;text-align:right}
+#lobbyB{gap:8px}#lobby #quests{font-size:14px;bottom:20px;background:#fff9edeb}
+#lobby #bPlay{font-size:30px;padding:8px 60px 10px}#bOffline{font-size:16px;padding:5px 22px}
+#friendPanel{pointer-events:auto;width:min(88vw,346px);background:#fff7e8;border:2px solid #4a2612;border-radius:12px;padding:7px 12px;font:600 15px system-ui;text-align:center}
+#friendPanel summary{cursor:pointer}#friendPanel input{width:100%;font:700 18px system-ui;text-align:center;text-transform:uppercase;margin-top:8px;padding:7px;border:2px solid #39877c;border-radius:8px;touch-action:manipulation;user-select:text;-webkit-user-select:text}
+#friendPanel p{font-size:13px;line-height:1.5;margin:7px 0 0}
+body.lobby #sessionStatus,body.lobby #arenaLabel{display:none}
+#board div{min-width:132px}#tags div:not(.me):not(.hold){font-size:12px;opacity:.7}
+@media(max-width:640px){#sessionStatus{top:auto;bottom:max(8px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);font-size:11px;max-width:70vw;white-space:nowrap}#arenaLabel{display:none}#lobby{padding:16px 12px 20px}#lobbyArt{object-position:57% 35%}#lobby h1{font-size:22px;max-width:50%}#lobby #quests{display:none}#lobbyB{gap:6px}#lobby #bDaily{font-size:14px;padding:4px 12px}#modeSel .btn{width:138px}#lobby #bPlay{font-size:28px;padding:7px 60px}#friendPanel{font-size:14px}#lobby #bSkins3{font-size:18px;padding:6px 22px}}
+@media(max-height:600px) and (min-width:641px){#lobby{padding:12px}#lobbyB{gap:5px}#modeSel .btn{font-size:15px;padding:3px 12px}#modeSel .btn b{display:inline;font-size:18px;margin-right:8px}#modeSel .btn i{display:none}#lobby #bDaily{font-size:14px;padding:3px 12px}#lobby #bPlay{font-size:24px;padding:5px 48px}#lobby #bSkins3{font-size:16px;padding:4px 18px}#friendPanel{padding:5px 10px;font-size:13px}}
+@media(max-aspect-ratio:4/5){#lobby{background:#174f50}#lobbyPicture{height:62vh;bottom:auto}#lobbyArt{object-fit:contain;object-position:50% 0}#lobby::before{background:linear-gradient(180deg,transparent 40%,#174f5080 58%,#174f50 73%)}}
 </style>
 </head>
 <body class="lobby">
@@ -162,7 +181,7 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="tags"></div>
 <div id="floats"></div>
 <div id="top"><div class="pill" id="timeP">0:00</div><div id="prog"><div id="progFill"></div><span id="progTxt" class="out"></span></div></div>
-<div id="board"></div>
+<div id="sessionStatus" role="status"></div><div id="arenaLabel"></div><div id="board"></div>
 <div id="ptr" hidden><i id="ptrA"></i>🍪</div>
 <div id="intro" hidden><div><b>🍪</b><span data-t="intro1"></span></div><div><b>🏃</b><span data-t="intro2"></span></div><div><b>💥</b><span data-t="intro3"></span></div></div>
 <div id="feed"></div>
@@ -172,13 +191,13 @@ body.lobby #top,body.lobby #board,body.lobby #chipBox,body.lobby #keys,body.lobb
 <div id="keys"><span data-t="keysJump"></span><br><span data-t="keysDash"></span></div>
 <div id="touch" hidden><div id="stick" hidden><i></i></div><div class="tb out" id="tbJump"><span data-t="jump"></span></div><div class="tb out" id="tbDash"><svg viewBox="0 0 100 100"><circle id="dashRing" cx="50" cy="50" r="47" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="295" stroke-dashoffset="0" opacity=".85"/></svg><span id="dashLbl" data-t="dash"></span></div></div>
 <div id="gear">⚙</div>
-<div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><button class="btn" id="bAgain" data-t="again"></button> <button class="btn sec" id="bSkins"></button> <button class="btn sec" id="bHome">🏠 <span data-t="home"></span></button><div id="rank"></div></div></div>
-<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn" id="bResume" data-t="resume"></button><button class="btn sec" id="bHome2">🏠 <span data-t="home"></span></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
+<div id="panel" hidden><div id="card"><h2 class="out" id="resT"></h2><div id="reward"></div><div id="highlights"></div><div id="nextGoal"></div><button class="btn" id="bAgain" data-t="again"></button> <button class="btn sec" id="bSkins"></button> <button class="btn sec" id="bHome">🏠 <span data-t="home"></span></button><div id="rank"></div></div></div>
+<div id="menu" hidden><div class="card2"><h2 class="out" style="margin:0;font-weight:normal" data-t="paused"></h2><label><span data-t="sound"></span><input type="checkbox" id="optSound"></label><label><span data-t="music"></span><input type="checkbox" id="optMusic"></label><label><span data-t="lang"></span><select id="langSel"></select></label><button class="btn sec" id="bSkins2" data-t="skins"></button><button class="btn sec" id="bHelp" data-t="helpAgain"></button><button class="btn" id="bResume" data-t="resume"></button><button class="btn sec" id="bHome2">🏠 <span data-t="home"></span></button><div id="fpsTxt" style="font-size:13px;opacity:.6"></div></div></div>
 <div id="locker" hidden><div class="card2"><div class="shopTop"><h2 class="out" data-t="skins"></h2><div id="pvCr"></div></div><div id="shopBig"><img id="shopImg" alt=""><div id="shopName" class="out"></div><div id="shopStars"></div></div><div class="shopBtns"><button class="btn" id="bUse"></button><button class="btn" id="bBuy"></button></div><button class="btn sec" id="bBox"><img class="ico" src="assets/ui/box.webp" alt=""><span id="bBoxT"></span></button><div id="shopGrid"></div><button class="btn sec" id="bLockerX" data-t="close"></button></div></div>
 <div id="flash"></div>
 <div id="netWait" hidden><div class="pill" id="netTxt"></div><button class="btn sec" id="netSkip" data-t="skip"></button></div>
-<div id="lobby"><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bSkins3"><img class="ico" src="assets/ui/box.webp" alt=""><span data-t="skins"></span>　<img class="ico" src="assets/ui/coin.webp" alt=""><span id="lobbyCr"></span></button></div></div>
-<div id="adblock" hidden></div>
+<div id="lobby"><picture id="lobbyPicture"><source media="(max-aspect-ratio: 4/5)" srcset="assets/art/keyart-portrait.webp"><img id="lobbyArt" src="assets/art/keyart.webp" alt=""></picture><h1 class="out" data-t="title"></h1><div id="lobbyB"><div id="quests"></div><button class="btn" id="bDaily" hidden></button><div id="modeSel"><button class="btn sec" id="bSolo"><b>🍪</b><span data-t="modeSolo"></span><i data-t="modeSoloD"></i></button><button class="btn sec" id="bTeam"><b>🔵🔴</b><span data-t="modeTeam"></span><i data-t="modeTeamD"></i></button></div><details id="friendPanel"><summary data-t="friends"></summary><input id="roomInput" maxlength="8" autocomplete="off" spellcheck="false" aria-label="Room code" data-placeholder="roomCode"><p data-t="roomHelp"></p></details><button class="btn" id="bPlay" data-t="play"></button><button class="btn sec" id="bOffline" data-t="practice"></button><button class="btn sec" id="bSkins3"><img class="ico" src="assets/ui/box.webp" alt=""><span data-t="skins"></span>　<img class="ico" src="assets/ui/coin.webp" alt=""><span id="lobbyCr"></span></button></div></div>
+<div id="runtimeError" hidden><h2>3D 画面无法启动 / 3D unavailable</h2><p>请使用支持 WebGL 的浏览器，开启硬件加速后重试。<br>Use a WebGL-enabled browser with hardware acceleration.</p></div><div id="adblock" hidden></div>
 <script type="module">
 const THREE = await import('./three.module.min.js');
 // ===== SIM START（纯逻辑，可在 node 里跑） =====
@@ -265,10 +284,27 @@ const SIM = (() => {
     }
     return obs;
   }
+  // Versioned breakfast arenas: a clear centre, two loop routes and jumpable shortcuts.
+  function makeArena(seed, round) {
+    const variant = Math.abs(seed) % 3, out = [];
+    const layouts = [
+      [['bowl',-5,-3],['bowl',5,-3],['books',-10,4],['books',10,4],['toast',0,4.5],['mug',-15,-8],['mug',15,-8],['jar',-16,8],['jar',16,8]],
+      [['books',-5,-4],['books',5,4],['mug',-10,6],['mug',10,-6],['toast',0,-5],['toast',0,5],['jar',-15,-7],['jar',15,7]],
+      [['bowl',0,-6],['bowl',0,6],['carton',-8,-3],['carton',8,3],['toast',-7,3],['toast',7,-3],['mug',-13,7],['mug',13,-7]],
+    ];
+    for (const [kind,x,z] of layouts[variant]) {
+      const K = kind === 'toast' ? { w: 5.4, d: 0.9 } : KINDS[kind];
+      const w = K.w || 0, d = K.d || 0, br = K.r || Math.hypot(w,d)/2;
+      if (round && Math.hypot(x,z)+br > CFG.ROUND_R-1.8) continue;
+      out.push({ id: out.length, kind, x, z, r: K.r || 0, hw: w/2, hd: d/2, br, rot: 0, tint: out.length % 3, low: kind === 'toast' });
+    }
+    return out;
+  }
   // 把圆 (x,z,rad) 推出障碍；返回 [x, z, 碰到了吗]
-  function pushOut(obs, x, z, rad) {
+  function pushOut(obs, x, z, rad, airborne = false) {
     let hit = false;
     for (const o of obs) {
+      if (airborne && o.low) continue;
       const dx = x - o.x, dz = z - o.z;
       if (o.r) {
         const d = Math.hypot(dx, dz), m = o.r + rad;
@@ -310,7 +346,7 @@ const SIM = (() => {
     const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
     const n = opts.players ?? CFG.N;
     const R = rng(seed ^ 0x5bd1e995);
-    const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, obs: makeObstacles(rng(seed), !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
+    const S = { cfg: CFG, round: !!opts.round, team: opts.team ? (opts.team === true ? 2 : opts.team) : 0, teamEat: [], winTeam: -1, arena: opts.arena !== false, variant: Math.abs(seed) % 3, obs: opts.arena === false ? makeObstacles(rng(seed), !!opts.round) : makeArena(seed, !!opts.round), players: [], net: false, lt: 0, chipVer: 0, itemVer: 0, chips: [], chipId: 0, chipT: 0, items: [], itemId: 0, itemT: 2, puddles: [], t: 0, playT: 0, phase: 'count', phaseT: CFG.COUNT_T, events: [], winner: -1, rnd: R, seed,
       cookie: { x: 0, z: 0, holder: -1, cd: 0, no: -1, noT: 0, munch: 0 } };
     for (let t = 0; t < S.team; t++) S.teamEat.push(0);
     const t3 = S.team === 3; S.tWin = t3 ? CFG.TEAM3_WIN : CFG.TEAM_WIN; S.tChase = t3 ? CFG.TEAM3_CHASE : CFG.TEAM_CHASE; S.tGuard = t3 ? CFG.TEAM3_GUARD : CFG.TEAM_GUARD;
@@ -323,7 +359,7 @@ const SIM = (() => {
         mvx: 0, mvz: 0, kvx: 0, kvz: 0, chips: 0, lvl: 0, on: true, fallT: 0, fx: 0, fz: 0, fvx: 0, fvz: 0,
         inv: 0, guard: 0, dashCd: 0.4, dashT: 0, dashX: 0, dashZ: 0, dashHit: false, hitT: 0, lastHit: -1, lastHitT: 0,
         shieldCd: 0, boostT: 0, frozenT: 0, bubbleT: 0, wave: false, eaten: 0, steals: 0, shoves: 0, falls: 0, place: 0,
-        home: -1, grabT: 0, actT: -9, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
+        bestHold: 0, holdRun: 0, lastSteal: -1, home: -1, grabT: 0, actT: -9, jumpT: 0, jumpCd: 0, jumpBuf: 0, inp: { mx: 0, mz: 0, dash: false, jump: false }, ai: { t: 0, mx: 0, mz: 0, side: 1, sideT: 0, chip: null, react: 0 },
       });
     }
     for (let i = 0; i < CFG.PUDDLE_N; i++) { const [x, z] = freeSpot(S, (x, z) => Math.hypot(x, z) > 7 && edgeGap(S, x, z) > 4 && S.puddles.every(c => Math.hypot(c.x - x, c.z - z) > 9)); S.puddles.push({ id: i, x, z, r: CFG.PUDDLE_R * (0.8 + S.rnd() * 0.4) }); }
@@ -390,7 +426,7 @@ const SIM = (() => {
   function trySteal(S, a, b) {
     const ck = S.cookie;
     if (ck.holder !== b.id || S.phase !== 'play' || S.net || ally(S, a, b)) return;
-    ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
+    ck.holder = a.id; a.guard = CFG.GUARD_T; a.grabT = CFG.GRAB_T; a.steals++; a.lastSteal = S.playT; a.dashCd = Math.min(a.dashCd, CFG.STEAL_CD); b.dashCd = Math.max(b.dashCd, CFG.ROBBED_CD);
     ev(S, { k: 'steal', a: a.id, b: b.id });
   }
   // 2 级：冲撞落地震开一圈人（抱饼干的人被震到也会丢饼干）
@@ -481,7 +517,7 @@ const SIM = (() => {
       if (kv < 2) [p.x, p.z] = pullIn(S, p.x, p.z, 0.35);
       p.x += p.kvx * dt; p.z += p.kvz * dt;
       const fr = Math.exp(-C.KFRIC * dt); p.kvx *= fr; p.kvz *= fr;
-      const res = pushOut(S.obs, p.x, p.z, C.BODY_R * C.SCALE[p.lvl]);
+      const res = pushOut(S.obs, p.x, p.z, C.BODY_R * C.SCALE[p.lvl], p.jumpT > 0);
       if (res[2]) { p.x = res[0]; p.z = res[1]; p.kvx *= 0.8; p.kvz *= 0.8; }
       if (edgeGap(S, p.x, p.z) < 0) fall(S, p);
     }
@@ -500,12 +536,13 @@ const SIM = (() => {
         else if (b.dashT > 0 && !b.dashHit) bonk(S, b, a);
       }
     }
+    for (const p of P) if (p.id !== ck.holder) p.holdRun = 0;
     // 饼干
     ck.cd -= dt; ck.noT -= dt;
     if (ck.holder >= 0) {
       const h = P[ck.holder]; ck.x = h.x; ck.z = h.z;
       if (playing) {
-        h.eaten += dt; ck.munch -= dt;
+        h.eaten += dt; h.holdRun += dt; h.bestHold = Math.max(h.bestHold, h.holdRun); ck.munch -= dt;
         if (ck.munch <= 0) { ck.munch = 0.42; ev(S, { k: 'munch', p: h.id }); }
         if (S.team) { S.teamEat[h.team] += dt; if (S.teamEat[h.team] >= S.tWin) { S.teamEat[h.team] = S.tWin; finish(S); } }
         else if (h.eaten >= C.WIN_T) { h.eaten = C.WIN_T; finish(S); }
@@ -618,6 +655,7 @@ const SIM = (() => {
     let dx = tx - p.x, dz = tz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     if (d > 2.5) [dx, dz] = steer(S, p, dx, dz);
     inp.mx = dx; inp.mz = dz;
+    if (p.jumpCd <= 0 && S.obs.some(o => o.low && Math.abs(p.x + dx * 1.8 - o.x) < o.hw + 0.3 && Math.abs(p.z + dz * 1.8 - o.z) < o.hd + 0.3)) { inp.jump = true; inp.mx = (tx-p.x)/d; inp.mz = (tz-p.z)/d; }
     if (holder && chase && p.lvl >= 2 && p.jumpCd <= 0 && holder.guard <= 0.4 && dck < 2.2 * C.SCALE[p.lvl] && S.rnd() < dt * 1.5) inp.jump = true;
     // 冲撞抱饼干的人
     if (holder && chase && p.dashCd <= 0 && holder.guard <= 0.15 && holder.inv <= 0) {
@@ -634,7 +672,7 @@ const SIM = (() => {
   function thinkBots(S, dt) { for (const p of S.players) if (p.bot) botThink(S, p, dt); }
 
   // ---------------- 联机快照：服务器 snap() 打包，客户端 applySnap() 套到自己的 S 上 ----------------
-  const PF_ = ['x', 'z', 'face', 'mvx', 'mvz', 'kvx', 'kvz', 'chips', 'lvl', 'on', 'fallT', 'fx', 'fz', 'fvx', 'fvz', 'inv', 'guard', 'dashCd', 'dashT', 'dashX', 'dashZ', 'dashHit', 'hitT', 'eaten', 'steals', 'shieldCd', 'boostT', 'frozenT', 'bubbleT', 'jumpT', 'jumpCd', 'grabT', 'home', 'place', 'lastHit', 'lastHitT'];
+  const PF_ = ['x', 'z', 'face', 'mvx', 'mvz', 'kvx', 'kvz', 'chips', 'lvl', 'on', 'fallT', 'fx', 'fz', 'fvx', 'fvz', 'inv', 'guard', 'dashCd', 'dashT', 'dashX', 'dashZ', 'dashHit', 'hitT', 'eaten', 'steals', 'shieldCd', 'boostT', 'frozenT', 'bubbleT', 'jumpT', 'jumpCd', 'grabT', 'home', 'place', 'lastHit', 'lastHitT', 'bestHold', 'holdRun', 'lastSteal'];
   const BOOL_ = { on: 1, dashHit: 1 }, MINE_ = { face: 1, mvx: 1, mvz: 1 }, ACT_ = { dashCd: 1, dashT: 1, dashX: 1, dashZ: 1, dashHit: 1, jumpT: 1, jumpCd: 1, home: 1 };
   const r3 = v => typeof v === 'number' ? Math.round(v * 1000) / 1000 : (v ? 1 : 0);
   function snap(S, withLists) {
@@ -650,7 +688,7 @@ const SIM = (() => {
     const ck = S.cookie; [ck.x, ck.z, ck.holder, ck.cd, ck.no, ck.noT] = m.c;
     if (m.te) { S.teamEat = m.te.slice(); S.winTeam = m.wt; }
     m.p.forEach((a, i) => {
-      const p = S.players[i], mine = i === me, n = PF_.length;
+      const p = S.players[i], mine = i === me, n = Math.min(PF_.length, a.length - 2), wireN = a.length - 2;
       const sx = a[0], sz = a[1], err = Math.hypot(sx - p.x, sz - p.z), wasOn = p.on;
       const acting = mine && S.lt - p.actT < 0.4;       // 我刚按了冲撞/跳，服务器还没收到：先信自己的
       for (let k = 2; k < n; k++) {
@@ -664,7 +702,7 @@ const SIM = (() => {
         if (forced || err > 3) { p.x = sx; p.z = sz; } else if (err > 1.3) { p.x += (sx - p.x) * 0.25; p.z += (sz - p.z) * 0.25; }
       } else {
         if (err > 2.5 || !p.on) { p.x = sx; p.z = sz; } else { p.x += (sx - p.x) * 0.35; p.z += (sz - p.z) * 0.35; }
-        p.inp.mx = a[n]; p.inp.mz = a[n + 1];
+        p.inp.mx = a[wireN]; p.inp.mz = a[wireN + 1];
       }
     });
     if (m.ch) S.chips = m.ch.map(c => ({ id: c[0], x: c[1], z: c[2] }));
@@ -674,11 +712,71 @@ const SIM = (() => {
   return { CFG, rng, create, step, thinkBots, blocked, lvlOf, edgeGap, snap, applySnap };
 })();
 // ===== SIM END =====
+// One localStorage write commits both the payment and its reward. Animation is cosmetic.
+function CookieEconomy(storage) {
+  const KEY = 'lc_wallet3', FREE = [0, 1, 2, 3];
+  const read = (key, fallback) => { try { const v = JSON.parse(storage.getItem(key)); return v == null ? fallback : v; } catch { return fallback; } };
+  const clean = v => {
+    const owned = [...new Set(FREE.concat(Array.isArray(v.owned) ? v.owned.filter(i => Number.isInteger(i) && i >= 0 && i < 21) : []))];
+    return { crumbs: Number.isFinite(v.crumbs) ? Math.max(0, Math.floor(v.crumbs)) : 100, owned, look: owned.includes(v.look) ? v.look : 0 };
+  };
+  const load = () => {
+    const v = read(KEY, null);
+    return clean(v && typeof v === 'object' ? v : { crumbs: read('lc_crumbs', 100), owned: read('lc_owned2', FREE), look: read('lc_look2', 0) });
+  };
+  const commit = v => { try { storage.setItem(KEY, JSON.stringify(clean(v))); return true; } catch { return false; } };
+  return {
+    load,
+    set(key, value) { const v = load(); v[key] = value; return commit(v); },
+    use(i) { const v = load(); if (!v.owned.includes(i)) return false; v.look = i; return commit(v); },
+    buy(i, looks) {
+      const v = load(), L = looks[i], price = L && [0, 200, 400, 800][L.rar];
+      if (!L || !Number.isFinite(price) || v.owned.includes(i) || v.crumbs < price) return false;
+      v.crumbs -= price; v.owned.push(i); v.look = i; return commit(v);
+    },
+    box(looks, random = Math.random) {
+      const v = load(), pool = [];
+      looks.forEach((L, i) => { if (!v.owned.includes(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
+      if (v.crumbs < 100 || !pool.length) return -1;
+      const i = pool[Math.min(pool.length - 1, Math.max(0, Math.floor(random() * pool.length)))];
+      v.crumbs -= 100; v.owned.push(i); v.look = i;
+      return commit(v) ? i : -1;
+    },
+  };
+}
+if (typeof module !== 'undefined') module.exports = CookieEconomy;
 // ===== I18N =====
 const CODES = ['en', 'fr', 'it', 'de', 'es', 'tr', 'zh', 'ja', 'ko', 'pt', 'ru'];
 const LANG_NAMES = { en: 'English', fr: 'Français', it: 'Italiano', de: 'Deutsch', es: 'Español', tr: 'Türkçe', zh: '中文', ja: '日本語', ko: '한국어', pt: 'Português', ru: 'Русский' };
 // 每条：{ en, zh, ... }；缺的语言退回英语
 const TL = {
+  saveFailed: { en: 'Could not save. Check browser storage; no purchase was made.', zh: '保存失败，请检查浏览器存储；本次未扣款。' },
+  sessionSolo: { en: 'PRACTICE · AI opponents', zh: '练习局 · 机器人对手' },
+  sessionOnline: { en: 'ONLINE · {n} players · ◇ AI fills empty slots', zh: '联机局 · {n} 位真人 · ◇ 为机器人' },
+  sessionLost: { en: 'Disconnected · continuing with AI', zh: '连接中断 · 已由机器人接管' },
+  guardHint: { en: 'Protected for {n}s · wait, then bump!', zh: '保护中，还剩 {n} 秒；等护盾消失再撞！' },
+  learnMove: { en: '1 / 4 · Move with WASD or arrow keys', zh: '1 / 4 · 用 WASD 或方向键移动' },
+  learnMoveT: { en: '1 / 4 · Drag the left side to move', zh: '1 / 4 · 拖动屏幕左侧移动' },
+  learnPick: { en: '2 / 4 · Touch the cookie to pick it up', zh: '2 / 4 · 靠近饼干，自动捡起' },
+  learnDash: { en: '3 / 4 · Get close, press SPACE / K to steal', zh: '3 / 4 · 接近持有者，按空格 / K 冲撞抢走' },
+  learnDashT: { en: '3 / 4 · Get close, tap BUMP to steal', zh: '3 / 4 · 接近持有者，点「冲撞」抢走' },
+  learnJump: { en: '4 / 4 · J / SHIFT jumps over toast and dodges bumps', zh: '4 / 4 · 按 J / Shift 跳过吐司、躲开冲撞' },
+  learnJumpT: { en: '4 / 4 · Tap JUMP to cross toast and dodge bumps', zh: '4 / 4 · 点「跳」跨过吐司、躲开冲撞' },
+  matchHighlights: { en: 'Steals {s} · Best hold {h}s · {n}s from victory', zh: '抢夺 {s} 次 · 最长持有 {h} 秒 · 距获胜差 {n} 秒' },
+  friends: { en: 'Play with friends', zh: '与好友同玩' },
+  roomCode: { en: 'Room code (4–8 letters/numbers)', zh: '房间码（4–8 位字母或数字）' },
+  roomHelp: { en: 'Enter the same code and start within 5 seconds. No code: public match.', zh: '双方填同一房间码，5 秒内同时开始；留空为公开匹配。' },
+  roomInvalid: { en: 'Use 4–8 letters or numbers for the room code.', zh: '房间码须为 4–8 位字母或数字。' },
+  roomUnavailable: { en: 'Friend rooms need the updated server. Stay here and try again later.', zh: '好友房需要更新后的服务器，当前未进入对局。' },
+  roomFull: { en: 'This room has started or is full. Use another code.', zh: '这个房间已开局或已满，请换一个房间码。' },
+  practice: { en: 'Play offline', zh: '单机练习' },
+  helpAgain: { en: 'Show control tips', zh: '显示操作引导' },
+  arena0: { en: 'BREAKFAST LOOPS · Jump the toast shortcut', zh: '早餐环线 · 跳吐司走近路' },
+  arena1: { en: 'SPLIT ROUTES · Cut across the centre', zh: '错位餐桌 · 抄中路截击' },
+  arena2: { en: 'CUP CROSSING · Bait a bump around the bowls', zh: '杯碗回廊 · 绕碗骗冲撞' },
+  nextUnlock: { en: 'Next: {a} · {n} more crumbs', zh: '下个目标：{a} · 还差 {n} 饼干屑' },
+  readyUnlock: { en: 'A new character is ready to unlock in the shop!', zh: '余额已够解锁新角色，去商店看看！' },
+  lateSteal: { en: 'Last-moment steal!', zh: '最后时刻反抢获胜！' },
   title: { en: 'Last Cookie', zh: '最后一块饼干' },
   go: { en: 'GO!', zh: '开抢！' },
   you: { en: 'YOU', zh: '你' },
@@ -952,11 +1050,14 @@ for (const l in TLX) for (const k in TLX[l]) if (TL[k]) TL[k][l] = TLX[l][k];
 // ===== CLIENT =====
 const C = SIM.CFG, VIS = 1.38;
 const $ = id => document.getElementById(id);
+const assetUrl = p => window.__LC_ASSETS && window.__LC_ASSETS[p] || p;
 const DEBUG = /[?&]debug/.test(location.search);
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+const economy = CookieEconomy({ getItem: k => localStorage.getItem(k), setItem: (k,v) => localStorage.setItem(k,v) });
+const walletKey = { crumbs: 'crumbs', owned2: 'owned', look2: 'look' };
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('lc_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('lc_' + k, JSON.stringify(v)); } catch (e) { } },
+  get(k, d) { if (walletKey[k]) return economy.load()[walletKey[k]]; try { const v = localStorage.getItem('lc_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { if (walletKey[k]) return economy.set(walletKey[k], v); try { localStorage.setItem('lc_' + k, JSON.stringify(v)); } catch (e) { } },
 };
 
 // ---------- 平台包装（GitHub 版是空实现；CG / Poki 版替换这一段） ----------
@@ -981,7 +1082,9 @@ function vnoise(x, z) {
 
 // ---------- three 基础 ----------
 const canvas = $('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+catch (error) { $('runtimeError').hidden = false; $('lobbyB').hidden = true; throw error; }
 renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1114,7 +1217,7 @@ function at(m, x, y, z, rx = 0, ry = 0, rz = 0) { m.position.set(x, y, z); m.rot
 function sc(m, x, y, z) { m.scale.set(x, y, z); return m; }
 // 脸：眼睛 + 眉毛 + 嘴（+ 腮红、墨镜、汗珠）。返回的 mouth / mOpen 给“嚼”的动画切换
 function addFace(g, y, z, s = 1, ex = {}) {
-  const face = new THREE.Group(); face.position.set(0, y, z);
+  const face = new THREE.Group(); face.position.set(0, y, z); const brows = [], eyes = [];
   const eye = ex.eye || 'normal', ES = 0.12 * s;
   for (const sx of [-1, 1]) {
     const kind = eye === 'wink' ? (sx > 0 ? 'happy' : 'normal') : eye;
@@ -1123,7 +1226,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
       const w = sph(0.085 * s, eyeWhite, 1, 1.15 * k, 0.55); w.position.set(sx * ES, 0, 0);
       const b = sph(0.058 * s, eyeBlack, 1, 1.1 * k, 0.6); b.position.set(sx * ES + (kind === 'side' ? 0.03 * s : 0), -0.005 - (kind === 'sleepy' ? 0.01 * s : 0), 0.03 * s);
       const hl = sph(0.018 * s, eyeWhite); hl.position.set(sx * ES + 0.02 * s + (kind === 'side' ? 0.03 * s : 0), 0.025 * s * k, 0.065 * s);
-      face.add(w, b, hl);
+      face.add(w, b, hl); eyes.push({ w, b, hl, sy: w.scale.y, by: b.scale.y });
       if (kind === 'sleepy') { const lid = capsule(0.014 * s, 0.13 * s, browM); at(lid, sx * ES, 0.045 * s, 0.04 * s, 0, 0, Math.PI / 2); face.add(lid); }
     } else if (kind === 'happy' || kind === 'closed') {
       const arc = new THREE.Mesh(new THREE.TorusGeometry(0.055 * s, 0.016 * s, 6, 14, Math.PI), eyeBlack);
@@ -1137,7 +1240,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
       let a = sx < 0 ? ang : -ang, yy = 0.12 * s;
       if (br === 'smug') { a = sx < 0 ? 0.35 : 0.5; yy = sx < 0 ? 0.14 * s : 0.1 * s; }
       if (br === 'worried') yy = 0.135 * s;
-      const b = capsule((br === 'calm' ? 0.028 : 0.02) * s, 0.09 * s, browM); at(b, sx * ES, yy, 0.035 * s, 0, 0, Math.PI / 2 + a); face.add(b);
+      const b = capsule((br === 'calm' ? 0.028 : 0.02) * s, 0.09 * s, browM); at(b, sx * ES, yy, 0.035 * s, 0, 0, Math.PI / 2 + a); face.add(b); brows.push({ mesh: b, base: b.rotation.z, side: sx });
     }
   }
   if (eye === 'shades') {
@@ -1162,7 +1265,7 @@ function addFace(g, y, z, s = 1, ex = {}) {
   if (ex.sweat) face.add(at(sph(0.035 * s, M(0x6fc8ff, 0.1, { transparent: true, opacity: 0.9 }), 1, 1.4, 0.6), -0.27 * s, 0.06 * s, 0.02));
   face.add(mouth, mOpen);
   g.add(face);
-  return { face, mouth, mOpen };
+  return { face, mouth, mOpen, brows, eyes };
 }
 // 圆角三角 / 半圆等平面形状挤出成厚片（正面朝 +z，居中）
 function slab(shape, depth, bevel, mat) {
@@ -1379,11 +1482,12 @@ function buildSnack(look) {
 let S = null;            // 当前对局
 const HW = C.HW, HH = C.HH, RR = C.ROUND_R;
 function clothTex(col, rx, rz) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, 128, 128);
-  g.fillStyle = col; g.fillRect(0, 0, 64, 128); g.fillRect(0, 0, 128, 64);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); t.anisotropy = 8; return t;
+  const t = new THREE.TextureLoader().load('assets/art/cloth.webp');
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  // The texture itself contains six checks per side; keep checks readable at game scale.
+  t.repeat.set(rx/6, rz/6); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t;
 }
+
 const tableRoot = new THREE.Group(); scene.add(tableRoot);
 let tableKind = null;
 function buildTable(round) {
@@ -1391,7 +1495,7 @@ function buildTable(round) {
   tableRoot.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(x => { x.map && x.map.dispose(); x.dispose(); }); } });
   tableRoot.clear();
   const add = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; tableRoot.add(m); return m; };
-  const hemCol = round ? 0xfdeff0 : 0xe8f4f2, hemMat = new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9 }), woodMat = new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
+  const hemCol = round ? 0xef9a7f : 0x5aafab, hemMat = new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9 }), woodMat = new THREE.MeshStandardMaterial({ color: 0x9a6236, roughness: 0.7 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0xff8a5c });
   const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
   const sc = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14, Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: hemCol, roughness: 0.9, side: THREE.DoubleSide }), 200); let n = 0;
   if (round) {
@@ -1410,7 +1514,7 @@ function buildTable(round) {
   }
   sc.count = n; tableRoot.add(sc);
   // 撒在桌上的彩色糖粒
-  const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 260;
+  const rnd = SIM.rng(11), cols = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffffff], N = 100;
   const sp = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.035, 0.14, 3, 6), new THREE.MeshStandardMaterial({ roughness: 0.45 }), N), c3 = new THREE.Color();
   for (let i = 0; i < N; i++) {
     let x, z; if (round) { const a = rnd() * 6.2832, d = Math.sqrt(rnd()) * (RR - 0.5); x = Math.cos(a) * d; z = Math.sin(a) * d; } else { x = (rnd() * 2 - 1) * (HW - 0.5); z = (rnd() * 2 - 1) * (HH - 0.5); }
@@ -1427,7 +1531,7 @@ function buildTable(round) {
 }
 // ---------- 桌上的东西（障碍） ----------
 const obsRoot = new THREE.Group(); scene.add(obsRoot);
-const OB_COL = [0xff8fa3, 0x7fc8f8, 0xffd166, 0x9be7c4, 0xc8b6ff, 0xffa66b];
+const OB_COL = [0x269c9b, 0xef7657, 0xeab94c, 0x54bfa7, 0x7786bd, 0xffa66b];
 function lathe(pts, seg = 36) { return new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg); }
 const cerealTex = (() => {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192; const g = cv.getContext('2d');
@@ -1486,12 +1590,18 @@ function buildObstacle(o) {
       add(new THREE.BoxGeometry(0.08, 0.5, d), cm, y + 0.25, -w / 2 + 0.04);                         // 书脊
     }
     add(new THREE.BoxGeometry(0.22, 0.02, 1.1), M(0xe24a4a, 0.6), 0.76, o.hw * 0.3, o.hd * 0.55);    // 书签
+  } else if (o.kind === 'toast') {
+    add(new THREE.BoxGeometry(o.hw * 2, 0.55, o.hd * 2), M(0xbf692e, 0.8), 0.28);
+    add(new THREE.BoxGeometry(o.hw * 2 - 0.18, 0.12, o.hd * 2 - 0.12), M(0xffdc92, 0.8), 0.59);
+    for (let x = -o.hw + 0.35; x < o.hw; x += 0.7) { const m = add(new THREE.BoxGeometry(0.05,0.015,o.hd * 1.6), M(0xd99444,0.8),0.66,x); m.rotation.y = 0.3; }
+    // Two bright stepping marks distinguish a shortcut from tall impassable props.
+    for (const z of [-1.1,1.1]) { const m = add(new THREE.RingGeometry(0.25,0.35,16), M(0x28a6a0,0.6),0.025,0,z); m.rotation.x = -Math.PI/2; }
   } else { // 麦片盒（躺着）
     add(new THREE.BoxGeometry(o.hw * 2, 1.2, o.hd * 2), M(0xffb347, 0.5), 0.6);
     const wide = o.hw >= o.hd, lab = add(new THREE.PlaneGeometry((wide ? o.hw : o.hd) * 1.96, (wide ? o.hd : o.hw) * 1.96), new THREE.MeshStandardMaterial({ map: cerealTex, roughness: 0.5 }), 1.205);
     lab.rotation.set(-Math.PI / 2, 0, wide ? 0 : Math.PI / 2); lab.castShadow = false;
   }
-  g.userData = { o, h: { mug: 2.2, bowl: 1.4, jar: 2.1, carton: 3.5, books: 1.6, cereal: 1.3 }[o.kind], a: 1 };
+  g.userData = { o, h: { mug: 2.2, bowl: 1.4, jar: 2.1, carton: 3.5, books: 1.6, cereal: 1.3, toast: 0.7 }[o.kind], a: 1 };
   g.traverse(m => { if (m.isMesh) m.material.transparent = true; });
   obsRoot.add(g);
 }
@@ -1883,17 +1993,24 @@ function updateHUD() {
   $('tbDash').classList.toggle('cd', cd > 0);
   $('tbJump').classList.toggle('cd', me.jumpCd > 0);
   if (S.phase === 'play' && S.playT > 1.5 && !$('intro').hidden) { $('intro').style.opacity = 0; if (S.playT > 2) $('intro').hidden = true; }
+  const guardTarget = holder >= 0 ? S.players[holder] : null;
+  if (S.phase === 'play' && holder !== ME && guardTarget && guardTarget.guard > 0 && Math.hypot(guardTarget.x-me.x,guardTarget.z-me.z)<7) { tip(tl('guardHint', { n: Math.ceil(guardTarget.guard) })); return; }
   // 前两局：根据情况提示该干什么
   if (tipsOn && S.phase === 'play') {
     const T = touchMode;
-    if (!me.on) tip(tl('tipFell'));
+    if (guide) { guide.moved ||= Math.hypot(me.x-guide.x,me.z-guide.z)>2; guide.picked ||= holder===ME; guide.dashed ||= me.steals>0; guide.jumped ||= me.jumpT>0; }
+    if (guide && !guide.moved) tip(tl(touchMode ? 'learnMoveT' : 'learnMove'));
+    else if (guide && !guide.picked && holder < 0) tip(tl('learnPick'));
+    else if (guide && !guide.dashed && holder >= 0 && holder !== ME) tip(tl(touchMode ? 'learnDashT' : 'learnDash'));
+    else if (guide && guide.picked && !guide.jumped) tip(tl(touchMode ? 'learnJumpT' : 'learnJump'));
+    else if (!me.on) tip(tl('tipFell'));
     else if (holder === ME) tip(tl(T ? 'tipCarryT' : 'tipCarry'));
     else if (S.team && holder >= 0 && S.players[holder].team === me.team) tip(tl(T ? 'tipGuardT' : 'tipGuard'));
     else if (holder < 0) tip(tl('tipLoose'));
     else tip(tl(T ? 'tipChaseT' : 'tipChase'));
   } else if (tipTxt) tip('');
 }
-let tipsOn = false;
+let tipsOn = false, guide = null;
 
 // ---------- 镜头：跟着我，稍微偏向饼干 ----------
 const camT = new THREE.Vector3(0, 0, 2), camPos = new THREE.Vector3(0, 30, 20);
@@ -1934,7 +2051,7 @@ function newMatch(cfg) {
   matchN++;
   // 第一局固定长方桌，之后长方桌 / 圆桌轮着来
   const played = store.get('played', 0);
-  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round } : { seed: (Math.random() * 1e9) | 0, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' ? TEAMS : 0, players: mode === 'team' && TEAMS === 3 ? 9 : undefined });
+  S = SIM.create(cfg ? { seed: cfg.seed, round: cfg.round, arena: cfg.arena === 1 } : { seed: Math.floor(Math.random() * 3e8) * 3 + played % 3, round: /[?&]round/.test(location.search) || played % 2 === 1, team: mode === 'team' ? TEAMS : 0, players: mode === 'team' && TEAMS === 3 ? 9 : undefined });
   $('intro').children[1].lastChild.dataset.t = S.team ? 'intro2T' : 'intro2'; $('intro').children[2].lastChild.dataset.t = S.team ? 'intro3T' : 'intro3'; applyLang();
   const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
   ME = cfg ? cfg.you : 0;
@@ -1952,11 +2069,14 @@ function newMatch(cfg) {
   for (const pool of [crumbs, stars, chipsFly]) for (const p of pool.arr) p.life = 0;
   warned = 0; last10 = false; boardKey = '';
   tipsOn = store.get('played', 0) < 2;
-  $('intro').hidden = store.get('played', 0) >= 2; $('intro').style.opacity = 1;
+  $('intro').hidden = true; $('intro').style.opacity = 1;
   $('panel').hidden = true; feed.innerHTML = ''; tip('');
   camT.set(me.x, 0, me.z + 1); camPos.set(me.x, Math.sin(0.95) * camDist(), me.z + 1 + Math.cos(0.95) * camDist());
   lastBeep = 4;
   myChipsEaten = 0;
+  guide = { x: me.x, z: me.z, moved: false, picked: false, dashed: false, jumped: false };
+  setT($('arenaLabel'), S.arena ? tl('arena'+S.variant) : '');
+  setT($('sessionStatus'), cfg ? tl('sessionOnline', { n: cfg.humans.filter(Boolean).length }) : tl('sessionSolo'));
   if (inLobby) { me.face = 0; lobbyUI(); } else PF.setPlaying(true);
 }
 function startFromLobby() {
@@ -1966,6 +2086,8 @@ function startFromLobby() {
   const me = S.players[ME]; me.face = Math.atan2(-me.x, -me.z); PF.setPlaying(true);
 }
 $('bPlay').addEventListener('click', playPressed);
+$('bOffline').addEventListener('click', () => { if (finding || !inLobby) return; newMatch(); startFromLobby(); });
+$('bHelp').addEventListener('click', () => { tipsOn = true; $('menu').hidden = true; paused = false; PF.setPlaying(true); });
 
 // ---------- 联机 ----------
 // 服务器地址：打包时写进来；测试时也可以在网址后面加 ?net=地址。没有地址 = 纯单机
@@ -1977,23 +2099,26 @@ function myName() { let n = store.get('name', ''); if (!n) { n = 'Cookie' + ((10
 let netOK = null;
 if (NET_URL) fetch(NET_URL.replace(/\/+$/, '') + '/', { mode: 'no-cors', cache: 'no-store' }).then(() => { netOK = true; }, () => { netOK = false; });
 function findMatch(cb) {
-  if (!NET_URL || netOK === false || mode === 'team') return cb(null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
+  const roomCode = (mode === 'solo' ? $('roomInput').value.trim().toUpperCase() : '');
+  if (roomCode && (!NET_URL || mode === 'team')) return cb({ error: 'roomUnavailable' });
+  if (!NET_URL || netOK === false || mode === 'team') return cb(roomCode ? { error: 'roomUnavailable' } : null);   // 组队模式暂时只有机器人局（服务器还没更新）          // 服务器连不上：不让人干等，直接打机器人局
   let done = false, ws = null, n = 1, max = C.N;
   const el = $('netWait'), t0 = performance.now();
   let dead = t0 + (netOK ? 8000 : 12000);                     // 最晚等到什么时候（预热都没成功过的话多给几秒）
   const show = () => setT($('netTxt'), tl('finding', { n, m: max }) + '  ' + Math.max(0, Math.ceil((dead - performance.now()) / 1000)));
-  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg) { try { ws && ws.close(); } catch (e) { } net = null; } cb(cfg); };
+  const finish = cfg => { if (done) return; done = true; clearInterval(iv); el.hidden = true; $('netSkip').onclick = null; if (!cfg || cfg.error) { try { ws && ws.close(); } catch (e) { } net = null; } cb(!cfg && roomCode ? { error: 'roomUnavailable' } : cfg); };
   const iv = setInterval(() => { if (performance.now() >= dead) finish(null); else show(); }, 250);
   el.hidden = false; show();
   $('netSkip').onclick = () => finish(null);                  // 不想等：直接开始（机器人局）
-  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join'); } catch (e) { return finish(null); }
+  try { ws = new WebSocket(NET_URL.replace(/^http/, 'ws').replace(/\/+$/, '') + '/join?v=2' + (roomCode ? '&room=' + encodeURIComponent(roomCode) : '')); } catch (e) { return finish(null); }
   const mine = net = { ws, pend: null, evq: [], lastSend: 0, lmx: 0, lmz: 0, lastMsg: performance.now() };
   ws.onopen = () => ws.send(JSON.stringify({ k: 'hi', name: myName(), look: myLook() }));
   ws.onmessage = e => {
     let m; try { m = JSON.parse(e.data); } catch (err) { return; }
     if (m.k === 'wait') { n = m.n; max = m.max; dead = performance.now() + (m.ms || 5000) + 3000; show(); }   // 连上了：按服务器说的等人时间，再多留 3 秒
-    else if (m.k === 'full') finish(null);
-    else if (m.k === 'start') finish(m);
+    else if (m.k === 'full') finish(roomCode ? { error: 'roomFull' } : null);
+    else if (m.k === 'roster' && S && S.net) { S.players.forEach((p,i) => p.real = !!m.humans[i]); setT($('sessionStatus'), tl('sessionOnline', { n: m.humans.filter(Boolean).length })); }
+    else if (m.k === 'start') finish(roomCode && m.room !== roomCode ? { error: 'roomUnavailable' } : m);
     else if (m.k === 's' && net === mine) {
       mine.lastMsg = performance.now();
       if (m.e) mine.evq.push(...m.e);
@@ -2005,7 +2130,8 @@ function findMatch(cb) {
 }
 function netLost() { // 打到一半断线：其他人交给本机的机器人，接着打完这局
   net = null; if (!S || !S.net) return;
-  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; });
+  S.net = false; S.players.forEach((p, i) => { p.bot = i !== ME; p.real = false; });
+  setT($('sessionStatus'), tl('sessionLost')); banner(tl('sessionLost'), false, 3);
 }
 function netFrame() { // 每帧：先套上服务器最新的局面，再处理服务器通报的事
   if (!net || !S.net) return;
@@ -2033,8 +2159,10 @@ function netSend(me) { // 把我的操作发给服务器：方向变了才发（
 }
 function playPressed() {
   if (!inLobby || finding) return;
+  const roomCode = mode === 'solo' ? $('roomInput').value.trim().toUpperCase() : '';
+  if (roomCode && !/^[A-Z0-9]{4,8}$/.test(roomCode)) { alert(tl('roomInvalid')); return; }
   ensureAudio(); finding = true; $('lobbyB').style.visibility = 'hidden';
-  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg) newMatch(cfg); startFromLobby(); });
+  findMatch(cfg => { finding = false; $('lobbyB').style.visibility = ''; if (cfg && cfg.error) { alert(tl(cfg.error)); return; } newMatch(cfg); startFromLobby(); });
 }
 let lastBeep = 4;
 function flash(col, a = 0.5) { const f = $('flash'); f.style.transition = 'none'; f.style.background = col; f.style.opacity = a; void f.offsetWidth; f.style.transition = 'opacity .45s ease-out'; f.style.opacity = 0; }
@@ -2149,6 +2277,9 @@ function showEnd() {
     const goal = S.team ? S.tWin : C.WIN_T;
     const rows = S.players.slice().sort((a, b) => a.place - b.place).map(p => `<div class="${p.id === ME ? 'me' : ''}"><b>${S.team ? (p.team === S.winTeam ? '👑' : '') : p.place === 1 ? '👑' : '#' + p.place}</b><i class="dot" style="background:${S.team ? TEAM_CSS[p.team] : dotCol(p.look)}"></i>${esc(nameTxt(p))}<s>🍪${Math.floor(p.eaten / goal * 100)}% · 💥${p.steals}</s></div>`);
     $('rank').innerHTML = rows.join('');
+    $('highlights').textContent = (won && me.lastSteal >= 0 && S.playT-me.lastSteal < 10 ? tl('lateSteal')+' ' : '') + tl('matchHighlights', { s: me.steals, h: (me.bestHold || 0).toFixed(1), n: Math.max(0, goal - (S.team ? S.teamEat[me.team] : me.eaten)).toFixed(1) });
+    const nextChar = LOOKS.map((L,i) => ({L,i})).filter(v => !owned().has(v.i)).sort((a,b) => a.L.rar-b.L.rar)[0];
+    $('nextGoal').textContent = nextChar ? store.get('crumbs',0) >= PRICE[nextChar.L.rar] ? tl('readyUnlock') : tl('nextUnlock', { a: lookName(nextChar.i), n: PRICE[nextChar.L.rar]-store.get('crumbs',0) }) : tl('allOwned');
     $('panel').hidden = false; $('banner').hidden = true; bannerT = 0;
     tip('');
   }, 2300);
@@ -2166,7 +2297,7 @@ $('bAgain').addEventListener('click', () => {
   ensureAudio();
   $('panel').hidden = true;
   // 广告只在两局之间
-  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => newMatch(cfg)); });
+  PF.midgame(() => { if (net) { try { net.ws.close(); } catch (e) { } net = null; } findMatch(cfg => { if (cfg && cfg.error) { goHome(); alert(tl(cfg.error)); } else newMatch(cfg); }); });
 });
 
 // ---------- 商店：21 个角色（饼干屑直接买，或 100 开一次盲盒） ----------
@@ -2175,14 +2306,14 @@ const BOX_COST = 100, PRICE = [0, 200, 400, 800];
 if (store.get('crumbs', null) == null) store.set('crumbs', BOX_COST);   // 新玩家送一次盲盒
 const myLook = () => store.get('look2', 0) % LOOKS.length;
 const owned = () => { const o = new Set(store.get('owned2', [])); LOOKS.forEach((L, i) => { if (!L.rar) o.add(i); }); return o; };
-const charImg = (i, has) => 'assets/chars/' + LOOKS[i].id + (has ? '' : '-locked') + '.webp';
+const charImg = (i, has) => assetUrl('assets/chars/' + LOOKS[i].id + (has ? '' : '-locked') + '.webp');
 let shop = { sel: 0, roll: null }, lockerFrom = '';
 function shopGrid() {
   const gEl = $('shopGrid'); if (gEl.children.length) return;
   LOOKS.forEach((L, i) => { const d = document.createElement('div'); d.className = 'r' + L.rar; d.innerHTML = '<img alt="" loading="lazy">'; d.onclick = () => { if (shop.roll) return; shop.sel = i; SFX.chip(); lockerUI(); }; gEl.appendChild(d); });
 }
 function lockerUI() {
-  const own = owned(), i = shop.sel, L = LOOKS[i], has = own.has(i), cur = myLook(), crumbs = store.get('crumbs', 0), rolling = !!shop.roll;
+  const own = shop.roll ? shop.beforeOwned : owned(), i = shop.sel, L = LOOKS[i], has = own.has(i), cur = shop.roll ? shop.beforeLook : myLook(), crumbs = store.get('crumbs', 0), rolling = !!shop.roll;
   $('pvCr').innerHTML = '<img class="ico" src="assets/ui/coin.webp" alt="">' + crumbs;
   if (!rolling) { const src = charImg(i, has); if ($('shopImg').getAttribute('src') !== src) $('shopImg').src = src; }
   $('shopBig').className = 'r' + L.rar;
@@ -2197,15 +2328,16 @@ function lockerUI() {
 function openLocker(from) { lockerFrom = from; shopGrid(); shop.sel = myLook(); $('locker').hidden = false; $('menu').hidden = true; lockerUI(); }
 function closeLocker() { if (shop.roll) return; $('locker').hidden = true; if (lockerFrom === 'menu') $('menu').hidden = false; if (inLobby) newMatch(); }
 function gotChar(i) { // 买到 / 开到：直接换上，亮一下
-  const own = owned(); own.add(i); store.set('owned2', [...own]); store.set('look2', i); shop.sel = i;
+  shop.sel = i;
   const im = $('shopImg'); im.classList.remove('roll', 'pop'); im.src = charImg(i, true); void im.offsetWidth; im.classList.add('pop');
   SFX.win(); PF.happy(); flash('#fff7c2', 0.4); lockerUI();
 }
 function openBox() {
-  const own = owned(), pool = []; LOOKS.forEach((L, i) => { if (!own.has(i)) for (let k = 0; k < [0, 6, 3, 1][L.rar]; k++) pool.push(i); });
-  if (!pool.length || store.get('crumbs', 0) < BOX_COST || shop.roll) return;
-  store.set('crumbs', store.get('crumbs', 0) - BOX_COST);
-  const win = pool[(Math.random() * pool.length) | 0], t0 = performance.now();
+  if (shop.roll) return;
+  shop.beforeOwned = owned(); shop.beforeLook = myLook();
+  const win = economy.box(LOOKS);
+  if (win < 0) { tip(tl('saveFailed')); return; }
+  const t0 = performance.now();
   const im = $('shopImg'); im.classList.remove('pop'); im.classList.add('roll');
   shop.roll = setInterval(() => { // 开盒：各种角色乱跳一阵，然后亮出来
     if (performance.now() - t0 > 1400) { clearInterval(shop.roll); shop.roll = null; gotChar(win); return; }
@@ -2213,8 +2345,8 @@ function openBox() {
   }, 90);
   lockerUI();
 }
-$('bUse').addEventListener('click', () => { store.set('look2', shop.sel); SFX.chip(); lockerUI(); });
-$('bBuy').addEventListener('click', () => { ensureAudio(); const p = PRICE[LOOKS[shop.sel].rar], c = store.get('crumbs', 0); if (shop.roll || owned().has(shop.sel) || c < p) return; store.set('crumbs', c - p); gotChar(shop.sel); });
+$('bUse').addEventListener('click', () => { if (!economy.use(shop.sel)) return; SFX.chip(); lockerUI(); });
+$('bBuy').addEventListener('click', () => { ensureAudio(); if (shop.roll || owned().has(shop.sel)) return; if (economy.buy(shop.sel, LOOKS)) gotChar(shop.sel); else tip(tl('saveFailed')); });
 $('bBox').addEventListener('click', () => { ensureAudio(); openBox(); });
 $('bLockerX').addEventListener('click', closeLocker);
 $('bSkins').addEventListener('click', () => openLocker('panel'));
@@ -2229,6 +2361,8 @@ const dailyPay = k => 30 + 20 * Math.min(k, 5);
 function questState() { const q = store.get('quests', null); return q && q.day === dayKey() ? q : { day: dayKey(), p: [0, 0, 0] }; }
 function lobbyUI() {
   modeUI();
+  $('roomInput').placeholder = tl('roomCode');
+  $('friendPanel').hidden = !NET_URL || mode === 'team';
   setT($('lobbyCr'), String(store.get('crumbs', 0)));
   const d = dailyState(), b = $('bDaily'); b.hidden = !d.can; if (d.can) b.textContent = '🎁 ' + tl('daily', { n: dailyPay(d.next), d: d.next });
   const q = questState();
@@ -2286,9 +2420,17 @@ function updateActors(dt, now) {
       a.root.scale.set(s * (1 - sq * 0.5), s * (1 + sq), s * (1 - sq * 0.5));
       sn.body.position.y = hopY;
       const chewing = a.chew > 0.12;
-      sn.body.rotation.x = (p.dashT > 0 ? 0.3 : 0) + (p.hitT > 0 ? -0.35 : 0);
+      sn.body.rotation.x = (p.dashT > 0 ? 0.48 : 0) + (p.hitT > 0 ? -0.5 : 0) + (i === holder ? -0.06 : 0);
       sn.body.rotation.z = p.hitT > 0 && p.frozenT <= 0 ? Math.sin(now * 40) * 0.15 : 0;
-      sn.face.mouth.visible = !chewing; sn.face.mOpen.visible = chewing;
+      const shocked = p.hitT > 0 || p.frozenT > 0, charging = p.dashT > 0, victory = S.phase === 'end' && (S.team ? p.team === S.winTeam : p.id === S.winner);
+      sn.face.mouth.visible = !(chewing || shocked); sn.face.mOpen.visible = chewing || shocked;
+      sn.face.mOpen.scale.y = shocked ? 1.45 : 0.8;
+      for (const br of sn.face.brows) br.mesh.rotation.z = charging ? Math.PI/2 - br.side * 0.6 : shocked ? Math.PI/2 + br.side * 0.45 : br.base;
+      for (const eye of sn.face.eyes) { const blink = !shocked && Math.sin(now * 1.8 + i * 2) > 0.997; const k = blink ? 0.12 : charging ? 0.68 : victory ? 0.55 : 1; eye.w.scale.y = eye.sy*k; eye.b.scale.y = eye.by*k; eye.hl.visible = !blink; }
+      const impact = p.hitT > 0 ? Math.sin(clamp(p.hitT / C.STUN_T,0,1)*Math.PI)*0.22 : 0;
+      const stretch = charging ? 0.15 : 0;
+      sn.body.scale.set(1+impact-stretch*0.4, 1-impact-stretch, 1+stretch);
+      if (victory) { sn.body.position.y += Math.abs(Math.sin(now*8))*0.3; sn.body.rotation.z = Math.sin(now*5)*0.1; }
       if (p.dashT > 0 && Math.random() < 0.7) emit(crumbs, p.x, 0.15, p.z, -Math.sin(p.face) * 1.5 + (Math.random() - 0.5), 1.5, -Math.cos(p.face) * 1.5 + (Math.random() - 0.5), 0.5, 0.8);
       sn.blob.material.opacity = a.drop > 0 ? 0 : 0.22; sn.blob.position.y = 0.012 - y / Math.max(0.01, a.root.scale.y);
       a.ice.visible = p.frozenT > 0; if (a.tr) a.tr.visible = a.drop <= 0;
@@ -2299,17 +2441,18 @@ function updateActors(dt, now) {
       const t = p.fallT;
       a.root.visible = t < 1.3;
       a.root.position.set(p.fx + p.fvx * 0.25 * Math.min(t, 0.8), -t * t * 9, p.fz + p.fvz * 0.25 * Math.min(t, 0.8));
-      a.root.rotation.x = t * 4; sn.blob.material.opacity = 0;
+      a.root.rotation.set(t * 5, p.face + t * 2, t * 2); sn.face.mouth.visible = false; sn.face.mOpen.visible = true; sn.blob.material.opacity = 0;
     }
     // 名字（抱饼干的人多显示一个饼干）
-    const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
+    const tag = a.tag, txt = (p.real ? '● ' : i !== ME ? '◇ ' : '') + nameTxt(p) + (i === holder ? (p.guard > 0 ? ' 🍪 🛡' : ' 🍪') : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const hold = i === holder; if (a.hold !== hold) { a.hold = hold; tag.classList.toggle('hold', hold); tag.style.setProperty('--hc', S.team ? TEAM_CSS[p.team] : hold && i === ME ? '#4fc44f' : '#f0a020'); }
     sn.portrait.visible = !!sn.portrait.material.map.userData.ready;
     sn.body.visible = !sn.portrait.visible;
     sn.portrait.position.y = sn.body.position.y;
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.95 : 1.05) * a.scale * VIS, a.root.position.z);
-    const show = vis && p.on && !(inLobby && i !== ME); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
+    const nearMe = Math.hypot(p.x-S.players[ME].x,p.z-S.players[ME].z) < 6;
+    const show = vis && p.on && !(inLobby && i !== ME) && (i === ME || hold || nearMe); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
     if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
   }
   // 饼干
@@ -2362,6 +2505,8 @@ const STEP = 1 / 60;
 let manualFrames = false, vNow = 0;
 function frame(now) {
   if (!manualFrames) requestAnimationFrame(frame);
+  // The illustrated title screen needs no continuous 3D rendering.
+  if (inLobby) { last = now; return; }
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
   const rawDt = dt;
   const tsec = now / 1000;

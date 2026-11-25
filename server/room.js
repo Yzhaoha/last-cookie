@@ -6,7 +6,7 @@ const SERVER_EVENTS = { go: 1, steal: 1, pick: 1, drop: 1, chip: 1, grow: 1, fal
 const BOT_NAMES_ = ['Muffin', 'Biscotti', 'Toffee', 'Mochi', 'Scone', 'Churro', 'Waffle', 'Praline', 'Brownie', 'Eclair', 'Crumble', 'Fudge', 'Sprinkle', 'Nougat', 'Truffle', 'Pretzel'];
 class RoomCore {
   constructor(SIM) { this.SIM = SIM; this.reset(); }
-  reset() { this.clients = new Map(); this.state = 'idle'; this.S = null; this.gatherEnd = 0; this.seq = 0; this.newEv = []; this.tickN = 0; this.endAt = 0; this.last = 0; this.cv = -1; this.iv = -1; }
+  reset() { this.clients = new Map(); this.state = 'idle'; this.S = null; this.gatherEnd = 0; this.seq = 0; this.newEv = []; this.tickN = 0; this.endAt = 0; this.last = 0; this.cv = -1; this.iv = -1; this.roomCode = ''; }
   all(obj) { const s = JSON.stringify(obj); for (const c of this.clients.values()) c.send(s); }
   // 返回 false = 这个房间已经开打或满了，进不来
   join(id, send, close) {
@@ -19,13 +19,13 @@ class RoomCore {
   leave(id) {
     const c = this.clients.get(id); if (!c) return;
     this.clients.delete(id);
-    if (this.S && c.slot >= 0) { const p = this.S.players[c.slot]; p.bot = true; }   // 机器人接手
+    if (this.S && c.slot >= 0) { const p = this.S.players[c.slot]; p.bot = true; this.all({ k: 'roster', humans: this.S.players.map(p => p.bot ? 0 : 1) }); }   // 机器人接手
     if (this.state === 'gather') this.tellWait();
     if (!this.clients.size) this.reset();
   }
   msg(id, m) {
     const c = this.clients.get(id); if (!c || !m) return;
-    if (m.k === 'hi') { c.name = String(m.name || 'Guest').replace(/[<>&"']/g, '').slice(0, 14) || 'Guest'; c.look = (m.look | 0) >>> 0; }
+    if (m.k === 'hi') { c.name = String(m.name || 'Guest').replace(/[<>&"']/g, '').slice(0, 14) || 'Guest'; c.look = Math.max(0, Math.min(20, m.look | 0)); }
     else if (m.k === 'in') {
       const x = +m.mx || 0, z = +m.mz || 0, l = Math.hypot(x, z);
       c.mx = l > 1 ? x / l : x; c.mz = l > 1 ? z / l : z; if (m.d) c.d = true; if (m.j) c.j = true;
@@ -37,7 +37,7 @@ class RoomCore {
     let slot = 0;
     for (const c of this.clients.values()) { c.slot = slot; const p = S.players[slot++]; p.bot = false; p.name = c.name; p.look = c.look; used.add(c.look); }
     S.players.forEach((p, i) => { if (!p.bot) return; p.name = names[i]; let l = (Math.random() * 21) | 0; while (used.has(l)) l = (l + 1) % 21; p.look = l; used.add(l); });
-    const base = { k: 'start', seed: S.seed, round: S.round, names: S.players.map(p => p.name), looks: S.players.map(p => p.look), humans: S.players.map(p => p.bot ? 0 : 1) };
+    const base = { k: 'start', seed: S.seed, round: S.round, names: S.players.map(p => p.name), arena: 1, protocol: 2, room: this.roomCode, looks: S.players.map(p => p.look), humans: S.players.map(p => p.bot ? 0 : 1) };
     for (const c of this.clients.values()) c.send(JSON.stringify(Object.assign({ you: c.slot }, base)));
     this.state = 'play'; this.last = Date.now(); this.cv = this.iv = -1;
   }
