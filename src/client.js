@@ -399,6 +399,7 @@ const SNACK = {
     b.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 12), wh), 0, 0.25, 0.39, Math.PI, 0, 0));
   },
 };
+const portraitMaterials = new Map();
 function buildSnack(look) {
   const L = LOOKS[look % LOOKS.length], g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   SNACK[L.id](body, L, SIM.rng(look * 31 + 7));
@@ -407,7 +408,21 @@ function buildSnack(look) {
   // 脚下接触阴影
   const blob = new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), new THREE.MeshBasicMaterial({ color: 0x3d1a06, transparent: true, opacity: 0.22, depthWrite: false }));
   blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; g.add(blob);
-  return { g, body, face, blob, col: L.col };
+  let material = portraitMaterials.get(L.id);
+  if (!material) {
+    const texture = new THREE.TextureLoader().load('assets/chars/' + L.id + '.webp', () => {
+      texture.userData.ready = true;
+    });
+    texture.colorSpace = THREE.SRGBColorSpace;
+    material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    portraitMaterials.set(L.id, material);
+  }
+  const portrait = new THREE.Sprite(material);
+  portrait.center.set(0.5, 0.07);
+  portrait.scale.setScalar(1.5);
+  portrait.visible = false;
+  g.add(portrait);
+  return { g, body, face, blob, portrait, col: L.col };
 }
 // ---------- 桌面（两种：长方桌 / 圆桌，每局换） ----------
 let S = null;            // 当前对局
@@ -634,7 +649,7 @@ function buildActors() {
     let tr = null;
     if (S.team) { tr = new THREE.Mesh(teamRingGeo, new THREE.MeshBasicMaterial({ color: TEAM_COL[p.team], transparent: true, opacity: 0.6, depthWrite: false })); tr.position.y = 0.025; sn.g.add(tr); }
     const ice = new THREE.Mesh(iceGeo, iceMat); ice.position.y = 0.5; ice.visible = false; const bub = new THREE.Mesh(bubGeo, bubMat); bub.position.y = 0.5; bub.visible = false; sn.g.add(ice, bub);
-    return { root: sn.g, sn, tag, ice, bub, tr, tagTxt: '', scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
+    return { root: sn.g, sn, tag, ice, bub, tr, tagTxt: '', offsetX: 0, offsetZ: 0, scale: 1, hop: 0, flash: 0, pop: 0, drop: 0, chew: 0 };
   });
 }
 
@@ -944,7 +959,7 @@ function updateCamera(dt) {
     if (DEBUG && window.__camO) { const o = window.__camO; camera.position.set(...o.p); camera.lookAt(...o.l); sun.position.set(o.l[0] + 9, o.l[1] + 20, o.l[2] + 7); sun.target.position.set(...o.l); }
     return;
   }
-  let fx = me.on ? me.x : clamp(me.fx, -HW, HW), fz = me.on ? me.z : clamp(me.fz, -HH, HH);
+  let fx = me.on ? actors[ME].root.position.x : clamp(me.fx, -HW, HW), fz = me.on ? actors[ME].root.position.z : clamp(me.fz, -HH, HH);
   let ox = (ck.x - fx) * 0.22, oz = (ck.z - fz) * 0.22; const ol = Math.hypot(ox, oz); if (ol > 3.5) { ox *= 3.5 / ol; oz *= 3.5 / ol; }
   if (S.phase === 'end') { const wn = S.players[S.winner]; fx = wn.x; fz = wn.z; ox = oz = 0; }
   const tx = fx + ox, tz = fz + oz + 1;
@@ -988,7 +1003,7 @@ function newMatch(cfg) {
   tipsOn = store.get('played', 0) < 2;
   $('intro').hidden = store.get('played', 0) >= 2; $('intro').style.opacity = 1;
   $('panel').hidden = true; feed.innerHTML = ''; tip('');
-  camT.set(me.x, 0, me.z + 1); camPos.set(me.x, 30, me.z + 20);
+  camT.set(me.x, 0, me.z + 1); camPos.set(me.x, Math.sin(0.95) * camDist(), me.z + 1 + Math.cos(0.95) * camDist());
   lastBeep = 4;
   myChipsEaten = 0;
   if (inLobby) { me.face = 0; lobbyUI(); } else PF.setPlaying(true);
@@ -1045,7 +1060,16 @@ function netFrame() { // 每帧：先套上服务器最新的局面，再处理�
   if (!net || !S.net) return;
   // 3 秒没收到服务器消息 = 断了（网络断开时浏览器不一定会马上通知）
   if (performance.now() - net.lastMsg > 3000 && S.phase !== 'end') { const w = net.ws; netLost(); try { w.close(); } catch (e) { } return; }
-  if (net.pend) { SIM.applySnap(S, net.pend, ME); net.pend = null; }
+  if (net.pend) {
+    const before = S.players.map(p => ({ x: p.x, z: p.z, on: p.on }));
+    SIM.applySnap(S, net.pend, ME);
+    S.players.forEach((p, i) => {
+      const a = actors[i], prev = before[i];
+      a.offsetX = prev.on && p.on ? a.offsetX + prev.x - p.x : 0;
+      a.offsetZ = prev.on && p.on ? a.offsetZ + prev.z - p.z : 0;
+    });
+    net.pend = null;
+  }
   if (net.evq.length) { const q = net.evq; net.evq = []; handleEvents(q, true); }
 }
 function netSend(me) { // 把我的操作发给服务器：方向变了才发（每秒最多 20 次），冲撞 / 跳立刻发
@@ -1303,7 +1327,9 @@ function updateActors(dt, now) {
       let y = a.drop > 0 ? (a.drop / 0.45) ** 2 * 7 : 0; // 回到桌上：从天上掉下来
       if (p.dashT > 0) y += Math.sin(clamp(1 - p.dashT / C.DASH_T, 0, 1) * Math.PI) * 0.35;
       if (p.jumpT > 0) y += Math.sin((1 - p.jumpT / C.JUMP_T) * Math.PI) * 2.1;
-      a.root.position.set(p.x, y, p.z);
+      a.offsetX *= Math.exp(-12 * dt);
+      a.offsetZ *= Math.exp(-12 * dt);
+      a.root.position.set(p.x + a.offsetX, y, p.z + a.offsetZ);
       a.root.rotation.set(0, p.face, 0);
       const s = a.scale * popS * VIS;
       a.root.scale.set(s * (1 - sq * 0.5), s * (1 + sq), s * (1 - sq * 0.5));
@@ -1328,6 +1354,9 @@ function updateActors(dt, now) {
     const tag = a.tag, txt = nameTxt(p) + (i === holder ? ' 🍪' : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const hold = i === holder; if (a.hold !== hold) { a.hold = hold; tag.classList.toggle('hold', hold); tag.style.setProperty('--hc', S.team ? TEAM_CSS[p.team] : hold && i === ME ? '#4fc44f' : '#f0a020'); }
+    sn.portrait.visible = !!sn.portrait.material.map.userData.ready;
+    sn.body.visible = !sn.portrait.visible;
+    sn.portrait.position.y = sn.body.position.y;
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.95 : 1.05) * a.scale * VIS, a.root.position.z);
     const show = vis && p.on && !(inLobby && i !== ME); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
     if (show) setTf(tag, `translate3d(${Math.round(sx)}px,${Math.round(sy)}px,0) translate(-50%,-100%)`);
