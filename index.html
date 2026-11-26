@@ -1453,7 +1453,6 @@ const SNACK = {
     b.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 12), wh), 0, 0.25, 0.39, Math.PI, 0, 0));
   },
 };
-const portraitMaterials = new Map();
 function buildSnack(look) {
   const L = LOOKS[look % LOOKS.length], g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   SNACK[L.id](body, L, SIM.rng(look * 31 + 7));
@@ -1462,21 +1461,7 @@ function buildSnack(look) {
   // 脚下接触阴影
   const blob = new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), new THREE.MeshBasicMaterial({ color: 0x3d1a06, transparent: true, opacity: 0.22, depthWrite: false }));
   blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; g.add(blob);
-  let material = portraitMaterials.get(L.id);
-  if (!material) {
-    const texture = new THREE.TextureLoader().load('assets/chars/' + L.id + '.webp', () => {
-      texture.userData.ready = true;
-    });
-    texture.colorSpace = THREE.SRGBColorSpace;
-    material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-    portraitMaterials.set(L.id, material);
-  }
-  const portrait = new THREE.Sprite(material);
-  portrait.center.set(0.5, 0.07);
-  portrait.scale.setScalar(1.5);
-  portrait.visible = false;
-  g.add(portrait);
-  return { g, body, face, blob, portrait, col: L.col };
+  return { g, body, face, blob, col: L.col };
 }
 // ---------- 桌面（两种：长方桌 / 圆桌，每局换） ----------
 let S = null;            // 当前对局
@@ -2447,9 +2432,6 @@ function updateActors(dt, now) {
     const tag = a.tag, txt = (p.real ? '● ' : i !== ME ? '◇ ' : '') + nameTxt(p) + (i === holder ? (p.guard > 0 ? ' 🍪 🛡' : ' 🍪') : '');
     if (txt !== a.tagTxt) { a.tagTxt = txt; tag.textContent = txt; }
     const hold = i === holder; if (a.hold !== hold) { a.hold = hold; tag.classList.toggle('hold', hold); tag.style.setProperty('--hc', S.team ? TEAM_CSS[p.team] : hold && i === ME ? '#4fc44f' : '#f0a020'); }
-    sn.portrait.visible = !!sn.portrait.material.map.userData.ready;
-    sn.body.visible = !sn.portrait.visible;
-    sn.portrait.position.y = sn.body.position.y;
     const [sx, sy, vis] = toScreen(a.root.position.x, a.root.position.y + (i === holder ? 1.95 : 1.05) * a.scale * VIS, a.root.position.z);
     const nearMe = Math.hypot(p.x-S.players[ME].x,p.z-S.players[ME].z) < 6;
     const show = vis && p.on && !(inLobby && i !== ME) && (i === ME || hold || nearMe); if (a.tagShow !== show) { a.tagShow = show; tag.style.display = show ? '' : 'none'; }
